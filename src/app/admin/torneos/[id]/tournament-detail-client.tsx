@@ -25,13 +25,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
-import { Mail, Check, Save, X, Trash2, Search } from 'lucide-react'
+import { Mail, Save, X, Trash2, Search, MoreHorizontal, UserCheck } from 'lucide-react'
 import {
   updatePlayerNameAction,
   updatePlayerEmailAction,
   updatePlayerWhatsappAction,
   invitePlayerAction,
+  forceAcceptPlayerAction,
   deletePlayerAction,
   deleteManyPlayersAction,
 } from './actions'
@@ -149,6 +157,17 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
       const result = await invitePlayerAction(tournamentId, playerId)
       if (result.success) {
         toast.success('Invitación enviada')
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function handleForceAccept(playerId: string) {
+    startTransition(async () => {
+      const result = await forceAcceptPlayerAction(tournamentId, playerId)
+      if (result.success) {
+        toast.success('Jugador marcado como aceptado')
       } else {
         toast.error(result.error)
       }
@@ -413,33 +432,35 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
                   </TableCell>
                   <TableCell>{getStatus(p)}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
-                      {p.email && !p.acceptedAt && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleInvite(p.id)}
-                          disabled={isPending}
-                        >
-                          <Mail className="h-3 w-3 mr-1" />
-                          {p.invitedAt ? 'Reenviar' : 'Invitar'}
-                        </Button>
-                      )}
-                      {p.acceptedAt && (
-                        <span className="text-sm text-green-600 flex items-center gap-1">
-                          <Check className="h-3 w-3" /> OK
-                        </span>
-                      )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => setDeleteTarget(p)}
-                        disabled={isPending}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button size="icon" variant="ghost" className="h-7 w-7" disabled={isPending} />}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {p.email && !p.acceptedAt && (
+                          <DropdownMenuItem onClick={() => handleInvite(p.id)}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            {p.invitedAt ? 'Reenviar invitación' : 'Invitar'}
+                          </DropdownMenuItem>
+                        )}
+                        {p.email && !p.acceptedAt && (
+                          <DropdownMenuItem onClick={() => handleForceAccept(p.id)}>
+                            <UserCheck className="h-4 w-4 mr-2" />
+                            Marcar aceptado
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => setDeleteTarget(p)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

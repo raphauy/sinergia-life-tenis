@@ -23,6 +23,7 @@ export async function generateMetadata({
       user: { select: { name: true, image: true } },
       category: { select: { name: true } },
       tournament: { select: { name: true } },
+      group: { select: { number: true } },
     },
   })
 
@@ -30,7 +31,8 @@ export async function generateMetadata({
 
   const name = player.user?.name || player.name
   const title = `${name} - ${player.tournament.name} - Life Tenis`
-  const description = `${name} - Categoría ${player.category.name} - ${player.tournament.name}`
+  const groupSuffix = player.group ? ` - Grupo ${player.group.number}` : ''
+  const description = `${name} - Categoría ${player.category.name}${groupSuffix} - ${player.tournament.name}`
 
   return {
     title,
@@ -57,6 +59,7 @@ export default async function JugadorProfilePage({ params }: Props) {
       user: { select: { id: true, name: true, image: true } },
       category: { select: { name: true } },
       tournament: { select: { name: true } },
+      group: { select: { number: true } },
     },
   })
 
@@ -103,6 +106,9 @@ export default async function JugadorProfilePage({ params }: Props) {
           <div className="flex items-center gap-2 mt-1">
             <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
             <CategoryBadge name={player.category.name} />
+            {player.group && (
+              <Badge variant="secondary" className="rounded-md">Grupo {player.group.number}</Badge>
+            )}
           </div>
         </div>
       </div>

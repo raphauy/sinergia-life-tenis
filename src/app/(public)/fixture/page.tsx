@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getMatches } from '@/services/match-service'
+import { getGroupsByCategory } from '@/services/group-service'
 import { MatchCard } from '@/components/match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { prisma } from '@/lib/prisma'
@@ -50,15 +51,16 @@ export default async function FixturePage() {
 
   const fixtureData = await Promise.all(
     categories.map(async (cat) => {
-      const [matches, playerMap] = await Promise.all([
+      const [matches, playerMap, groups] = await Promise.all([
         getMatches({ categoryId: cat.id }),
         getPlayerMap(cat.id),
+        getGroupsByCategory(cat.id),
       ])
 
       const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
 
-      return { cat, upcoming, played, playerMap }
+      return { cat, upcoming, played, playerMap, groups }
     })
   )
 
@@ -83,45 +85,146 @@ export default async function FixturePage() {
             ))}
           </TabsList>
 
-          {fixtureData.map(({ cat, upcoming, played, playerMap }) => (
+          {fixtureData.map(({ cat, upcoming, played, playerMap, groups }) => (
             <TabsContent key={cat.id} value={cat.id}>
               <div className="space-y-6">
-                {/* Upcoming */}
-                {upcoming.length > 0 && (
-                  <section>
-                    <h2 className="text-sm font-medium text-muted-foreground mb-2">
-                      Próximos partidos ({upcoming.length})
-                    </h2>
-                    <div className="space-y-2">
-                      {upcoming.map((m) => (
-                        <MatchCard
-                          key={m.id}
-                          match={m}
-                          player1LinkId={playerMap.get(m.player1Id)}
-                          player2LinkId={playerMap.get(m.player2Id)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
+                {groups.length > 0 ? (
+                  // Grouped display
+                  <>
+                    {groups.map((group) => {
+                      const groupUpcoming = upcoming.filter((m) => m.group?.id === group.id)
+                      const groupPlayed = played.filter((m) => m.group?.id === group.id)
+                      if (groupUpcoming.length === 0 && groupPlayed.length === 0) return null
 
-                {/* Results */}
-                {played.length > 0 && (
-                  <section>
-                    <h2 className="text-sm font-medium text-muted-foreground mb-2">
-                      Resultados ({played.length})
-                    </h2>
-                    <div className="space-y-2">
-                      {played.map((m) => (
-                        <MatchCard
-                          key={m.id}
-                          match={m}
-                          player1LinkId={playerMap.get(m.player1Id)}
-                          player2LinkId={playerMap.get(m.player2Id)}
-                        />
-                      ))}
-                    </div>
-                  </section>
+                      return (
+                        <div key={group.id} className="space-y-3">
+                          <h2 className="text-sm font-semibold border-b pb-1">Grupo {group.number}</h2>
+
+                          {groupUpcoming.length > 0 && (
+                            <section>
+                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                                Próximos partidos ({groupUpcoming.length})
+                              </h3>
+                              <div className="space-y-2">
+                                {groupUpcoming.map((m) => (
+                                  <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    player1LinkId={playerMap.get(m.player1Id)}
+                                    player2LinkId={playerMap.get(m.player2Id)}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          )}
+
+                          {groupPlayed.length > 0 && (
+                            <section>
+                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                                Resultados ({groupPlayed.length})
+                              </h3>
+                              <div className="space-y-2">
+                                {groupPlayed.map((m) => (
+                                  <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    player1LinkId={playerMap.get(m.player1Id)}
+                                    player2LinkId={playerMap.get(m.player2Id)}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {/* Matches without group */}
+                    {(() => {
+                      const ungroupedUpcoming = upcoming.filter((m) => !m.group)
+                      const ungroupedPlayed = played.filter((m) => !m.group)
+                      if (ungroupedUpcoming.length === 0 && ungroupedPlayed.length === 0) return null
+
+                      return (
+                        <div className="space-y-3">
+                          <h2 className="text-sm font-semibold border-b pb-1">General</h2>
+                          {ungroupedUpcoming.length > 0 && (
+                            <section>
+                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                                Próximos partidos ({ungroupedUpcoming.length})
+                              </h3>
+                              <div className="space-y-2">
+                                {ungroupedUpcoming.map((m) => (
+                                  <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    player1LinkId={playerMap.get(m.player1Id)}
+                                    player2LinkId={playerMap.get(m.player2Id)}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                          {ungroupedPlayed.length > 0 && (
+                            <section>
+                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
+                                Resultados ({ungroupedPlayed.length})
+                              </h3>
+                              <div className="space-y-2">
+                                {ungroupedPlayed.map((m) => (
+                                  <MatchCard
+                                    key={m.id}
+                                    match={m}
+                                    player1LinkId={playerMap.get(m.player1Id)}
+                                    player2LinkId={playerMap.get(m.player2Id)}
+                                  />
+                                ))}
+                              </div>
+                            </section>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </>
+                ) : (
+                  // Flat display (no groups)
+                  <>
+                    {upcoming.length > 0 && (
+                      <section>
+                        <h2 className="text-sm font-medium text-muted-foreground mb-2">
+                          Próximos partidos ({upcoming.length})
+                        </h2>
+                        <div className="space-y-2">
+                          {upcoming.map((m) => (
+                            <MatchCard
+                              key={m.id}
+                              match={m}
+                              player1LinkId={playerMap.get(m.player1Id)}
+                              player2LinkId={playerMap.get(m.player2Id)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {played.length > 0 && (
+                      <section>
+                        <h2 className="text-sm font-medium text-muted-foreground mb-2">
+                          Resultados ({played.length})
+                        </h2>
+                        <div className="space-y-2">
+                          {played.map((m) => (
+                            <MatchCard
+                              key={m.id}
+                              match={m}
+                              player1LinkId={playerMap.get(m.player1Id)}
+                              player2LinkId={playerMap.get(m.player2Id)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
                 )}
 
                 {upcoming.length === 0 && played.length === 0 && (

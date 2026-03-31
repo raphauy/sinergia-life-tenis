@@ -6,6 +6,7 @@ const matchIncludes = {
   player2: { select: { id: true, name: true, email: true, image: true } },
   tournament: { select: { id: true, name: true, matchFormat: true } },
   category: { select: { id: true, name: true } },
+  group: { select: { id: true, number: true } },
   result: true,
 } as const
 
@@ -37,12 +38,14 @@ export async function createMatch(data: {
 export async function getMatches(filters?: {
   tournamentId?: string
   categoryId?: string
+  groupId?: string
   status?: MatchStatus
 }) {
   return prisma.match.findMany({
     where: {
       ...(filters?.tournamentId ? { tournamentId: filters.tournamentId } : {}),
       ...(filters?.categoryId ? { categoryId: filters.categoryId } : {}),
+      ...(filters?.groupId ? { groupId: filters.groupId } : {}),
       ...(filters?.status ? { status: filters.status } : {}),
     },
     include: matchIncludes,

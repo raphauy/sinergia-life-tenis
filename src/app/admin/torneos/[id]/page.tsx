@@ -2,12 +2,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getTournamentById } from '@/services/tournament-service'
 import { getPlayersByTournament } from '@/services/player-service'
+import { getGroupsByCategory } from '@/services/group-service'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
 import { formatDateUY } from '@/lib/date-utils'
 import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
+import { GroupsSection } from './groups-section'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -19,6 +21,11 @@ export default async function TournamentDetailPage({ params }: Props) {
   if (!tournament) notFound()
 
   const players = await getPlayersByTournament(id)
+
+  const allGroups = await Promise.all(
+    tournament.categories.map((c) => getGroupsByCategory(c.id))
+  )
+  const groups = allGroups.flat()
 
   return (
     <div>
@@ -55,6 +62,20 @@ export default async function TournamentDetailPage({ params }: Props) {
         tournamentId={id}
         players={players}
         categories={tournament.categories}
+      />
+
+      {/* Groups management */}
+      <GroupsSection
+        tournamentId={id}
+        categories={tournament.categories}
+        groups={groups}
+        allPlayers={players.map((p) => ({
+          id: p.id,
+          name: p.user?.name || p.name,
+          userId: p.userId,
+          categoryId: p.categoryId,
+          groupId: p.groupId,
+        }))}
       />
     </div>
   )

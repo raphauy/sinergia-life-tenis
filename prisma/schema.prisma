@@ -127,9 +127,25 @@ model TournamentCategory {
   tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   players    Player[]
   matches    Match[]
+  groups     Group[]
 
   @@unique([tournamentId, name])
   @@index([tournamentId])
+}
+
+model Group {
+  id         String   @id @default(cuid())
+  categoryId String
+  number     Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  players  Player[]
+  matches  Match[]
+
+  @@unique([categoryId, number])
+  @@index([categoryId])
 }
 
 model Player {
@@ -137,6 +153,7 @@ model Player {
   userId          String?
   tournamentId    String
   categoryId      String
+  groupId         String?
   name            String
   whatsappNumber  String?
   email           String?
@@ -150,11 +167,13 @@ model Player {
   user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
   tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@unique([tournamentId, email])
   @@index([tournamentId])
   @@index([categoryId])
   @@index([userId])
+  @@index([groupId])
   @@index([invitationToken])
 }
 
@@ -162,6 +181,7 @@ model Match {
   id           String      @id @default(cuid())
   tournamentId String
   categoryId   String
+  groupId      String?
   player1Id    String
   player2Id    String
   courtNumber  Int?
@@ -174,12 +194,14 @@ model Match {
 
   tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
   player1    User               @relation("MatchPlayer1", fields: [player1Id], references: [id])
   player2    User               @relation("MatchPlayer2", fields: [player2Id], references: [id])
   result     MatchResult?
 
   @@index([tournamentId])
   @@index([categoryId])
+  @@index([groupId])
   @@index([player1Id])
   @@index([player2Id])
   @@index([status])

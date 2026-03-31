@@ -3,8 +3,9 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { prisma as prismaDb } from '@/lib/prisma'
 import { getActiveTournament } from '@/services/tournament-service'
-import { getRankingByCategory } from '@/services/ranking-service'
+import { getRankingByCategory, getRankingByGroup } from '@/services/ranking-service'
 import { getMatches } from '@/services/match-service'
+import { getGroupsByCategory } from '@/services/group-service'
 import { RankingTable } from '@/components/ranking-table'
 import { MatchCard } from '@/components/match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -121,21 +122,27 @@ async function TournamentContent({
     return <p className="text-muted-foreground">No hay categorías configuradas.</p>
   }
 
-  // Fetch ranking + matches for all categories
+  // Fetch ranking + matches + groups for all categories
   const data = await Promise.all(
     categories.map(async (cat) => {
-      const [ranking, matches] = await Promise.all([
+      const [ranking, matches, playerMap, groups] = await Promise.all([
         getRankingByCategory(cat.id),
         getMatches({ categoryId: cat.id }),
+        getPlayerMap(cat.id),
+        getGroupsByCategory(cat.id),
       ])
 
-      // Get player IDs for linking
-      const playerMap = await getPlayerMap(cat.id)
+      const groupRankings = await Promise.all(
+        groups.map(async (g) => ({
+          group: g,
+          ranking: await getRankingByGroup(g.id),
+        }))
+      )
 
       const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
 
-      return { cat, ranking, upcoming, played, playerMap }
+      return { cat, ranking, upcoming, played, playerMap, groups, groupRankings }
     })
   )
 
@@ -151,7 +158,7 @@ async function TournamentContent({
         ))}
       </TabsList>
 
-      {data.map(({ cat, ranking, upcoming, played, playerMap }) => (
+      {data.map(({ cat, ranking, upcoming, played, playerMap, groups, groupRankings }) => (
         <TabsContent key={cat.id} value={cat.id}>
           <div className="space-y-8">
             {/* Ranking */}
@@ -163,7 +170,18 @@ async function TournamentContent({
                   Ver completo
                 </Link>
               </div>
-              <RankingTable entries={ranking} />
+              {groupRankings.length > 0 ? (
+                <div className="space-y-4">
+                  {groupRankings.map(({ group, ranking: gr }) => (
+                    <div key={group.id}>
+                      <h3 className="text-sm font-semibold border-b pb-1 mb-2">Grupo {group.number}</h3>
+                      <RankingTable entries={gr} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <RankingTable entries={ranking} />
+              )}
             </section>
 
             {/* Fixture */}
@@ -176,36 +194,84 @@ async function TournamentContent({
                 </Link>
               </div>
 
-              {upcoming.length > 0 && (
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Próximos partidos</h3>
-                  <div className="space-y-2">
-                    {upcoming.slice(0, 5).map((m) => (
-                      <MatchCard
-                        key={m.id}
-                        match={m}
-                        player1LinkId={playerMap.get(m.player1Id)}
-                        player2LinkId={playerMap.get(m.player2Id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {groups.length > 0 ? (
+                <div className="space-y-4">
+                  {groups.map((group) => {
+                    const gu = upcoming.filter((m) => m.group?.id === group.id)
+                    const gp = played.filter((m) => m.group?.id === group.id)
+                    if (gu.length === 0 && gp.length === 0) return null
 
-              {played.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Últimos resultados</h3>
-                  <div className="space-y-2">
-                    {played.slice(0, 5).map((m) => (
-                      <MatchCard
-                        key={m.id}
-                        match={m}
-                        player1LinkId={playerMap.get(m.player1Id)}
-                        player2LinkId={playerMap.get(m.player2Id)}
-                      />
-                    ))}
-                  </div>
+                    return (
+                      <div key={group.id}>
+                        <h3 className="text-sm font-semibold border-b pb-1 mb-2">Grupo {group.number}</h3>
+                        {gu.length > 0 && (
+                          <div className="mb-3">
+                            <h4 className="text-xs font-medium text-muted-foreground mb-2">Próximos partidos</h4>
+                            <div className="space-y-2">
+                              {gu.slice(0, 5).map((m) => (
+                                <MatchCard
+                                  key={m.id}
+                                  match={m}
+                                  player1LinkId={playerMap.get(m.player1Id)}
+                                  player2LinkId={playerMap.get(m.player2Id)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {gp.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-medium text-muted-foreground mb-2">Resultados</h4>
+                            <div className="space-y-2">
+                              {gp.slice(0, 5).map((m) => (
+                                <MatchCard
+                                  key={m.id}
+                                  match={m}
+                                  player1LinkId={playerMap.get(m.player1Id)}
+                                  player2LinkId={playerMap.get(m.player2Id)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
+              ) : (
+                <>
+                  {upcoming.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Próximos partidos</h3>
+                      <div className="space-y-2">
+                        {upcoming.slice(0, 5).map((m) => (
+                          <MatchCard
+                            key={m.id}
+                            match={m}
+                            player1LinkId={playerMap.get(m.player1Id)}
+                            player2LinkId={playerMap.get(m.player2Id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {played.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Últimos resultados</h3>
+                      <div className="space-y-2">
+                        {played.slice(0, 5).map((m) => (
+                          <MatchCard
+                            key={m.id}
+                            match={m}
+                            player1LinkId={playerMap.get(m.player1Id)}
+                            player2LinkId={playerMap.get(m.player2Id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {upcoming.length === 0 && played.length === 0 && (

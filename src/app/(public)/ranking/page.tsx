@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getActiveTournament } from '@/services/tournament-service'
-import { getRankingByCategory } from '@/services/ranking-service'
+import { getRankingByCategory, getRankingByGroup } from '@/services/ranking-service'
+import { getGroupsByCategory } from '@/services/group-service'
 import { RankingTable } from '@/components/ranking-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
@@ -39,10 +40,21 @@ export default async function RankingPage() {
 
   const categories = tournament.categories
   const rankingData = await Promise.all(
-    categories.map(async (cat) => ({
-      cat,
-      ranking: await getRankingByCategory(cat.id),
-    }))
+    categories.map(async (cat) => {
+      const [ranking, groups] = await Promise.all([
+        getRankingByCategory(cat.id),
+        getGroupsByCategory(cat.id),
+      ])
+
+      const groupRankings = await Promise.all(
+        groups.map(async (g) => ({
+          group: g,
+          ranking: await getRankingByGroup(g.id),
+        }))
+      )
+
+      return { cat, ranking, groupRankings }
+    })
   )
 
   const defaultTab = categories[0]?.id
@@ -66,9 +78,31 @@ export default async function RankingPage() {
             ))}
           </TabsList>
 
-          {rankingData.map(({ cat, ranking }) => (
+          {rankingData.map(({ cat, ranking, groupRankings }) => (
             <TabsContent key={cat.id} value={cat.id}>
-              <RankingTable entries={ranking} />
+              <div className="space-y-6">
+                {groupRankings.length > 0 && (
+                  <>
+                    {groupRankings.map(({ group, ranking: groupRanking }) => (
+                      <section key={group.id}>
+                        <h2 className="text-sm font-semibold border-b pb-1 mb-3">
+                          Grupo {group.number}
+                        </h2>
+                        <RankingTable entries={groupRanking} />
+                      </section>
+                    ))}
+                    <section>
+                      <h2 className="text-sm font-semibold border-b pb-1 mb-3">
+                        Ranking general
+                      </h2>
+                      <RankingTable entries={ranking} />
+                    </section>
+                  </>
+                )}
+                {groupRankings.length === 0 && (
+                  <RankingTable entries={ranking} />
+                )}
+              </div>
             </TabsContent>
           ))}
         </Tabs>

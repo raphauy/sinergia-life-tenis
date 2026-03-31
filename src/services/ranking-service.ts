@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
+import type { Match, MatchResult } from '@prisma/client'
 
 export interface RankingEntry {
   position: number
@@ -16,82 +17,71 @@ export interface RankingEntry {
   points: number // TODO: lógica real de puntos (pendiente Mati)
 }
 
-export async function getRankingByCategory(categoryId: string): Promise<RankingEntry[]> {
-  // Get players in this category with linked users
-  const players = await prisma.player.findMany({
-    where: { categoryId, isActive: true, userId: { not: null } },
-    include: {
-      user: { select: { id: true, name: true, image: true } },
-    },
-  })
+type MatchWithResult = Match & { result: MatchResult | null }
 
-  // Get all PLAYED matches for this category
-  const matches = await prisma.match.findMany({
-    where: { categoryId, status: 'PLAYED' },
-    include: { result: true },
-  })
+function computeRanking(
+  players: { id: string; userId: string; userName: string | null; playerName: string; image: string | null }[],
+  matches: MatchWithResult[]
+): RankingEntry[] {
+  const entries: RankingEntry[] = players.map((p) => {
+    const userId = p.userId
 
-  const entries: RankingEntry[] = players
-    .filter((p) => p.user)
-    .map((p) => {
-      const userId = p.userId!
+    const playerMatches = matches.filter(
+      (m) => m.player1Id === userId || m.player2Id === userId
+    )
 
-      const playerMatches = matches.filter(
-        (m) => m.player1Id === userId || m.player2Id === userId
-      )
+    let pg = 0
+    let pp = 0
+    let setsFor = 0
+    let setsAgainst = 0
 
-      let pg = 0
-      let pp = 0
-      let setsFor = 0
-      let setsAgainst = 0
+    for (const m of playerMatches) {
+      if (!m.result) continue
+      const isPlayer1 = m.player1Id === userId
+      const won = m.result.winnerId === userId
 
-      for (const m of playerMatches) {
-        if (!m.result) continue
-        const isPlayer1 = m.player1Id === userId
-        const won = m.result.winnerId === userId
+      if (won) pg++
+      else pp++
 
-        if (won) pg++
-        else pp++
+      // Count sets
+      const s1p1 = m.result.set1Player1
+      const s1p2 = m.result.set1Player2
+      if (isPlayer1) {
+        setsFor += s1p1 > s1p2 ? 1 : 0
+        setsAgainst += s1p2 > s1p1 ? 1 : 0
+      } else {
+        setsFor += s1p2 > s1p1 ? 1 : 0
+        setsAgainst += s1p1 > s1p2 ? 1 : 0
+      }
 
-        // Count sets
-        const s1p1 = m.result.set1Player1
-        const s1p2 = m.result.set1Player2
+      if (m.result.set2Player1 != null && m.result.set2Player2 != null) {
+        const s2p1 = m.result.set2Player1
+        const s2p2 = m.result.set2Player2
         if (isPlayer1) {
-          setsFor += s1p1 > s1p2 ? 1 : 0
-          setsAgainst += s1p2 > s1p1 ? 1 : 0
+          setsFor += s2p1 > s2p2 ? 1 : 0
+          setsAgainst += s2p2 > s2p1 ? 1 : 0
         } else {
-          setsFor += s1p2 > s1p1 ? 1 : 0
-          setsAgainst += s1p1 > s1p2 ? 1 : 0
-        }
-
-        if (m.result.set2Player1 != null && m.result.set2Player2 != null) {
-          const s2p1 = m.result.set2Player1
-          const s2p2 = m.result.set2Player2
-          if (isPlayer1) {
-            setsFor += s2p1 > s2p2 ? 1 : 0
-            setsAgainst += s2p2 > s2p1 ? 1 : 0
-          } else {
-            setsFor += s2p2 > s2p1 ? 1 : 0
-            setsAgainst += s2p1 > s2p2 ? 1 : 0
-          }
+          setsFor += s2p2 > s2p1 ? 1 : 0
+          setsAgainst += s2p1 > s2p2 ? 1 : 0
         }
       }
+    }
 
-      return {
-        position: 0,
-        player: {
-          id: p.id,
-          name: p.user!.name || p.name,
-          image: blobUrl(p.user!.image) || null,
-        },
-        pj: pg + pp,
-        pg,
-        pp,
-        setsFor,
-        setsAgainst,
-        points: pg, // TODO: lógica real de puntos
-      }
-    })
+    return {
+      position: 0,
+      player: {
+        id: p.id,
+        name: p.userName || p.playerName,
+        image: blobUrl(p.image) || null,
+      },
+      pj: pg + pp,
+      pg,
+      pp,
+      setsFor,
+      setsAgainst,
+      points: pg, // TODO: lógica real de puntos
+    }
+  })
 
   // Sort by points desc, then pg desc, then sets diff desc
   entries.sort((a, b) => {
@@ -106,4 +96,63 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
   })
 
   return entries
+}
+
+export async function getRankingByCategory(categoryId: string): Promise<RankingEntry[]> {
+  const players = await prisma.player.findMany({
+    where: { categoryId, isActive: true, userId: { not: null } },
+    include: {
+      user: { select: { id: true, name: true, image: true } },
+    },
+  })
+
+  const matches = await prisma.match.findMany({
+    where: { categoryId, status: 'PLAYED' },
+    include: { result: true },
+  })
+
+  return computeRanking(
+    players
+      .filter((p) => p.user)
+      .map((p) => ({
+        id: p.id,
+        userId: p.userId!,
+        userName: p.user!.name,
+        playerName: p.name,
+        image: p.user!.image,
+      })),
+    matches
+  )
+}
+
+export async function getRankingByGroup(groupId: string): Promise<RankingEntry[]> {
+  const group = await prisma.group.findUniqueOrThrow({
+    where: { id: groupId },
+    select: { categoryId: true },
+  })
+
+  const players = await prisma.player.findMany({
+    where: { groupId, isActive: true, userId: { not: null } },
+    include: {
+      user: { select: { id: true, name: true, image: true } },
+    },
+  })
+
+  const matches = await prisma.match.findMany({
+    where: { groupId, categoryId: group.categoryId, status: 'PLAYED' },
+    include: { result: true },
+  })
+
+  return computeRanking(
+    players
+      .filter((p) => p.user)
+      .map((p) => ({
+        id: p.id,
+        userId: p.userId!,
+        userName: p.user!.name,
+        playerName: p.name,
+        image: p.user!.image,
+      })),
+    matches
+  )
 }
