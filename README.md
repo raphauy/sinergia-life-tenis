@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sinergia Life Tenis
 
-## Getting Started
+Plataforma web de gestion de torneos de tenis para el Club Sinergia Life.
 
-First, run the development server:
+## Que es
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Sinergia Life Tenis permite organizar torneos de tenis de principio a fin: crear torneos con categorias, importar jugadores, programar partidos, registrar resultados y publicar rankings. Todo desde una sola plataforma.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Funcionalidades principales
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Para administradores:**
+- Crear y gestionar torneos con categorias (A, B, C)
+- Importar jugadores desde archivos CSV
+- Invitar jugadores por email al torneo
+- Crear y confirmar partidos asignando fecha, hora y cancha
+- Cargar y editar resultados de partidos
+- Invitar otros administradores a la plataforma
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Para jugadores:**
+- Recibir invitacion por email y crear cuenta
+- Ver partidos programados y proximos encuentros
+- Cargar resultados de sus propios partidos
+- Consultar ranking y fixture del torneo
+- Editar perfil con foto (upload o desde Instagram)
 
-## Learn More
+**Vista publica (sin login):**
+- Ranking por categoria del torneo activo
+- Fixture con proximos partidos y resultados
+- Perfil publico de cada jugador con historial
+- Compartible por WhatsApp
 
-To learn more about Next.js, take a look at the following resources:
+## Roles
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Superadmin** - Acceso total, puede invitar administradores
+- **Admin** - Gestiona torneos, jugadores y partidos
+- **Jugador** - Accede a su panel, carga resultados de sus partidos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Acceso
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+El acceso es por invitacion. No hay registro publico. Los jugadores reciben un email de invitacion al torneo y luego inician sesion con un codigo OTP enviado a su email.
