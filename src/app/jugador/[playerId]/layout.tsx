@@ -85,7 +85,7 @@ export default async function JugadorLayout({ children, params }: JugadorLayoutP
                       await signOut({ redirectTo: '/login' })
                     }}
                   >
-                    <DropdownMenuItem render={<button type="submit" className="w-full" />}>
+                    <DropdownMenuItem render={<button type="submit" className="w-full" />} nativeButton>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span className="text-destructive">Cerrar sesión</span>
                     </DropdownMenuItem>
