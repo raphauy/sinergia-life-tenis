@@ -55,7 +55,7 @@ export default async function FixturePage() {
         getPlayerMap(cat.id),
       ])
 
-      const upcoming = matches.filter((m) => m.status === 'CONFIRMED')
+      const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
 
       return { cat, upcoming, played, playerMap }
@@ -75,7 +75,7 @@ export default async function FixturePage() {
         <p className="text-muted-foreground">No hay categorías.</p>
       ) : (
         <Tabs defaultValue={defaultTab}>
-          <TabsList className="mb-4">
+          <TabsList className="mb-6 w-full h-11 bg-orange-100 dark:bg-orange-950">
             {categories.map((cat) => (
               <TabsTrigger key={cat.id} value={cat.id}>
                 Categoría {cat.name}
