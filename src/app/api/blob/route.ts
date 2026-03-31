@@ -9,21 +9,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const blob = await get(url, { access: 'private' })
+    const result = await get(url, { access: 'private' })
 
-    if (!blob?.downloadUrl) {
+    if (!result) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const response = await fetch(blob.downloadUrl)
+    const contentType = result.headers.get('Content-Type') || 'image/jpeg'
 
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    }
-
-    return new NextResponse(response.body, {
+    return new NextResponse(result.stream, {
       headers: {
-        'Content-Type': blob.contentType || 'image/jpeg',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=3600, immutable',
       },
     })

@@ -11,6 +11,7 @@ export default async function proxy(request: NextRequest) {
     '/',
     '/login',
     '/api/auth',
+    '/api/blob',
     '/invite',
     '/ranking',
     '/fixture',
