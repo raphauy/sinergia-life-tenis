@@ -131,12 +131,19 @@ export default async function JugadorProfilePage({ params }: Props) {
                   <div>
                     <p className="font-medium">vs {getRivalName(m)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {m.scheduledAt && formatDateUY(m.scheduledAt, 'EEEE dd/MM')}
-                      {m.scheduledAt && ` — ${formatTimeUY(m.scheduledAt)}`}
-                      {m.courtNumber && ` — ${COURTS.find((c) => c.number === m.courtNumber)?.name}`}
+                      {m.scheduledAt ? (
+                        <>
+                          {formatDateUY(m.scheduledAt, 'EEEE dd/MM')} — {formatTimeUY(m.scheduledAt)}
+                          {m.courtNumber && ` — ${COURTS.find((c) => c.number === m.courtNumber)?.name}`}
+                        </>
+                      ) : (
+                        'Por confirmar'
+                      )}
                     </p>
                   </div>
-                  <Badge>Confirmado</Badge>
+                  <Badge variant={m.status === 'CONFIRMED' ? 'default' : 'outline'}>
+                    {m.status === 'CONFIRMED' ? 'Confirmado' : 'Pendiente'}
+                  </Badge>
                 </div>
               </Link>
             ))}

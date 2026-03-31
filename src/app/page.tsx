@@ -132,7 +132,7 @@ async function TournamentContent({
       // Get player IDs for linking
       const playerMap = await getPlayerMap(cat.id)
 
-      const upcoming = matches.filter((m) => m.status === 'CONFIRMED')
+      const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
 
       return { cat, ranking, upcoming, played, playerMap }

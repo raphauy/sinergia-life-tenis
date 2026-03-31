@@ -102,10 +102,9 @@ export async function getUpcomingMatches(userId: string) {
   return prisma.match.findMany({
     where: {
       OR: [{ player1Id: userId }, { player2Id: userId }],
-      status: 'CONFIRMED',
-      scheduledAt: { gte: new Date() },
+      status: { in: ['PENDING', 'CONFIRMED'] },
     },
     include: matchIncludes,
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   })
 }

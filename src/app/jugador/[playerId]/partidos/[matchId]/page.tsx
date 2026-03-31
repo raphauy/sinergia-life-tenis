@@ -45,7 +45,7 @@ export default async function MatchDetailPage({ params }: Props) {
     <div className="max-w-xl">
       <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href={`/jugador/${playerId}/partidos`} />}>
         <ArrowLeft className="h-4 w-4 mr-1" />
-        Mis partidos
+        Volver
       </Button>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
