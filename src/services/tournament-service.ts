@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { MatchFormat } from '@/generated/prisma/client'
+import type { MatchFormat } from '@prisma/client'
 
 export async function createTournament(data: {
   name: string

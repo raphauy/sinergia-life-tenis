@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import type { MatchStatus } from '@/generated/prisma/client'
+import type { MatchStatus } from '@prisma/client'
 
 const matchIncludes = {
   player1: { select: { id: true, name: true, email: true, image: true } },

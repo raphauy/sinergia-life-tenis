@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { MatchResultForm } from '@/components/match-result-form'
 import { playerLoadResultAction } from './actions'
-import type { MatchFormat } from '@/generated/prisma/client'
+import type { MatchFormat } from '@prisma/client'
 import type { ActionResult } from '@/lib/action-types'
 
 interface Props {

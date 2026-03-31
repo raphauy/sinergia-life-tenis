@@ -7,7 +7,7 @@ import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { Plus } from 'lucide-react'
 import { MatchFilters } from './match-filters'
-import type { MatchStatus } from '@/generated/prisma/client'
+import type { MatchStatus } from '@prisma/client'
 
 export const metadata = { title: 'Partidos - Sinergia Life Tenis' }
 

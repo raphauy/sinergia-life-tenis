@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import type { MatchFormat } from '@/generated/prisma/client'
+import type { MatchFormat } from '@prisma/client'
 import type { ActionResult } from '@/lib/action-types'
 
 interface MatchResultFormProps {

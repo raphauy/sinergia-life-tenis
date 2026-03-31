@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { COURTS } from '@/lib/constants'
 import { MatchResultForm } from '@/components/match-result-form'
 import { confirmMatchAction, cancelMatchAction, adminLoadResultAction } from '../actions'
-import type { MatchFormat, MatchStatus } from '@/generated/prisma/client'
+import type { MatchFormat, MatchStatus } from '@prisma/client'
 
 interface Props {
   matchId: string

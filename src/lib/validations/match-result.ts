@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { MatchFormat } from '@/generated/prisma/client'
+import type { MatchFormat } from '@prisma/client'
 
 const scoreField = z.coerce.number().int().min(0).max(7)
 const superTbField = z.coerce.number().int().min(0).max(99)
