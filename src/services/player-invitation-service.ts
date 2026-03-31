@@ -75,6 +75,42 @@ export async function acceptPlayerInvitation(token: string) {
   return { player, user }
 }
 
+export async function forceAcceptPlayer(playerId: string) {
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+  })
+
+  if (!player) throw new Error('Jugador no encontrado')
+  if (player.acceptedAt) throw new Error('El jugador ya fue aceptado')
+  if (!player.email) throw new Error('El jugador no tiene email')
+
+  // Find or create user
+  let user = await prisma.user.findUnique({ where: { email: player.email } })
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: player.email,
+        name: player.name,
+        phone: player.whatsappNumber,
+        role: 'PLAYER',
+      },
+    })
+  }
+
+  // Link player to user
+  await prisma.player.update({
+    where: { id: player.id },
+    data: {
+      userId: user.id,
+      acceptedAt: new Date(),
+      invitationToken: null,
+    },
+  })
+
+  return { player, user }
+}
+
 export async function getPlayerByInvitationToken(token: string) {
   return prisma.player.findFirst({
     where: { invitationToken: token },
