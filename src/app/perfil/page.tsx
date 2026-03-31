@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { getUserById } from '@/services/user-service'
+import { blobUrl } from '@/lib/blob-url'
 import { ProfileForm } from './profile-form'
 import { BackButton } from './back-button'
 
@@ -28,7 +29,7 @@ export default async function ProfilePage() {
             user={{
               name: user.name || '',
               email: user.email,
-              image: user.image,
+              image: blobUrl(user.image) || null,
               phone: user.phone,
             }}
           />

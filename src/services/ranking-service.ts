@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { blobUrl } from '@/lib/blob-url'
 
 export interface RankingEntry {
   position: number
@@ -81,7 +82,7 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
         player: {
           id: p.id,
           name: p.user!.name || p.name,
-          image: p.user!.image,
+          image: blobUrl(p.user!.image) || null,
         },
         pj: pg + pp,
         pg,

@@ -5,6 +5,7 @@ import { updateUser, getUserById } from '@/services/user-service'
 import { uploadImage, deleteImage, uploadImageFromBlob } from '@/services/upload-service'
 import { getInstagramProfile } from '@/services/instagram-service'
 import { updateProfileSchema } from '@/lib/validations/profile'
+import { blobUrl } from '@/lib/blob-url'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 import { z } from 'zod'
@@ -46,27 +47,56 @@ export async function updateProfileAction(
 
 export async function uploadProfileImageAction(
   formData: FormData
-): Promise<ActionResult<{ url: string }>> {
+): Promise<ActionResult<{ displayUrl: string }>> {
   try {
     const session = await auth()
     if (!session?.user?.id) return { success: false, error: 'No autenticado' }
 
+    const user = await getUserById(session.user.id)
+    if (!user) return { success: false, error: 'Usuario no encontrado' }
+
     const result = await uploadImage(formData)
     if (!result.success) return { success: false, error: result.error }
 
-    return { success: true, data: { url: result.url } }
+    if (user.image) await deleteImage(user.image).catch(() => {})
+    await updateUser(session.user.id, { image: result.url })
+    revalidatePath('/perfil')
+
+    return { success: true, data: { displayUrl: blobUrl(result.url) || result.url } }
   } catch (error) {
     console.error('Error uploading image:', error)
     return { success: false, error: 'Error al subir la imagen' }
   }
 }
 
-export async function loadInstagramImageAction(
-  handle: string
-): Promise<ActionResult<{ url: string }>> {
+export async function deleteProfileImageAction(): Promise<ActionResult> {
   try {
     const session = await auth()
     if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const user = await getUserById(session.user.id)
+    if (!user) return { success: false, error: 'Usuario no encontrado' }
+
+    if (user.image) await deleteImage(user.image).catch(() => {})
+    await updateUser(session.user.id, { image: null })
+    revalidatePath('/perfil')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting profile image:', error)
+    return { success: false, error: 'Error al eliminar la imagen' }
+  }
+}
+
+export async function loadInstagramImageAction(
+  handle: string
+): Promise<ActionResult<{ displayUrl: string }>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const user = await getUserById(session.user.id)
+    if (!user) return { success: false, error: 'Usuario no encontrado' }
 
     const profile = await getInstagramProfile(handle)
 
@@ -97,7 +127,11 @@ export async function loadInstagramImageAction(
     const result = await uploadImageFromBlob(imageBlob, `instagram-${profile.username}.jpg`)
     if (!result.success) return { success: false, error: result.error }
 
-    return { success: true, data: { url: result.url } }
+    if (user.image) await deleteImage(user.image).catch(() => {})
+    await updateUser(session.user.id, { image: result.url })
+    revalidatePath('/perfil')
+
+    return { success: true, data: { displayUrl: blobUrl(result.url) || result.url } }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al cargar imagen de Instagram'
     return { success: false, error: message }

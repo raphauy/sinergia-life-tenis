@@ -12,6 +12,7 @@ import {
   updateProfileAction,
   uploadProfileImageAction,
   loadInstagramImageAction,
+  deleteProfileImageAction,
 } from './actions'
 
 interface ProfileFormProps {
@@ -27,7 +28,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter()
   const { update: updateSession } = useSession()
   const [name, setName] = useState(user.name)
-  const [image, setImage] = useState(user.image)
+  const [displayImage, setDisplayImage] = useState(user.image)
   const [instagramHandle, setInstagramHandle] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -40,7 +41,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
       formData.append('file', file)
       const result = await uploadProfileImageAction(formData)
       if (result.success && result.data) {
-        setImage(result.data.url)
+        setDisplayImage(result.data.displayUrl)
+        await updateSession({ image: result.data.displayUrl })
         toast.success('Imagen subida')
       } else if (!result.success) {
         toast.error(result.error)
@@ -53,7 +55,8 @@ export function ProfileForm({ user }: ProfileFormProps) {
     startTransition(async () => {
       const result = await loadInstagramImageAction(instagramHandle)
       if (result.success && result.data) {
-        setImage(result.data.url)
+        setDisplayImage(result.data.displayUrl)
+        await updateSession({ image: result.data.displayUrl })
         setInstagramHandle('')
         toast.success('Imagen cargada desde Instagram')
       } else if (!result.success) {
@@ -65,11 +68,11 @@ export function ProfileForm({ user }: ProfileFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     startTransition(async () => {
-      const result = await updateProfileAction({ name, image })
+      const result = await updateProfileAction({ name })
       if (result.success && result.data) {
         await updateSession({ name: result.data.name, image: result.data.image })
         toast.success('Perfil actualizado')
-        router.refresh()
+        router.back()
       } else if (!result.success) {
         toast.error(result.error)
       }
@@ -81,7 +84,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
       {/* Avatar */}
       <div className="flex flex-col items-center gap-4">
         <Avatar className="h-24 w-24">
-          <AvatarImage src={image || undefined} />
+          <AvatarImage src={displayImage || undefined} />
           <AvatarFallback className="text-2xl">
             {(name[0] || '?').toUpperCase()}
           </AvatarFallback>
@@ -100,11 +103,22 @@ export function ProfileForm({ user }: ProfileFormProps) {
             className="hidden"
             onChange={handleImageUpload}
           />
-          {image && (
+          {displayImage && (
             <button
               type="button"
-              className="text-sm text-destructive hover:underline"
-              onClick={() => setImage(null)}
+              className="cursor-pointer text-sm text-destructive hover:underline"
+              onClick={() => {
+                startTransition(async () => {
+                  const result = await deleteProfileImageAction()
+                  if (result.success) {
+                    setDisplayImage(null)
+                    await updateSession({ image: null })
+                    toast.success('Imagen eliminada')
+                  } else {
+                    toast.error(result.error)
+                  }
+                })
+              }}
             >
               Eliminar
             </button>
@@ -120,6 +134,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
             placeholder="usuario_instagram"
             value={instagramHandle}
             onChange={(e) => setInstagramHandle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleInstagramLoad()
+              }
+            }}
           />
           <Button
             type="button"

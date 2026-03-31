@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -28,11 +29,13 @@ import {
   ChevronUp,
   LogOut,
   UserCircle,
+  UserPen,
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth, signOut } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -105,7 +108,7 @@ export async function AdminSidebar() {
               <DropdownMenuTrigger render={<SidebarMenuButton className="w-full" />}>
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={session.user.image || undefined} />
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
                     {(session.user.name?.[0] || session.user.email?.[0] || '?').toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -122,15 +125,24 @@ export async function AdminSidebar() {
                       {session.user.email}
                     </span>
                   </div>
-                  <Badge variant="outline" className="text-[10px] ml-2">
+                  <Badge className={cn(
+                    'text-[10px] ml-2',
+                    session.user.role === 'SUPERADMIN'
+                      ? 'border-purple-300 bg-purple-100 text-purple-700 dark:border-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                      : 'border-sky-300 bg-sky-100 text-sky-700 dark:border-sky-700 dark:bg-sky-900/30 dark:text-sky-300'
+                  )}>
                     {session.user.role === 'SUPERADMIN' ? 'Superadmin' : 'Admin'}
                   </Badge>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem render={<Link href="/perfil" />}>
-                  <UserCircle className="mr-2 h-4 w-4" />
+                  <UserPen className="mr-2 h-4 w-4" />
                   Perfil
                 </DropdownMenuItem>
+                <div className="flex items-center justify-between px-2 py-1.5 text-sm">
+                  <span>Tema</span>
+                  <ThemeToggle />
+                </div>
                 <DropdownMenuSeparator />
                 <form
                   action={async () => {

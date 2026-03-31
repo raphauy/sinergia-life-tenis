@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { blobUrl } from '@/lib/blob-url'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
@@ -62,7 +63,7 @@ export default async function JugadorProfilePage({ params }: Props) {
   if (!player) notFound()
 
   const displayName = player.user?.name || player.name
-  const image = player.user?.image
+  const image = blobUrl(player.user?.image)
   const userId = player.userId
 
   // Fetch matches if player has a linked user
@@ -100,7 +101,7 @@ export default async function JugadorProfilePage({ params }: Props) {
         <div>
           <h1 className="text-2xl font-bold">{displayName}</h1>
           <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary">{player.tournament.name}</Badge>
+            <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
             <CategoryBadge name={player.category.name} />
           </div>
         </div>

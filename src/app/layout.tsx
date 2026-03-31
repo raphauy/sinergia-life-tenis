@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Montserrat, Merriweather, Ubuntu_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SessionProvider } from '@/components/session-provider'
+import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 const fontSans = Montserrat({
@@ -35,12 +36,15 @@ export default function RootLayout({
     <html
       lang="es"
       className={`${fontSans.variable} ${fontSerif.variable} ${fontMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>
-          {children}
-          <Toaster richColors position="top-right" />
-        </SessionProvider>
+        <ThemeProvider>
+          <SessionProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </SessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -50,7 +50,7 @@ export default async function PlayerInvitePage({ params }: Props) {
             Has sido invitado al torneo <strong>{player.tournament.name}</strong> en la
             categoría <strong>{player.category.name}</strong>.
           </p>
-          <AcceptPlayerInvitation token={token} />
+          <AcceptPlayerInvitation token={token} email={player.email || ''} />
         </div>
       </div>
     </div>

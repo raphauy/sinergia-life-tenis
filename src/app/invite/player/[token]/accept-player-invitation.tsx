@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { acceptPlayerInvitationAction } from './actions'
 
-export function AcceptPlayerInvitation({ token }: { token: string }) {
+export function AcceptPlayerInvitation({ token, email }: { token: string; email: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -14,8 +14,8 @@ export function AcceptPlayerInvitation({ token }: { token: string }) {
     startTransition(async () => {
       const result = await acceptPlayerInvitationAction(token)
       if (result.success) {
-        toast.success('Invitación aceptada. Ya podés iniciar sesión.')
-        router.push('/login')
+        toast.success('Invitación aceptada. Iniciá sesión para continuar.')
+        router.push(`/login?email=${encodeURIComponent(email)}`)
       } else {
         toast.error(result.error)
       }

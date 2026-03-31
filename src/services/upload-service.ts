@@ -24,7 +24,7 @@ export async function uploadImage(formData: FormData): Promise<UploadResult> {
 
   try {
     const blob = await put(file.name, file, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
     })
     return { success: true, url: blob.url }
@@ -59,7 +59,7 @@ export async function uploadImageFromBlob(
 
   try {
     const blob = await put(filename, imageBlob, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
       contentType: imageBlob.type,
     })

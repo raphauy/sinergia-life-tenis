@@ -27,9 +27,10 @@ export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl')
+  const prefilledEmail = searchParams.get('email') || ''
 
   const [step, setStep] = useState<Step>('email')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(prefilledEmail)
   const [otp, setOtp] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 

@@ -54,7 +54,7 @@ export default async function AdminInvitePage({ params }: Props) {
             <strong>{invitation.invitedBy.name || invitation.invitedBy.email}</strong> te
             invitó a ser administrador de la plataforma.
           </p>
-          <AcceptAdminInvitation token={token} />
+          <AcceptAdminInvitation token={token} email={invitation.email} />
         </div>
       </div>
     </div>

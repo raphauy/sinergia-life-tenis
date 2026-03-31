@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { getUserByEmail } from '@/services/user-service'
 import { verifyOtpToken } from '@/services/auth-service'
+import { blobUrl } from '@/lib/blob-url'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -67,7 +68,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id as string
         session.user.name = token.name as string | null
-        session.user.image = token.image as string | null
+        session.user.image = blobUrl(token.image as string | null) || null
         session.user.role = token.role as string
       }
       return session
