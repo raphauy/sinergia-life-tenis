@@ -71,7 +71,7 @@ export function LoginForm() {
 
   return (
     <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1 pb-4">
+      <CardHeader className="space-y-1 pb-6 pt-8">
         <CardTitle className="text-center text-2xl font-bold">
           {step === 'email' ? 'Iniciar sesión' : 'Verificar código'}
         </CardTitle>
@@ -81,9 +81,9 @@ export function LoginForm() {
             : `Ingresa el código de 6 dígitos enviado a ${email}`}
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-8 pb-8">
         {step === 'email' ? (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <form onSubmit={handleEmailSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -103,7 +103,7 @@ export function LoginForm() {
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleOtpSubmit} className="space-y-4">
+          <form onSubmit={handleOtpSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label className="text-center block">Código de verificación</Label>
               <InputOTP
