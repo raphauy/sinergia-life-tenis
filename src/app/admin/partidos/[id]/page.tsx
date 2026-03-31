@@ -31,7 +31,7 @@ export default async function MatchDetailPage({ params }: Props) {
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   return (
-    <div>
+    <div className="max-w-xl">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-2xl font-bold">

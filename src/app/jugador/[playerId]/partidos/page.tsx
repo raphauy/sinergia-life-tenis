@@ -10,7 +10,7 @@ interface Props {
   params: Promise<{ playerId: string }>
 }
 
-export const metadata = { title: 'Mis partidos - Sinergia Life Tenis' }
+export const metadata = { title: 'Mis partidos - Life Tenis' }
 
 export default async function JugadorPartidosPage({ params }: Props) {
   const { playerId } = await params

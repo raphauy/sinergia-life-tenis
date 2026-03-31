@@ -5,7 +5,7 @@ import AdminInvitationEmail from '@/components/emails/admin-invitation-email'
 import MatchConfirmationEmail from '@/components/emails/match-confirmation-email'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
-const fromEmail = process.env.EMAIL_FROM || 'Sinergia Life Tenis <noreply@sinergialifetenis.com>'
+const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <noreply@sinergialifetenis.com>'
 
 // ===================== OTP =====================
 
@@ -15,7 +15,7 @@ export async function sendOtpEmail(input: { to: string; otp: string }) {
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: 'Tu código de verificación - Sinergia Life Tenis',
+    subject: 'Tu código de verificación - Life Tenis',
     react: OtpEmail({ otp: input.otp }),
   })
 }
@@ -34,7 +34,7 @@ export async function sendPlayerInvitationEmail(input: {
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: `Invitación al torneo ${input.tournamentName} - Sinergia Life Tenis`,
+    subject: `Invitación al torneo ${input.tournamentName} - Life Tenis`,
     react: PlayerInvitationEmail({
       playerName: input.playerName,
       tournamentName: input.tournamentName,
@@ -56,7 +56,7 @@ export async function sendAdminInvitationEmail(input: {
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: 'Invitación de administrador - Sinergia Life Tenis',
+    subject: 'Invitación de administrador - Life Tenis',
     react: AdminInvitationEmail({
       inviterName: input.inviterName,
       acceptUrl: input.acceptUrl,
@@ -80,7 +80,7 @@ export async function sendMatchConfirmationEmail(input: {
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: `Partido confirmado - ${input.tournamentName} - Sinergia Life Tenis`,
+    subject: `Partido confirmado - ${input.tournamentName} - Life Tenis`,
     react: MatchConfirmationEmail({
       playerName: input.playerName,
       rivalName: input.rivalName,

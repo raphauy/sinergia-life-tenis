@@ -7,14 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
   const title = tournament
-    ? `Ranking - ${tournament.name} - Sinergia Life Tenis`
-    : 'Ranking - Sinergia Life Tenis'
+    ? `Ranking - ${tournament.name} - Life Tenis`
+    : 'Ranking - Life Tenis'
 
   return {
     title,
     description: tournament
-      ? `Ranking del torneo ${tournament.name} - Sinergia Life Tenis`
-      : 'Ranking de tenis - Sinergia Life Tenis',
+      ? `Ranking del torneo ${tournament.name} - Life Tenis`
+      : 'Ranking de tenis - Life Tenis',
     openGraph: {
       title,
       description: tournament

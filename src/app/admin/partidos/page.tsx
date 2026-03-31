@@ -9,7 +9,7 @@ import { Plus } from 'lucide-react'
 import { MatchFilters } from './match-filters'
 import type { MatchStatus } from '@prisma/client'
 
-export const metadata = { title: 'Partidos - Sinergia Life Tenis' }
+export const metadata = { title: 'Partidos - Life Tenis' }
 
 const statusLabels: Record<string, string> = {
   PENDING: 'Pendiente',

@@ -56,9 +56,9 @@ export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) 
   const tournamentItems = tournaments.map((t) => ({ value: t.id, label: t.name }))
   const playerItems = players.map((p) => ({ value: p.id, label: p.name }))
 
-  // Auto-select category if only one
+  // Auto-select first category
   useEffect(() => {
-    if (categories.length === 1 && categoryId !== categories[0].id) {
+    if (categories.length > 0 && !categoryId) {
       setCategoryId(categories[0].id)
     }
   }, [categories, categoryId])

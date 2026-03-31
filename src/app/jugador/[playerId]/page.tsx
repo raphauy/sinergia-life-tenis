@@ -29,7 +29,7 @@ export async function generateMetadata({
   if (!player) return { title: 'Jugador no encontrado' }
 
   const name = player.user?.name || player.name
-  const title = `${name} - ${player.tournament.name} - Sinergia Life Tenis`
+  const title = `${name} - ${player.tournament.name} - Life Tenis`
   const description = `${name} - Categoría ${player.category.name} - ${player.tournament.name}`
 
   return {

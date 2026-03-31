@@ -6,7 +6,7 @@ import { ProfileForm } from './profile-form'
 import { BackButton } from './back-button'
 
 export const metadata = {
-  title: 'Mi perfil - Sinergia Life Tenis',
+  title: 'Mi perfil - Life Tenis',
 }
 
 export default async function ProfilePage() {

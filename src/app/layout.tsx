@@ -23,7 +23,7 @@ const fontMono = Ubuntu_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Sinergia Life Tenis',
+  title: 'Life Tenis',
   description: 'Plataforma de gestión de torneos de tenis - Club Sinergia Life',
 }
 

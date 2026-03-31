@@ -1,6 +1,6 @@
 export const TIMEZONE = 'America/Montevideo'
 
-export const APP_NAME = 'Sinergia Life Tenis'
+export const APP_NAME = 'Life Tenis'
 
 export const OTP_EXPIRATION_MINUTES = 10
 

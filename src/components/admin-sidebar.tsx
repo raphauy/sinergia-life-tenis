@@ -27,6 +27,7 @@ import {
   UserPlus,
   Swords,
   ChevronUp,
+  ExternalLink,
   LogOut,
   UserCircle,
   UserPen,
@@ -99,6 +100,19 @@ export async function AdminSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         )}
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton render={<Link href="/" target="_blank" />}>
+                  <ExternalLink className="h-4 w-4" />
+                  <span>Ver sitio</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t">

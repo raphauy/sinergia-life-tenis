@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import type { MatchFormat } from '@prisma/client'
 import type { ActionResult } from '@/lib/action-types'
@@ -41,7 +40,6 @@ export function MatchResultForm({
 
   const isTwoSets = matchFormat === 'TWO_SETS_SUPERTB'
 
-  // Detect if sets are 1-1 for showing super tiebreak
   const s1Winner = Number(set1P1) > Number(set1P2) ? 1 : Number(set1P2) > Number(set1P1) ? 2 : 0
   const s2Winner = Number(set2P1) > Number(set2P2) ? 1 : Number(set2P2) > Number(set2P1) ? 2 : 0
   const showSuperTb = isTwoSets && s1Winner !== 0 && s2Winner !== 0 && s1Winner !== s2Winner
@@ -70,87 +68,63 @@ export function MatchResultForm({
     }
   }
 
+  const colCount = 1 + (isTwoSets ? 1 : 0) + (showSuperTb ? 1 : 0)
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Header */}
-      <div className="grid grid-cols-[1fr_80px_80px] gap-2 items-end">
-        <div />
-        <Label className="text-center text-xs truncate">{player1Name}</Label>
-        <Label className="text-center text-xs truncate">{player2Name}</Label>
+      {/* Scoreboard table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="text-xs text-muted-foreground">
+              <th className="text-left font-normal pb-2">Jugador</th>
+              <th className="text-center font-normal pb-2 w-16">Set 1</th>
+              {isTwoSets && <th className="text-center font-normal pb-2 w-16">Set 2</th>}
+              {showSuperTb && <th className="text-center font-normal pb-2 w-16">STB</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {/* Player 1 row */}
+            <tr>
+              <td className="pr-4 py-1.5">
+                <span className="text-sm font-medium">{player1Name}</span>
+              </td>
+              <td className="py-1.5">
+                <Input type="number" min={0} max={7} value={set1P1} onChange={(e) => setSet1P1(e.target.value)} className="w-14 text-center mx-auto" required />
+              </td>
+              {isTwoSets && (
+                <td className="py-1.5">
+                  <Input type="number" min={0} max={7} value={set2P1} onChange={(e) => setSet2P1(e.target.value)} className="w-14 text-center mx-auto" required />
+                </td>
+              )}
+              {showSuperTb && (
+                <td className="py-1.5">
+                  <Input type="number" min={0} max={99} value={stbP1} onChange={(e) => setStbP1(e.target.value)} className="w-14 text-center mx-auto" required />
+                </td>
+              )}
+            </tr>
+            {/* Player 2 row */}
+            <tr>
+              <td className="pr-4 py-1.5">
+                <span className="text-sm font-medium">{player2Name}</span>
+              </td>
+              <td className="py-1.5">
+                <Input type="number" min={0} max={7} value={set1P2} onChange={(e) => setSet1P2(e.target.value)} className="w-14 text-center mx-auto" required />
+              </td>
+              {isTwoSets && (
+                <td className="py-1.5">
+                  <Input type="number" min={0} max={7} value={set2P2} onChange={(e) => setSet2P2(e.target.value)} className="w-14 text-center mx-auto" required />
+                </td>
+              )}
+              {showSuperTb && (
+                <td className="py-1.5">
+                  <Input type="number" min={0} max={99} value={stbP2} onChange={(e) => setStbP2(e.target.value)} className="w-14 text-center mx-auto" required />
+                </td>
+              )}
+            </tr>
+          </tbody>
+        </table>
       </div>
-
-      {/* Set 1 */}
-      <div className="grid grid-cols-[1fr_80px_80px] gap-2 items-center">
-        <Label>Set 1</Label>
-        <Input
-          type="number"
-          min={0}
-          max={7}
-          value={set1P1}
-          onChange={(e) => setSet1P1(e.target.value)}
-          className="text-center"
-          required
-        />
-        <Input
-          type="number"
-          min={0}
-          max={7}
-          value={set1P2}
-          onChange={(e) => setSet1P2(e.target.value)}
-          className="text-center"
-          required
-        />
-      </div>
-
-      {/* Set 2 */}
-      {isTwoSets && (
-        <div className="grid grid-cols-[1fr_80px_80px] gap-2 items-center">
-          <Label>Set 2</Label>
-          <Input
-            type="number"
-            min={0}
-            max={7}
-            value={set2P1}
-            onChange={(e) => setSet2P1(e.target.value)}
-            className="text-center"
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            max={7}
-            value={set2P2}
-            onChange={(e) => setSet2P2(e.target.value)}
-            className="text-center"
-            required
-          />
-        </div>
-      )}
-
-      {/* Super Tiebreak */}
-      {showSuperTb && (
-        <div className="grid grid-cols-[1fr_80px_80px] gap-2 items-center">
-          <Label>Super TB</Label>
-          <Input
-            type="number"
-            min={0}
-            max={99}
-            value={stbP1}
-            onChange={(e) => setStbP1(e.target.value)}
-            className="text-center"
-            required
-          />
-          <Input
-            type="number"
-            min={0}
-            max={99}
-            value={stbP2}
-            onChange={(e) => setStbP2(e.target.value)}
-            className="text-center"
-            required
-          />
-        </div>
-      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

@@ -1,7 +1,7 @@
 import { getPendingAdminInvitations } from '@/services/admin-invitation-service'
 import { AdminInvitationsClient } from './admin-invitations-client'
 
-export const metadata = { title: 'Invitaciones de admin - Sinergia Life Tenis' }
+export const metadata = { title: 'Invitaciones de admin - Life Tenis' }
 
 export default async function InvitacionesPage() {
   const invitations = await getPendingAdminInvitations()

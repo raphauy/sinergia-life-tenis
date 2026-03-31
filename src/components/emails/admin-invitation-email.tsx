@@ -33,7 +33,7 @@ export default function AdminInvitationEmail({
             Has sido invitado como administrador
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 24px' }}>
-            <strong>{inviterName}</strong> te ha invitado a ser administrador de la plataforma Sinergia Life Tenis.
+            <strong>{inviterName}</strong> te ha invitado a ser administrador de la plataforma Life Tenis.
           </Text>
           <Section style={{ textAlign: 'center' as const, margin: '24px 0' }}>
             <Button href={acceptUrl} style={{ backgroundColor: theme.colors.primary, color: '#ffffff', padding: '12px 32px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold', textDecoration: 'none' }}>

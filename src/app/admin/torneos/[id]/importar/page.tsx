@@ -6,7 +6,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-export const metadata = { title: 'Importar jugadores - Sinergia Life Tenis' }
+export const metadata = { title: 'Importar jugadores - Life Tenis' }
 
 export default async function ImportarPage({ params }: Props) {
   const { id } = await params

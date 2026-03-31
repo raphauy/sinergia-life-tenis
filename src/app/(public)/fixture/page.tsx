@@ -8,14 +8,14 @@ import { prisma } from '@/lib/prisma'
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
   const title = tournament
-    ? `Fixture - ${tournament.name} - Sinergia Life Tenis`
-    : 'Fixture - Sinergia Life Tenis'
+    ? `Fixture - ${tournament.name} - Life Tenis`
+    : 'Fixture - Life Tenis'
 
   return {
     title,
     description: tournament
       ? `Fixture y resultados del torneo ${tournament.name}`
-      : 'Fixture de tenis - Sinergia Life Tenis',
+      : 'Fixture de tenis - Life Tenis',
     openGraph: {
       title,
       description: tournament

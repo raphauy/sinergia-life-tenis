@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { LoginForm } from './login-form'
 
 export const metadata = {
-  title: 'Iniciar sesión - Sinergia Life Tenis',
+  title: 'Iniciar sesión - Life Tenis',
 }
 
 export default function LoginPage() {

@@ -5,7 +5,7 @@ interface Props {
   params: Promise<{ token: string }>
 }
 
-export const metadata = { title: 'Aceptar invitación - Sinergia Life Tenis' }
+export const metadata = { title: 'Aceptar invitación - Life Tenis' }
 
 export default async function AdminInvitePage({ params }: Props) {
   const { token } = await params
@@ -48,7 +48,7 @@ export default async function AdminInvitePage({ params }: Props) {
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="max-w-sm w-full">
         <div className="rounded-lg border bg-card p-8 text-center space-y-5">
-          <h1 className="text-xl font-bold text-primary">Sinergia Life Tenis</h1>
+          <h1 className="text-xl font-bold text-primary">Life Tenis</h1>
           <h2 className="text-lg font-semibold">Invitación de administrador</h2>
           <p className="text-muted-foreground text-sm">
             <strong>{invitation.invitedBy.name || invitation.invitedBy.email}</strong> te
