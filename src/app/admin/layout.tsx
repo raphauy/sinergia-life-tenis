@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AdminSidebar } from '@/components/admin-sidebar'
 import { AdminHeader } from '@/components/admin-header'
+import { SidebarCloseOnNav } from '@/components/sidebar-close-on-nav'
 
 export default async function AdminLayout({
   children,
@@ -14,6 +15,7 @@ export default async function AdminLayout({
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AdminSidebar />
+      <SidebarCloseOnNav />
       <SidebarInset>
         <AdminHeader />
         <main className="flex-1 overflow-auto p-4 md:p-6">
