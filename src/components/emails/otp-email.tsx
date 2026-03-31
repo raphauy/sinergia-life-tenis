@@ -21,8 +21,8 @@ export default function OtpEmail({ otp }: OtpEmailProps) {
       <Body style={{ backgroundColor: theme.colors.background, fontFamily: theme.fonts.sans, padding: '20px 0' }}>
         <Container style={{ backgroundColor: theme.colors.cardBg, borderRadius: '8px', padding: '40px', maxWidth: '480px', margin: '0 auto', border: `1px solid ${theme.colors.border}` }}>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
-            <Img src={theme.logoUrl} alt="Life" width="28" height="28" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
-            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.text, display: 'inline', verticalAlign: 'middle', marginLeft: '8px' }}>
+            <Img src={theme.logoUrl} alt="Life" width="40" height="40" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+            <Text style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text, display: 'inline', verticalAlign: 'middle', marginLeft: '10px' }}>
               Tenis
             </Text>
           </Section>
