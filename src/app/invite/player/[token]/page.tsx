@@ -43,10 +43,10 @@ export default async function PlayerInvitePage({ params }: Props) {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <div className="max-w-sm w-full">
-        <div className="rounded-lg border bg-card p-6 text-center">
-          <h1 className="text-xl font-bold text-primary mb-4">Sinergia Life Tenis</h1>
-          <h2 className="text-lg font-semibold mb-2">¡Hola {player.name}!</h2>
-          <p className="text-muted-foreground text-sm mb-4">
+        <div className="rounded-lg border bg-card p-8 text-center space-y-5">
+          <h1 className="text-xl font-bold text-primary">Sinergia Life Tenis</h1>
+          <h2 className="text-lg font-semibold">¡Hola {player.name}!</h2>
+          <p className="text-muted-foreground text-sm">
             Has sido invitado al torneo <strong>{player.tournament.name}</strong> en la
             categoría <strong>{player.category.name}</strong>.
           </p>
