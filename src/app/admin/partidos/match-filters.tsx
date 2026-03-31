@@ -17,6 +17,14 @@ interface Props {
   }>
 }
 
+const statusItems = [
+  { value: '', label: 'Todos' },
+  { value: 'PENDING', label: 'Pendiente' },
+  { value: 'CONFIRMED', label: 'Confirmado' },
+  { value: 'PLAYED', label: 'Jugado' },
+  { value: 'CANCELLED', label: 'Cancelado' },
+]
+
 export function MatchFilters({ tournaments }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -26,6 +34,15 @@ export function MatchFilters({ tournaments }: Props) {
 
   const selectedTournament = tournaments.find((t) => t.id === currentTournament)
   const categories = selectedTournament?.categories ?? []
+
+  const tournamentItems = [
+    { value: '', label: 'Todos los torneos' },
+    ...tournaments.map((t) => ({ value: t.id, label: t.name })),
+  ]
+  const categoryItems = [
+    { value: '', label: 'Todas' },
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+  ]
 
   function updateParams(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString())
@@ -41,7 +58,7 @@ export function MatchFilters({ tournaments }: Props) {
 
   return (
     <div className="flex gap-2 flex-wrap">
-      <Select value={currentTournament} onValueChange={(v) => updateParams('tournamentId', v ?? '')}>
+      <Select value={currentTournament} onValueChange={(v) => updateParams('tournamentId', v ?? '')} items={tournamentItems}>
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Todos los torneos" />
         </SelectTrigger>
@@ -55,7 +72,7 @@ export function MatchFilters({ tournaments }: Props) {
         </SelectContent>
       </Select>
 
-      <Select value={currentCategory} onValueChange={(v) => updateParams('categoryId', v ?? '')}>
+      <Select value={currentCategory} onValueChange={(v) => updateParams('categoryId', v ?? '')} items={categoryItems}>
         <SelectTrigger className="w-40">
           <SelectValue placeholder="Categoría" />
         </SelectTrigger>
@@ -69,7 +86,7 @@ export function MatchFilters({ tournaments }: Props) {
         </SelectContent>
       </Select>
 
-      <Select value={currentStatus} onValueChange={(v) => updateParams('status', v ?? '')}>
+      <Select value={currentStatus} onValueChange={(v) => updateParams('status', v ?? '')} items={statusItems}>
         <SelectTrigger className="w-40">
           <SelectValue placeholder="Estado" />
         </SelectTrigger>

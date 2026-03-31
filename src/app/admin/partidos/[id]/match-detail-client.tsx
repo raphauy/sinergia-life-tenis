@@ -1,9 +1,10 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -50,13 +51,22 @@ export function MatchDetailClient({
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [confirmDate, setConfirmDate] = useState<Date | undefined>()
+
+  const timeSlots = Array.from({ length: 28 }, (_, i) => {
+    const h = Math.floor(i / 2) + 7
+    const m = i % 2 === 0 ? '00' : '30'
+    return `${h.toString().padStart(2, '0')}:${m}`
+  })
+  const timeItems = timeSlots.map((t) => ({ value: t, label: t }))
+  const courtItems = COURTS.map((c) => ({ value: c.number.toString(), label: c.name }))
 
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
     startTransition(async () => {
       const res = await confirmMatchAction(matchId, {
-        date: form.get('date'),
+        date: confirmDate ? format(confirmDate, 'yyyy-MM-dd') : null,
         time: form.get('time'),
         courtNumber: form.get('courtNumber'),
       })
@@ -98,16 +108,25 @@ export function MatchDetailClient({
           <form onSubmit={handleConfirm} className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="date">Fecha</Label>
-                <Input id="date" name="date" type="date" required />
+                <Label>Fecha</Label>
+                <DatePicker value={confirmDate} onChange={setConfirmDate} />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="time">Hora</Label>
-                <Input id="time" name="time" type="time" required />
+                <Label>Hora</Label>
+                <Select name="time" required items={timeItems}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timeSlots.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Cancha</Label>
-                <Select name="courtNumber" required>
+                <Select name="courtNumber" required items={courtItems}>
                   <SelectTrigger>
                     <SelectValue placeholder="Cancha" />
                   </SelectTrigger>

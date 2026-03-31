@@ -55,10 +55,10 @@ export async function AdminSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="border-b px-4 py-3">
-        <Link href="/admin" className="flex items-center gap-2">
-          <Image src="/favicon.ico" alt="" width={24} height={24} className="h-6 w-6" />
-          <span className="font-bold text-lg">Tenis</span>
+      <SidebarHeader className="!h-14 border-b px-4 bg-white dark:bg-black !flex !flex-row !items-center">
+        <Link href="/admin" className="mr-auto">
+          <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
+          <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
         </Link>
       </SidebarHeader>
 
