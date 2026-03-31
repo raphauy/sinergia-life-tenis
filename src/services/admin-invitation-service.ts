@@ -122,3 +122,20 @@ export async function getPendingAdminInvitations() {
 export async function cancelAdminInvitation(id: string) {
   return prisma.adminInvitation.delete({ where: { id } })
 }
+
+export async function resendAdminInvitation(id: string) {
+  const invitation = await prisma.adminInvitation.findUnique({
+    where: { id },
+    include: { invitedBy: { select: { name: true, email: true } } },
+  })
+  if (!invitation) throw new Error('Invitación no encontrada')
+  if (invitation.acceptedAt) throw new Error('Esta invitación ya fue aceptada')
+  if (invitation.expiresAt < new Date()) throw new Error('La invitación ha expirado')
+
+  const acceptUrl = generateAdminInviteUrl(invitation.token)
+  await sendAdminInvitationEmail({
+    to: invitation.email,
+    inviterName: invitation.invitedBy.name || invitation.invitedBy.email,
+    acceptUrl,
+  })
+}

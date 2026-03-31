@@ -43,7 +43,7 @@ const navItems = [
   { title: 'Torneos', href: '/admin/torneos', icon: Trophy },
   { title: 'Jugadores', href: '/admin/jugadores', icon: Users },
   { title: 'Partidos', href: '/admin/partidos', icon: Swords },
-  { title: 'Invitaciones', href: '/admin/invitaciones', icon: UserPlus, superadminOnly: true },
+  { title: 'Administradores', href: '/admin/invitaciones', icon: UserPlus, superadminOnly: true },
 ]
 
 export async function AdminSidebar() {
@@ -59,7 +59,7 @@ export async function AdminSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="!h-14 border-b px-4 bg-white dark:bg-black !flex !flex-row !items-center">
+      <SidebarHeader className="!h-14 border-b px-4 !flex !flex-row !items-center">
         <Link href="/admin" className="mr-auto">
           <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
           <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
@@ -107,7 +107,7 @@ export async function AdminSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton render={<Link href="/" target="_blank" />}>
                   <ExternalLink className="h-4 w-4" />
-                  <span>Ver sitio</span>
+                  <span>Ver sitio público</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

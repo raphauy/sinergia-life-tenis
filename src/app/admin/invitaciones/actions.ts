@@ -4,7 +4,9 @@ import { auth } from '@/lib/auth'
 import {
   createAdminInvitation,
   cancelAdminInvitation,
+  resendAdminInvitation,
 } from '@/services/admin-invitation-service'
+import { removeAdminRole } from '@/services/user-service'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -45,5 +47,36 @@ export async function cancelAdminInvitationAction(id: string): Promise<ActionRes
   } catch (error) {
     console.error('Error canceling invitation:', error)
     return { success: false, error: 'Error al cancelar invitación' }
+  }
+}
+
+export async function resendAdminInvitationAction(id: string): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await resendAdminInvitation(id)
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al reenviar invitación'
+    return { success: false, error: message }
+  }
+}
+
+export async function removeAdminAction(userId: string): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'SUPERADMIN') {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await removeAdminRole(userId, session.user.id)
+    revalidatePath('/admin/invitaciones')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al eliminar administrador'
+    return { success: false, error: message }
   }
 }

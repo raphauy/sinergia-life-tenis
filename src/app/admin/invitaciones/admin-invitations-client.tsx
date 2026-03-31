@@ -5,6 +5,24 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -14,26 +32,79 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { toast } from 'sonner'
-import { UserPlus, Trash2 } from 'lucide-react'
-import { createAdminInvitationAction, cancelAdminInvitationAction } from './actions'
+import { UserPlus, Send, X, Copy, RefreshCw, Clock, MoreHorizontal } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  createAdminInvitationAction,
+  cancelAdminInvitationAction,
+  resendAdminInvitationAction,
+  removeAdminAction,
+} from './actions'
+import { formatDistanceToNow, differenceInDays } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 interface Invitation {
   id: string
   email: string
   name: string | null
+  token: string
   expiresAt: Date
   createdAt: Date
   invitedBy: { name: string | null; email: string }
 }
 
-export function AdminInvitationsClient({
+interface AdminUser {
+  id: string
+  email: string
+  name: string | null
+  image: string | null
+  role: string
+  createdAt: Date
+}
+
+function getInitials(name: string | null, email: string): string {
+  if (name) {
+    return name
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
+  }
+  return email[0].toUpperCase()
+}
+
+function getExpirationText(expiresAt: Date): string {
+  const days = differenceInDays(new Date(expiresAt), new Date())
+  if (days <= 0) return 'Expira hoy'
+  if (days === 1) return 'Expira en 1 día'
+  return `Expira en ${days} días`
+}
+
+function getInviteUrl(token: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return `${baseUrl}/invite/admin/${token}`
+}
+
+export function AdminUsersClient({
   invitations,
+  adminUsers,
+  currentUserId,
 }: {
   invitations: Invitation[]
+  adminUsers: AdminUser[]
+  currentUserId: string
 }) {
   const [showForm, setShowForm] = useState(false)
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
+  const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(e: React.FormEvent) {
@@ -62,90 +133,280 @@ export function AdminInvitationsClient({
     })
   }
 
+  function handleResend(id: string) {
+    startTransition(async () => {
+      const result = await resendAdminInvitationAction(id)
+      if (result.success) {
+        toast.success('Email reenviado')
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
+  function handleRemoveAdmin() {
+    if (!removeTarget) return
+    startTransition(async () => {
+      const result = await removeAdminAction(removeTarget.id)
+      if (result.success) {
+        toast.success('Administrador eliminado')
+      } else {
+        toast.error(result.error)
+      }
+      setRemoveTarget(null)
+    })
+  }
+
+  async function handleCopyLink(token: string) {
+    try {
+      await navigator.clipboard.writeText(getInviteUrl(token))
+      toast.success('Link copiado al portapapeles')
+    } catch {
+      toast.error('No se pudo copiar el link')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Usuarios</h1>
+          <p className="text-muted-foreground text-sm">
+            Gestiona los usuarios administradores y sus invitaciones
+          </p>
+        </div>
         <Button onClick={() => setShowForm(!showForm)}>
-          <UserPlus className="h-4 w-4 mr-1" />
+          <UserPlus className="h-4 w-4" />
           Invitar admin
         </Button>
       </div>
 
+      {/* Create form */}
       {showForm && (
-        <form onSubmit={handleCreate} className="rounded-lg border p-4 space-y-3 max-w-md">
-          <div className="space-y-2">
-            <Label htmlFor="inv-email">Email</Label>
-            <Input
-              id="inv-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="admin@ejemplo.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="inv-name">Nombre (opcional)</Label>
-            <Input
-              id="inv-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Juan Pérez"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? 'Enviando...' : 'Enviar invitación'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
-              Cancelar
-            </Button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader>
+            <CardTitle>Nueva invitación</CardTitle>
+            <CardDescription>
+              Envía una invitación por email para un nuevo administrador
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-3 max-w-md">
+              <div className="space-y-2">
+                <Label htmlFor="inv-email">Email</Label>
+                <Input
+                  id="inv-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="admin@ejemplo.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="inv-name">Nombre (opcional)</Label>
+                <Input
+                  id="inv-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Juan Pérez"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={isPending}>
+                  <Send className="h-4 w-4" />
+                  {isPending ? 'Enviando...' : 'Enviar invitación'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      {invitations.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No hay invitaciones pendientes.</p>
-      ) : (
-        <div className="rounded-md border">
+      {/* Pending invitations */}
+      {invitations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-4 w-4" />
+              Invitaciones pendientes
+            </CardTitle>
+            <CardDescription>
+              Usuarios que han sido invitados pero aún no han aceptado
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {invitations.map((inv) => (
+              <div
+                key={inv.id}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <Avatar size="sm">
+                    <AvatarFallback>
+                      {getInitials(inv.name, inv.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{inv.email}</span>
+                      <Badge variant="secondary">Admin</Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {getExpirationText(inv.expiresAt)}
+                      {' · '}
+                      Invitado por {inv.invitedBy.name || inv.invitedBy.email}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleCopyLink(inv.token)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copiar link
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleResend(inv.id)}
+                    disabled={isPending}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reenviar Email
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleCancel(inv.id)}
+                    disabled={isPending}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Admin users table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Administradores ({adminUsers.length})</CardTitle>
+          <CardDescription>
+            Gestiona los roles y permisos de los administradores
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Invitado por</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead>Usuario</TableHead>
+                <TableHead>Rol</TableHead>
+                <TableHead>Miembro desde</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invitations.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell>{inv.email}</TableCell>
-                  <TableCell>{inv.name || '-'}</TableCell>
-                  <TableCell className="text-sm">
-                    {inv.invitedBy.name || inv.invitedBy.email}
+              {adminUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar size="sm">
+                        {user.image && <AvatarImage src={user.image} alt={user.name || user.email} />}
+                        <AvatarFallback>
+                          {getInitials(user.name, user.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium text-sm">
+                          {user.name || user.email.split('@')[0]}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{user.email}</div>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary">Pendiente</Badge>
+                    <Badge variant={user.role === 'SUPERADMIN' ? 'default' : 'secondary'}>
+                      {user.role === 'SUPERADMIN' ? 'Super Admin' : 'Admin'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {formatDistanceToNow(new Date(user.createdAt), {
+                      addSuffix: true,
+                      locale: es,
+                    })}
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => handleCancel(inv.id)}
-                      disabled={isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button size="icon" variant="ghost" className="h-8 w-8" />}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem
+                          onClick={() => {
+                            navigator.clipboard.writeText(user.email)
+                            toast.success('Email copiado')
+                          }}
+                        >
+                          Copiar email
+                        </DropdownMenuItem>
+                        {user.role !== 'SUPERADMIN' && user.id !== currentUserId && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setRemoveTarget(user)}
+                            >
+                              Eliminar administrador
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </div>
-      )}
+        </CardContent>
+      </Card>
+
+      {/* Remove admin confirmation */}
+      <AlertDialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar administrador</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se quitará el rol de administrador a{' '}
+              <strong>{removeTarget?.name || removeTarget?.email}</strong>. Esta acción se puede revertir enviando una nueva invitación.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveAdmin}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -1,15 +1,22 @@
+import { auth } from '@/lib/auth'
 import { getPendingAdminInvitations } from '@/services/admin-invitation-service'
-import { AdminInvitationsClient } from './admin-invitations-client'
+import { getAdminUsers } from '@/services/user-service'
+import { AdminUsersClient } from './admin-invitations-client'
 
-export const metadata = { title: 'Invitaciones de admin - Life Tenis' }
+export const metadata = { title: 'Usuarios admin - Life Tenis' }
 
 export default async function InvitacionesPage() {
-  const invitations = await getPendingAdminInvitations()
+  const session = await auth()
+  const [invitations, adminUsers] = await Promise.all([
+    getPendingAdminInvitations(),
+    getAdminUsers(),
+  ])
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">Invitaciones de administrador</h1>
-      <AdminInvitationsClient invitations={invitations} />
-    </div>
+    <AdminUsersClient
+      invitations={invitations}
+      adminUsers={adminUsers}
+      currentUserId={session!.user.id}
+    />
   )
 }
