@@ -28,7 +28,7 @@ export default async function JugadorLayout({ children, params }: JugadorLayoutP
     <div className="min-h-screen flex flex-col">
       <header className="border-b bg-white dark:bg-black">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link href={`/jugador/${playerId}`}>
+          <Link href="/">
             <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
             <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
           </Link>
