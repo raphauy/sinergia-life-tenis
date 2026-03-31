@@ -1,5 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { auth } from '@/lib/auth'
+import { prisma as prismaDb } from '@/lib/prisma'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getRankingByCategory } from '@/services/ranking-service'
 import { getMatches } from '@/services/match-service'
@@ -12,16 +14,31 @@ import { Trophy, Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 
 export default async function HomePage() {
+  const session = await auth()
   const tournament = await getActiveTournament()
+
+  // Determine where to link the logged-in user
+  let userHref: string | null = null
+  if (session?.user) {
+    if (session.user.role === 'SUPERADMIN' || session.user.role === 'ADMIN') {
+      userHref = '/admin'
+    } else {
+      const player = await prismaDb.player.findFirst({
+        where: { userId: session.user.id, isActive: true },
+        select: { id: true },
+      })
+      userHref = player ? `/jugador/${player.id}` : '/perfil'
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navbar */}
-      <header className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
+      <header className="border-b bg-white dark:bg-black sticky top-0 z-50">
         <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/favicon.ico" alt="" width={20} height={20} className="h-5 w-5" />
-            <span className="font-bold">Sinergia Life Tenis</span>
+          <Link href="/">
+            <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
+            <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
           </Link>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/ranking" className="text-muted-foreground hover:text-foreground">
@@ -30,9 +47,15 @@ export default async function HomePage() {
             <Link href="/fixture" className="text-muted-foreground hover:text-foreground">
               Fixture
             </Link>
-            <Link href="/login" className="text-muted-foreground hover:text-foreground">
-              Iniciar sesión
-            </Link>
+            {userHref ? (
+              <Link href={userHref} className="text-muted-foreground hover:text-foreground">
+                Mi panel
+              </Link>
+            ) : (
+              <Link href="/login" className="text-muted-foreground hover:text-foreground">
+                Iniciar sesión
+              </Link>
+            )}
           </nav>
         </div>
       </header>
@@ -48,7 +71,7 @@ export default async function HomePage() {
         />
         <div className="absolute inset-0 bg-black/50" />
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center px-4">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Sinergia Life Tenis</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Life Tenis</h1>
           {tournament ? (
             <p className="text-lg md:text-xl opacity-90">{tournament.name}</p>
           ) : (
@@ -71,11 +94,15 @@ export default async function HomePage() {
       {/* Footer */}
       <footer className="border-t py-6">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
-          <span>Sinergia Life Tenis</span>
+          <span>Life Tenis</span>
           <div className="flex gap-4">
             <Link href="/ranking" className="hover:text-foreground">Ranking</Link>
             <Link href="/fixture" className="hover:text-foreground">Fixture</Link>
-            <Link href="/login" className="hover:text-foreground">Login</Link>
+            {userHref ? (
+              <Link href={userHref} className="hover:text-foreground">Mi panel</Link>
+            ) : (
+              <Link href="/login" className="hover:text-foreground">Login</Link>
+            )}
           </div>
         </div>
       </footer>
@@ -116,9 +143,9 @@ async function TournamentContent({
 
   return (
     <Tabs defaultValue={defaultTab}>
-      <TabsList className="mb-6">
+      <TabsList className="mb-6 w-full h-11 bg-orange-100 dark:bg-orange-950">
         {categories.map((cat) => (
-          <TabsTrigger key={cat.id} value={cat.id}>
+          <TabsTrigger key={cat.id} value={cat.id} className="font-semibold cursor-pointer">
             Categoría {cat.name}
           </TabsTrigger>
         ))}
