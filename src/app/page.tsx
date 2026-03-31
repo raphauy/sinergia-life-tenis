@@ -1,65 +1,202 @@
-import Image from "next/image";
+import Image from 'next/image'
+import Link from 'next/link'
+import { getActiveTournament } from '@/services/tournament-service'
+import { getRankingByCategory } from '@/services/ranking-service'
+import { getMatches } from '@/services/match-service'
+import { RankingTable } from '@/components/ranking-table'
+import { MatchCard } from '@/components/match-card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Trophy, Calendar } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
 
-export default function Home() {
+export default async function HomePage() {
+  const tournament = await getActiveTournament()
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+    <div className="min-h-screen flex flex-col">
+      {/* Navbar */}
+      <header className="border-b bg-background/95 backdrop-blur sticky top-0 z-50">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/favicon.ico" alt="" width={20} height={20} className="h-5 w-5" />
+            <span className="font-bold">Sinergia Life Tenis</span>
+          </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link href="/ranking" className="text-muted-foreground hover:text-foreground">
+              Ranking
+            </Link>
+            <Link href="/fixture" className="text-muted-foreground hover:text-foreground">
+              Fixture
+            </Link>
+            <Link href="/login" className="text-muted-foreground hover:text-foreground">
+              Iniciar sesión
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="relative h-64 md:h-80 overflow-hidden">
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
+          src="/hero-cancha.png"
+          alt="Cancha de tenis Sinergia Life"
+          fill
+          className="object-cover"
           priority
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center px-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Sinergia Life Tenis</h1>
+          {tournament ? (
+            <p className="text-lg md:text-xl opacity-90">{tournament.name}</p>
+          ) : (
+            <p className="text-lg opacity-75">Torneos de tenis</p>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      </section>
+
+      {/* Content */}
+      <main className="flex-1 container mx-auto px-4 py-8">
+        {!tournament ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No hay torneo activo en este momento.</p>
+          </div>
+        ) : (
+          <TournamentContent tournament={tournament} />
+        )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t py-6">
+        <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
+          <span>Sinergia Life Tenis</span>
+          <div className="flex gap-4">
+            <Link href="/ranking" className="hover:text-foreground">Ranking</Link>
+            <Link href="/fixture" className="hover:text-foreground">Fixture</Link>
+            <Link href="/login" className="hover:text-foreground">Login</Link>
+          </div>
+        </div>
+      </footer>
     </div>
-  );
+  )
+}
+
+async function TournamentContent({
+  tournament,
+}: {
+  tournament: NonNullable<Awaited<ReturnType<typeof getActiveTournament>>>
+}) {
+  const categories = tournament.categories
+
+  if (categories.length === 0) {
+    return <p className="text-muted-foreground">No hay categorías configuradas.</p>
+  }
+
+  // Fetch ranking + matches for all categories
+  const data = await Promise.all(
+    categories.map(async (cat) => {
+      const [ranking, matches] = await Promise.all([
+        getRankingByCategory(cat.id),
+        getMatches({ categoryId: cat.id }),
+      ])
+
+      // Get player IDs for linking
+      const playerMap = await getPlayerMap(cat.id)
+
+      const upcoming = matches.filter((m) => m.status === 'CONFIRMED')
+      const played = matches.filter((m) => m.status === 'PLAYED')
+
+      return { cat, ranking, upcoming, played, playerMap }
+    })
+  )
+
+  const defaultTab = categories[0].id
+
+  return (
+    <Tabs defaultValue={defaultTab}>
+      <TabsList className="mb-6">
+        {categories.map((cat) => (
+          <TabsTrigger key={cat.id} value={cat.id}>
+            Categoría {cat.name}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+
+      {data.map(({ cat, ranking, upcoming, played, playerMap }) => (
+        <TabsContent key={cat.id} value={cat.id}>
+          <div className="space-y-8">
+            {/* Ranking */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Trophy className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Ranking</h2>
+                <Link href="/ranking" className="text-sm text-primary hover:underline ml-auto">
+                  Ver completo
+                </Link>
+              </div>
+              <RankingTable entries={ranking} />
+            </section>
+
+            {/* Fixture */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Fixture</h2>
+                <Link href="/fixture" className="text-sm text-primary hover:underline ml-auto">
+                  Ver completo
+                </Link>
+              </div>
+
+              {upcoming.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Próximos partidos</h3>
+                  <div className="space-y-2">
+                    {upcoming.slice(0, 5).map((m) => (
+                      <MatchCard
+                        key={m.id}
+                        match={m}
+                        player1LinkId={playerMap.get(m.player1Id)}
+                        player2LinkId={playerMap.get(m.player2Id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {played.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Últimos resultados</h3>
+                  <div className="space-y-2">
+                    {played.slice(0, 5).map((m) => (
+                      <MatchCard
+                        key={m.id}
+                        match={m}
+                        player1LinkId={playerMap.get(m.player1Id)}
+                        player2LinkId={playerMap.get(m.player2Id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {upcoming.length === 0 && played.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay partidos en esta categoría.</p>
+              )}
+            </section>
+          </div>
+        </TabsContent>
+      ))}
+    </Tabs>
+  )
+}
+
+/** Map userId -> playerId for linking to public profiles */
+async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {
+  const players = await prisma.player.findMany({
+    where: { categoryId, userId: { not: null } },
+    select: { id: true, userId: true },
+  })
+  return new Map(players.map((p) => [p.userId!, p.id]))
 }

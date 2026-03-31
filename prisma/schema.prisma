@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  PLAYER
+}
+
+enum MatchStatus {
+  PENDING
+  CONFIRMED
+  PLAYED
+  CANCELLED
+}
+
+enum MatchFormat {
+  SINGLE_SET
+  TWO_SETS_SUPERTB
+  BEST_OF_THREE
+}
+
+enum ImportedPlayerStatus {
+  PENDING
+  PROCESSED
+  ERROR
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  phone     String?
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  otpTokens            OtpToken[]
+  players              Player[]
+  matchesAsPlayer1     Match[]       @relation("MatchPlayer1")
+  matchesAsPlayer2     Match[]       @relation("MatchPlayer2")
+  matchesWon           MatchResult[] @relation("MatchWinner")
+  matchResultsReported MatchResult[] @relation("MatchReporter")
+  invitationsSent      AdminInvitation[] @relation("InvitationSender")
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+model OtpToken {
+  id        String    @id @default(cuid())
+  token     String
+  userId    String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model AdminInvitation {
+  id          String    @id @default(cuid())
+  email       String
+  name        String?
+  token       String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  createdAt   DateTime  @default(now())
+
+  invitedBy User @relation("InvitationSender", fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model Tournament {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  matchFormat MatchFormat  @default(SINGLE_SET)
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  categories TournamentCategory[]
+  matches    Match[]
+  players    Player[]
+
+  @@index([isActive])
+}
+
+model TournamentCategory {
+  id           String   @id @default(cuid())
+  tournamentId String
+  name         String
+  description  String?
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  players    Player[]
+  matches    Match[]
+
+  @@unique([tournamentId, name])
+  @@index([tournamentId])
+}
+
+model Player {
+  id              String    @id @default(cuid())
+  userId          String?
+  tournamentId    String
+  categoryId      String
+  name            String
+  whatsappNumber  String?
+  email           String?
+  invitationToken String?   @unique
+  invitedAt       DateTime?
+  acceptedAt      DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([tournamentId, email])
+  @@index([tournamentId])
+  @@index([categoryId])
+  @@index([userId])
+  @@index([invitationToken])
+}
+
+model Match {
+  id           String      @id @default(cuid())
+  tournamentId String
+  categoryId   String
+  player1Id    String
+  player2Id    String
+  courtNumber  Int?
+  scheduledAt  DateTime?
+  status       MatchStatus @default(PENDING)
+  confirmedAt  DateTime?
+  playedAt     DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  player1    User               @relation("MatchPlayer1", fields: [player1Id], references: [id])
+  player2    User               @relation("MatchPlayer2", fields: [player2Id], references: [id])
+  result     MatchResult?
+
+  @@index([tournamentId])
+  @@index([categoryId])
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model MatchResult {
+  id             String   @id @default(cuid())
+  matchId        String   @unique
+  reportedById   String
+  set1Player1    Int
+  set1Player2    Int
+  set2Player1    Int?
+  set2Player2    Int?
+  superTbPlayer1 Int?
+  superTbPlayer2 Int?
+  set3Player1    Int?
+  set3Player2    Int?
+  winnerId       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  match      Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  reportedBy User  @relation("MatchReporter", fields: [reportedById], references: [id])
+  winner     User  @relation("MatchWinner", fields: [winnerId], references: [id])
+
+  @@index([matchId])
+  @@index([winnerId])
+}
+
+model ImportedPlayer {
+  id             String               @id @default(cuid())
+  name           String
+  category       String
+  whatsappNumber String?
+  email          String?
+  data           Json
+  status         ImportedPlayerStatus @default(PENDING)
+  error          String?
+  tournamentId   String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([tournamentId])
+  @@index([status])
+  @@index([tournamentId, status])
+}
