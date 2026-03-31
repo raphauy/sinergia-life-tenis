@@ -3,6 +3,7 @@ import {
   Head,
   Body,
   Container,
+  Font,
   Section,
   Text,
   Hr,
@@ -17,12 +18,14 @@ interface OtpEmailProps {
 export default function OtpEmail({ otp }: OtpEmailProps) {
   return (
     <Html>
-      <Head />
+      <Head>
+        <Font fontFamily="Oswald" fallbackFontFamily={['Arial', 'sans-serif']} webFont={{ url: 'https://fonts.gstatic.com/s/oswald/v53/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvsUZiYA.woff2', format: 'woff2' }} fontWeight={700} fontStyle="normal" />
+      </Head>
       <Body style={{ backgroundColor: theme.colors.background, fontFamily: theme.fonts.sans, padding: '20px 0' }}>
         <Container style={{ backgroundColor: theme.colors.cardBg, borderRadius: '8px', padding: '40px', maxWidth: '480px', margin: '0 auto', border: `1px solid ${theme.colors.border}` }}>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
-            <Img src={theme.logoUrl} alt="Life" width="40" height="40" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
-            <Text style={{ fontSize: '28px', fontWeight: 'bold', color: theme.colors.text, display: 'inline', verticalAlign: 'middle', marginLeft: '10px' }}>
+            <Img src={theme.logoUrl} alt="Life" width="56" height="56" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+            <Text style={{ fontSize: '28px', fontWeight: 700, fontFamily: theme.fonts.heading, color: theme.colors.text, display: 'inline', verticalAlign: 'middle', marginLeft: '10px', letterSpacing: '2px' }}>
               Tenis
             </Text>
           </Section>
