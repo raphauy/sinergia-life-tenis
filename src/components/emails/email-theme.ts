@@ -10,7 +10,7 @@ export const theme = {
   },
   fonts: {
     sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    heading: '"Oswald", "Arial Narrow", Arial, sans-serif',
+    heading: '"Oswald", "Impact", "Arial Narrow", Arial, sans-serif',
     mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
   },
   logoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/life-logo.png`,

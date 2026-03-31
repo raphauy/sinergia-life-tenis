@@ -28,7 +28,7 @@ export default function PlayerInvitationEmail({
   return (
     <Html>
       <Head>
-        <Font fontFamily="Oswald" fallbackFontFamily={['Arial', 'sans-serif']} webFont={{ url: 'https://fonts.gstatic.com/s/oswald/v53/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvsUZiYA.woff2', format: 'woff2' }} fontWeight={700} fontStyle="normal" />
+        <Font fontFamily="Oswald" fallbackFontFamily={['Helvetica', 'Arial', 'sans-serif']} webFont={{ url: 'https://fonts.gstatic.com/s/oswald/v53/TK3_WkUHHAIjg75cFRf3bXL8LICs1_FvsUZiYA.woff2', format: 'woff2' }} fontWeight={700} fontStyle="normal" />
       </Head>
       <Body style={{ backgroundColor: theme.colors.background, fontFamily: theme.fonts.sans, padding: '20px 0' }}>
         <Container style={{ backgroundColor: theme.colors.cardBg, borderRadius: '8px', padding: '40px', maxWidth: '480px', margin: '0 auto', border: `1px solid ${theme.colors.border}` }}>
