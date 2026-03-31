@@ -7,6 +7,7 @@ import {
   Text,
   Button,
   Hr,
+  Img,
 } from '@react-email/components'
 import { theme } from './email-theme'
 
@@ -28,9 +29,12 @@ export default function PlayerInvitationEmail({
       <Head />
       <Body style={{ backgroundColor: theme.colors.background, fontFamily: theme.fonts.sans, padding: '20px 0' }}>
         <Container style={{ backgroundColor: theme.colors.cardBg, borderRadius: '8px', padding: '40px', maxWidth: '480px', margin: '0 auto', border: `1px solid ${theme.colors.border}` }}>
-          <Text style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.primary, textAlign: 'center' as const, margin: '0 0 24px' }}>
-            Sinergia Life Tenis
-          </Text>
+          <Section style={{ textAlign: 'center' as const, margin: '0 0 24px' }}>
+            <Img src={theme.logoUrl} alt="Life" width="28" height="28" style={{ display: 'inline-block', verticalAlign: 'middle' }} />
+            <Text style={{ fontSize: '20px', fontWeight: 'bold', color: theme.colors.text, display: 'inline', verticalAlign: 'middle', marginLeft: '8px' }}>
+              Tenis
+            </Text>
+          </Section>
           <Hr style={{ borderColor: theme.colors.border }} />
           <Text style={{ fontSize: '16px', color: theme.colors.text, margin: '24px 0 8px' }}>
             Hola {playerName},
