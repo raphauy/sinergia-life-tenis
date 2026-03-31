@@ -17,21 +17,12 @@ interface OtpEmailProps {
 export default function OtpEmail({ otp }: OtpEmailProps) {
   return (
     <Html>
-      <Head>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');`}</style>
-      </Head>
+      <Head />
       <Body style={{ backgroundColor: theme.colors.background, fontFamily: theme.fonts.sans, padding: '20px 0' }}>
         <Container style={{ backgroundColor: theme.colors.cardBg, borderRadius: '8px', padding: '40px', maxWidth: '480px', margin: '0 auto', border: `1px solid ${theme.colors.border}` }}>
-          <table align="center" cellPadding="0" cellSpacing="0" role="presentation" style={{ margin: '0 auto 8px' }}>
-            <tr>
-              <td style={{ verticalAlign: 'middle', paddingRight: '10px' }}>
-                <Img src={theme.logoUrl} alt="Life" width="56" height="56" />
-              </td>
-              <td style={{ verticalAlign: 'middle' }}>
-                <span style={{ fontSize: '36px', fontWeight: 700, fontFamily: theme.fonts.heading, color: theme.colors.text, letterSpacing: '2px' }}>Tenis</span>
-              </td>
-            </tr>
-          </table>
+          <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
+            <Img src={theme.logoUrl} alt="Life Tenis" width="200" style={{ margin: '0 auto' }} />
+          </Section>
           <Text style={{ fontSize: '14px', color: theme.colors.textMuted, textAlign: 'center' as const, margin: '0 0 24px' }}>
             Verificación de acceso
           </Text>
