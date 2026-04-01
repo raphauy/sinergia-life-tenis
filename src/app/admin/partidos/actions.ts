@@ -1,11 +1,12 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { createMatch, confirmMatch, cancelMatch, getMatchById } from '@/services/match-service'
+import { createMatch, confirmMatch, rescheduleMatch, cancelMatch, getMatchById } from '@/services/match-service'
 import { createMatchResult, updateMatchResult } from '@/services/match-result-service'
 import { sendMatchConfirmationEmail } from '@/services/email-service'
 import { createMatchSchema, confirmMatchSchema } from '@/lib/validations/match'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
+import { fullName } from '@/lib/format-name'
 import { parseFromUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { prisma } from '@/lib/prisma'
@@ -72,8 +73,8 @@ export async function confirmMatchAction(
     const emailPromises = [
       sendMatchConfirmationEmail({
         to: match.player1.email,
-        playerName: match.player1.name || 'Jugador',
-        rivalName: match.player2.name || 'Rival',
+        playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
+        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
@@ -81,8 +82,8 @@ export async function confirmMatchAction(
       }),
       sendMatchConfirmationEmail({
         to: match.player2.email,
-        playerName: match.player2.name || 'Jugador',
-        rivalName: match.player1.name || 'Rival',
+        playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
+        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
@@ -96,6 +97,36 @@ export async function confirmMatchAction(
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al confirmar partido'
+    return { success: false, error: msg }
+  }
+}
+
+export async function rescheduleMatchAction(
+  matchId: string,
+  data: Record<string, unknown>
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || !isAdmin(session.user.role)) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const validated = confirmMatchSchema.safeParse(data)
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message || 'Datos inválidos' }
+    }
+
+    const scheduledAt = parseFromUY(validated.data.date, validated.data.time)
+    await rescheduleMatch(matchId, {
+      scheduledAt,
+      courtNumber: validated.data.courtNumber,
+    })
+
+    revalidatePath('/admin/partidos')
+    revalidatePath(`/admin/partidos/${matchId}`)
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al reprogramar partido'
     return { success: false, error: msg }
   }
 }
@@ -170,13 +201,13 @@ export async function getPlayersByCategoryAction(
 
     const players = await prisma.player.findMany({
       where: { categoryId, userId: { not: null }, isActive: true },
-      select: { id: true, name: true, userId: true },
-      orderBy: { name: 'asc' },
+      select: { id: true, firstName: true, lastName: true, userId: true },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     })
 
     return {
       success: true,
-      data: players.map((p) => ({ id: p.id, name: p.name, userId: p.userId! })),
+      data: players.map((p) => ({ id: p.id, name: fullName(p.firstName, p.lastName), userId: p.userId! })),
     }
   } catch {
     return { success: false, error: 'Error al obtener jugadores' }

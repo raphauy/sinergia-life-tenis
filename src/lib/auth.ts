@@ -38,7 +38,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return {
           id: user.id,
           email: user.email,
-          name: user.name,
+          name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+          firstName: user.firstName,
+          lastName: user.lastName,
           image: user.image,
           role: user.role,
         }
@@ -51,13 +53,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id
         token.email = user.email
-        token.name = user.name
+        token.firstName = user.firstName
+        token.lastName = user.lastName
         token.image = user.image
         token.role = user.role
       }
 
       if (trigger === 'update' && session) {
-        if (session.name !== undefined) token.name = session.name
+        if (session.firstName !== undefined) token.firstName = session.firstName
+        if (session.lastName !== undefined) token.lastName = session.lastName
         if (session.image !== undefined) token.image = session.image
       }
 
@@ -67,7 +71,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session: async ({ session, token }) => {
       if (token) {
         session.user.id = token.id as string
-        session.user.name = token.name as string | null
+        session.user.firstName = token.firstName as string | null
+        session.user.lastName = token.lastName as string | null
         session.user.image = blobUrl(token.image as string | null) || null
         session.user.role = token.role as string
       }

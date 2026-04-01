@@ -44,7 +44,8 @@ enum ImportedPlayerStatus {
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  name      String?
+  firstName String?
+  lastName  String?
   image     String?
   phone     String?
   role      Role
@@ -83,7 +84,8 @@ model OtpToken {
 model AdminInvitation {
   id          String    @id @default(cuid())
   email       String
-  name        String?
+  firstName   String?
+  lastName    String?
   token       String    @unique
   expiresAt   DateTime
   acceptedAt  DateTime?
@@ -154,7 +156,8 @@ model Player {
   tournamentId    String
   categoryId      String
   groupId         String?
-  name            String
+  firstName       String
+  lastName        String
   whatsappNumber  String?
   email           String?
   invitationToken String?   @unique
@@ -234,7 +237,8 @@ model MatchResult {
 
 model ImportedPlayer {
   id             String               @id @default(cuid())
-  name           String
+  firstName      String
+  lastName       String
   category       String
   whatsappNumber String?
   email          String?

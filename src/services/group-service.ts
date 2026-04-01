@@ -6,8 +6,8 @@ export async function getGroupsByCategory(categoryId: string) {
     include: {
       players: {
         where: { isActive: true },
-        select: { id: true, name: true, userId: true, email: true },
-        orderBy: { name: 'asc' },
+        select: { id: true, firstName: true, lastName: true, userId: true, email: true },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       },
     },
     orderBy: { number: 'asc' },
@@ -37,8 +37,8 @@ export async function getGroupById(groupId: string) {
       category: { select: { id: true, name: true, tournamentId: true } },
       players: {
         where: { isActive: true },
-        select: { id: true, name: true, userId: true, email: true },
-        orderBy: { name: 'asc' },
+        select: { id: true, firstName: true, lastName: true, userId: true, email: true },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       },
       _count: { select: { matches: true } },
     },

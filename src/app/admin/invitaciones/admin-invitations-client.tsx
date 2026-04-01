@@ -46,38 +46,29 @@ import {
   resendAdminInvitationAction,
   removeAdminAction,
 } from './actions'
+import { fullName, initials } from '@/lib/format-name'
 import { formatDistanceToNow, differenceInDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface Invitation {
   id: string
   email: string
-  name: string | null
+  firstName: string | null
+  lastName: string | null
   token: string
   expiresAt: Date
   createdAt: Date
-  invitedBy: { name: string | null; email: string }
+  invitedBy: { firstName: string | null; lastName: string | null; email: string }
 }
 
 interface AdminUser {
   id: string
   email: string
-  name: string | null
+  firstName: string | null
+  lastName: string | null
   image: string | null
   role: string
   createdAt: Date
-}
-
-function getInitials(name: string | null, email: string): string {
-  if (name) {
-    return name
-      .split(' ')
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
-  return email[0].toUpperCase()
 }
 
 function getExpirationText(expiresAt: Date): string {
@@ -103,18 +94,21 @@ export function AdminUsersClient({
 }) {
   const [showForm, setShowForm] = useState(false)
   const [email, setEmail] = useState('')
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [removeTarget, setRemoveTarget] = useState<AdminUser | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (!email.trim()) { toast.error('Email requerido'); return }
     startTransition(async () => {
-      const result = await createAdminInvitationAction({ email, name: name || undefined })
+      const result = await createAdminInvitationAction({ email, firstName: firstName || undefined, lastName: lastName || undefined })
       if (result.success) {
         toast.success('Invitación enviada')
         setEmail('')
-        setName('')
+        setFirstName('')
+        setLastName('')
         setShowForm(false)
       } else {
         toast.error(result.error)
@@ -200,17 +194,25 @@ export function AdminUsersClient({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
                   placeholder="admin@ejemplo.com"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="inv-name">Nombre (opcional)</Label>
+                <Label htmlFor="inv-firstName">Nombre (opcional)</Label>
                 <Input
-                  id="inv-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Juan Pérez"
+                  id="inv-firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Juan"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="inv-lastName">Apellido (opcional)</Label>
+                <Input
+                  id="inv-lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Pérez"
                 />
               </div>
               <div className="flex gap-2">
@@ -248,7 +250,7 @@ export function AdminUsersClient({
                 <div className="flex items-center gap-3">
                   <Avatar size="sm">
                     <AvatarFallback>
-                      {getInitials(inv.name, inv.email)}
+                      {initials(inv.firstName, inv.lastName) || inv.email[0].toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -260,7 +262,7 @@ export function AdminUsersClient({
                       <Clock className="h-3 w-3" />
                       {getExpirationText(inv.expiresAt)}
                       {' · '}
-                      Invitado por {inv.invitedBy.name || inv.invitedBy.email}
+                      Invitado por {fullName(inv.invitedBy.firstName, inv.invitedBy.lastName) || inv.invitedBy.email}
                     </div>
                   </div>
                 </div>
@@ -322,14 +324,14 @@ export function AdminUsersClient({
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar size="sm">
-                        {user.image && <AvatarImage src={user.image} alt={user.name || user.email} />}
+                        {user.image && <AvatarImage src={user.image} alt={fullName(user.firstName, user.lastName) || user.email} />}
                         <AvatarFallback>
-                          {getInitials(user.name, user.email)}
+                          {initials(user.firstName, user.lastName) || user.email[0].toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium text-sm">
-                          {user.name || user.email.split('@')[0]}
+                          {fullName(user.firstName, user.lastName) || user.email.split('@')[0]}
                         </div>
                         <div className="text-xs text-muted-foreground">{user.email}</div>
                       </div>
@@ -393,7 +395,7 @@ export function AdminUsersClient({
             <AlertDialogTitle>Eliminar administrador</AlertDialogTitle>
             <AlertDialogDescription>
               Se quitará el rol de administrador a{' '}
-              <strong>{removeTarget?.name || removeTarget?.email}</strong>. Esta acción se puede revertir enviando una nueva invitación.
+              <strong>{(removeTarget ? fullName(removeTarget.firstName, removeTarget.lastName) : '') || removeTarget?.email}</strong>. Esta acción se puede revertir enviando una nueva invitación.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

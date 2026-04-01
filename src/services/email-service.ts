@@ -4,6 +4,7 @@ import PlayerInvitationEmail from '@/components/emails/player-invitation-email'
 import AdminInvitationEmail from '@/components/emails/admin-invitation-email'
 import MatchConfirmationEmail from '@/components/emails/match-confirmation-email'
 
+const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <noreply@sinergialifetenis.com>'
 
@@ -11,6 +12,7 @@ const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <noreply@sinergialifeten
 
 export async function sendOtpEmail(input: { to: string; otp: string }) {
   console.log(`[EMAIL] OTP for ${input.to}: ${input.otp}`)
+  if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,
@@ -30,6 +32,7 @@ export async function sendPlayerInvitationEmail(input: {
   acceptUrl: string
 }) {
   console.log(`[EMAIL] Player invitation to ${input.to} (${input.playerName}) - ${input.tournamentName}`)
+  if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,
@@ -52,6 +55,7 @@ export async function sendAdminInvitationEmail(input: {
   acceptUrl: string
 }) {
   console.log(`[EMAIL] Admin invitation to ${input.to} by ${input.inviterName}`)
+  if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,
@@ -76,6 +80,7 @@ export async function sendMatchConfirmationEmail(input: {
   courtName: string
 }) {
   console.log(`[EMAIL] Match confirmation to ${input.to} - ${input.playerName} vs ${input.rivalName} - ${input.date} ${input.time}`)
+  if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,

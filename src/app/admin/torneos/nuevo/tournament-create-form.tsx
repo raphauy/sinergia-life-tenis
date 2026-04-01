@@ -38,6 +38,10 @@ export function TournamentCreateForm() {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
 
+    if (!(form.get('name') as string)?.trim()) {
+      toast.error('Nombre del torneo requerido')
+      return
+    }
     if (!startDate || !endDate) {
       toast.error('Seleccioná fecha de inicio y fin')
       return
@@ -65,7 +69,7 @@ export function TournamentCreateForm() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name">Nombre</Label>
-        <Input id="name" name="name" required placeholder="Torneo Apertura 2026" />
+        <Input id="name" name="name" placeholder="Torneo Apertura 2026" />
       </div>
 
       <div className="space-y-2">

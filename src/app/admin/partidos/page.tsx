@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { fullName } from '@/lib/format-name'
 import { getMatches } from '@/services/match-service'
 import { getTournaments } from '@/services/tournament-service'
 import { Button } from '@/components/ui/button'
@@ -26,17 +27,26 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'dest
 }
 
 interface Props {
-  searchParams: Promise<{ tournamentId?: string; categoryId?: string; status?: string }>
+  searchParams: Promise<{ tournamentId?: string; categoryId?: string; status?: string; q?: string }>
 }
 
 export default async function PartidosPage({ searchParams }: Props) {
   const params = await searchParams
   const tournaments = await getTournaments()
-  const matches = await getMatches({
+  const allMatches = await getMatches({
     tournamentId: params.tournamentId || undefined,
     categoryId: params.categoryId || undefined,
     status: (params.status as MatchStatus) || undefined,
   })
+
+  const q = params.q?.toLowerCase().trim()
+  const matches = q
+    ? allMatches.filter((m) => {
+        const p1 = fullName(m.player1.firstName, m.player1.lastName).toLowerCase()
+        const p2 = fullName(m.player2.firstName, m.player2.lastName).toLowerCase()
+        return p1.includes(q) || p2.includes(q)
+      })
+    : allMatches
 
   return (
     <div>
@@ -72,7 +82,7 @@ export default async function PartidosPage({ searchParams }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">
-                    {m.player1.name} vs {m.player2.name}
+                    {fullName(m.player1.firstName, m.player1.lastName)} vs {fullName(m.player2.firstName, m.player2.lastName)}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {m.tournament.name} — {m.category.name}

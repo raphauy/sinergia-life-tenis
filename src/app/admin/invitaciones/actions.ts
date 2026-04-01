@@ -12,7 +12,8 @@ import type { ActionResult } from '@/lib/action-types'
 
 export async function createAdminInvitationAction(data: {
   email: string
-  name?: string
+  firstName?: string
+  lastName?: string
 }): Promise<ActionResult> {
   try {
     const session = await auth()
@@ -22,7 +23,8 @@ export async function createAdminInvitationAction(data: {
 
     await createAdminInvitation({
       email: data.email,
-      name: data.name,
+      firstName: data.firstName,
+      lastName: data.lastName,
       invitedById: session.user.id,
     })
 

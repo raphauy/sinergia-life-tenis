@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
@@ -11,8 +12,8 @@ interface MatchCardProps {
     status: string
     scheduledAt: Date | null
     courtNumber: number | null
-    player1: { name: string | null }
-    player2: { name: string | null }
+    player1: { firstName: string | null; lastName: string | null }
+    player2: { firstName: string | null; lastName: string | null }
     player1Id: string
     player2Id: string
     result: {
@@ -27,13 +28,18 @@ interface MatchCardProps {
   }
   player1LinkId?: string
   player2LinkId?: string
+  /** Link and current user ID to show "Coordiná con [rival]..." for pending matches */
+  coordinateHref?: string
+  /** Link to load result for confirmed matches */
+  resultHref?: string
+  currentUserId?: string
 }
 
-export function MatchCard({ match, player1LinkId, player2LinkId }: MatchCardProps) {
+export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref, resultHref, currentUserId }: MatchCardProps) {
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
-  const p1Name = match.player1.name || 'Jugador 1'
-  const p2Name = match.player2.name || 'Jugador 2'
+  const p1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
+  const p2Name = fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
 
   function getScore() {
     if (!match.result) return null
@@ -93,6 +99,16 @@ export function MatchCard({ match, player1LinkId, player2LinkId }: MatchCardProp
         {match.status === 'CONFIRMED' && (
           <Badge variant="outline" className="text-xs">Próximo</Badge>
         )}
+        {coordinateHref && (
+          <Link href={coordinateHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+            Coordinar con tu rival →
+          </Link>
+        )}
+        {resultHref && (
+          <Link href={resultHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+            Cargar resultado →
+          </Link>
+        )}
       </div>
 
       <div className="flex items-center justify-between mt-1">
@@ -113,6 +129,7 @@ export function MatchCard({ match, player1LinkId, player2LinkId }: MatchCardProp
           <span className="text-xs font-medium text-muted-foreground pr-1.5">{relativeDay}</span>
         )}
       </div>
+
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { fullName } from '@/lib/format-name'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
@@ -46,7 +47,8 @@ import {
 
 interface GroupPlayer {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   userId: string | null
   email: string | null
 }
@@ -67,7 +69,8 @@ interface Category {
 
 interface SimplePlayer {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   userId: string | null
   categoryId: string
   groupId: string | null
@@ -81,7 +84,7 @@ interface Props {
 }
 
 // Draggable player item
-function DraggablePlayer({ player }: { player: { id: string; name: string; userId: string | null } }) {
+function DraggablePlayer({ player }: { player: { id: string; firstName: string; lastName: string; userId: string | null } }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: player.id,
   })
@@ -99,7 +102,7 @@ function DraggablePlayer({ player }: { player: { id: string; name: string; userI
       className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm cursor-grab active:cursor-grabbing hover:bg-muted/50"
     >
       <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      <span className={player.userId ? '' : 'text-muted-foreground'}>{player.name}</span>
+      <span className={player.userId ? '' : 'text-muted-foreground'}>{fullName(player.firstName, player.lastName)}</span>
       {!player.userId && (
         <span title="Sin cuenta vinculada">
           <AlertTriangle className="h-3 w-3 text-amber-500" />
@@ -118,7 +121,7 @@ function DroppableColumn({
 }: {
   id: string
   title: string
-  players: { id: string; name: string; userId: string | null }[]
+  players: { id: string; firstName: string; lastName: string; userId: string | null }[]
   emptyText: string
 }) {
   const { setNodeRef, isOver } = useDroppable({ id })
@@ -185,7 +188,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
       const fromGroup = editingGroup.players.find((p) => p.id === id)
       if (fromGroup) return fromGroup
       const fromAll = allPlayers.find((p) => p.id === id)!
-      return { id: fromAll.id, name: fromAll.name, userId: fromAll.userId, email: null }
+      return { id: fromAll.id, firstName: fromAll.firstName, lastName: fromAll.lastName, userId: fromAll.userId, email: null }
     })
   }
 
@@ -367,7 +370,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
                             {group.players.map((p) => (
                               <li key={p.id} className="text-sm flex items-center gap-1.5">
                                 <span className={p.userId ? '' : 'text-muted-foreground'}>
-                                  {p.name}
+                                  {fullName(p.firstName, p.lastName)}
                                 </span>
                                 {!p.userId && (
                                   <span title="Sin cuenta vinculada">

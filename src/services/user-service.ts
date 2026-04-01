@@ -11,7 +11,8 @@ export async function getUserById(id: string) {
 
 export async function createUser(data: {
   email: string
-  name?: string
+  firstName?: string
+  lastName?: string
   role: Role
   phone?: string
 }) {
@@ -20,7 +21,7 @@ export async function createUser(data: {
 
 export async function updateUser(
   id: string,
-  data: { name?: string; image?: string | null; phone?: string }
+  data: { firstName?: string; lastName?: string; image?: string | null; phone?: string }
 ) {
   return prisma.user.update({ where: { id }, data })
 }
@@ -32,7 +33,8 @@ export async function getAdminUsers() {
     select: {
       id: true,
       email: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       image: true,
       role: true,
       createdAt: true,

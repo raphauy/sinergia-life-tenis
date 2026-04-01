@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
 import { formatDateUY } from '@/lib/date-utils'
+import { fullName } from '@/lib/format-name'
 import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
 import { GroupsSection } from './groups-section'
@@ -71,7 +72,8 @@ export default async function TournamentDetailPage({ params }: Props) {
         groups={groups}
         allPlayers={players.map((p) => ({
           id: p.id,
-          name: p.user?.name || p.name,
+          firstName: p.user?.firstName ?? p.firstName,
+          lastName: p.user?.lastName ?? p.lastName,
           userId: p.userId,
           categoryId: p.categoryId,
           groupId: p.groupId,

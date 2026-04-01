@@ -14,8 +14,8 @@ export default async function InvitacionesPage() {
 
   return (
     <AdminUsersClient
-      invitations={invitations}
-      adminUsers={adminUsers}
+      invitations={invitations as Parameters<typeof AdminUsersClient>[0]['invitations']}
+      adminUsers={adminUsers as Parameters<typeof AdminUsersClient>[0]['adminUsers']}
       currentUserId={session!.user.id}
     />
   )

@@ -47,11 +47,11 @@ export default async function JugadorLayout({ children, params }: JugadorLayoutP
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={session.user.image || undefined} />
                     <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
-                      {(session.user.name?.[0] || '?').toUpperCase()}
+                      {[session.user.firstName?.[0], session.user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?'}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden sm:inline truncate max-w-[120px]">
-                    {session.user.name || session.user.email}
+                    {[session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || session.user.email}
                   </span>
                   <ChevronDown className="h-3 w-3" />
                 </DropdownMenuTrigger>
@@ -59,7 +59,7 @@ export default async function JugadorLayout({ children, params }: JugadorLayoutP
                   <div className="flex items-center justify-between px-2 py-2">
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold">
-                        {session.user.name || 'Usuario'}
+                        {[session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || 'Usuario'}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {session.user.email}

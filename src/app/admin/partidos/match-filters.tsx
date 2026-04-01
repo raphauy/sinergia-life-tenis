@@ -1,6 +1,9 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Input } from '@/components/ui/input'
+import { Search } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -31,6 +34,17 @@ export function MatchFilters({ tournaments }: Props) {
   const currentTournament = searchParams.get('tournamentId') || ''
   const currentCategory = searchParams.get('categoryId') || ''
   const currentStatus = searchParams.get('status') || ''
+  const currentQuery = searchParams.get('q') || ''
+  const [query, setQuery] = useState(currentQuery)
+  const debounceRef = useRef<NodeJS.Timeout>(undefined)
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      if (query !== currentQuery) updateParams('q', query)
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [query])
 
   const selectedTournament = tournaments.find((t) => t.id === currentTournament)
   const categories = selectedTournament?.categories ?? []
@@ -58,6 +72,15 @@ export function MatchFilters({ tournaments }: Props) {
 
   return (
     <div className="flex gap-2 flex-wrap">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar jugador..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="pl-8 w-52"
+        />
+      </div>
       <Select value={currentTournament} onValueChange={(v) => updateParams('tournamentId', v ?? '')} items={tournamentItems}>
         <SelectTrigger className="w-48">
           <SelectValue placeholder="Todos los torneos" />

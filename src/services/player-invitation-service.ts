@@ -31,7 +31,7 @@ export async function invitePlayer(playerId: string) {
 
   await sendPlayerInvitationEmail({
     to: player.email,
-    playerName: player.name,
+    playerName: player.firstName,
     tournamentName: player.tournament.name,
     categoryName: player.category.name,
     acceptUrl,
@@ -55,7 +55,8 @@ export async function acceptPlayerInvitation(token: string) {
     user = await prisma.user.create({
       data: {
         email: player.email,
-        name: player.name,
+        firstName: player.firstName,
+        lastName: player.lastName,
         phone: player.whatsappNumber,
         role: 'PLAYER',
       },
@@ -91,7 +92,8 @@ export async function forceAcceptPlayer(playerId: string) {
     user = await prisma.user.create({
       data: {
         email: player.email,
-        name: player.name,
+        firstName: player.firstName,
+        lastName: player.lastName,
         phone: player.whatsappNumber,
         role: 'PLAYER',
       },

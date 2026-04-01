@@ -2,8 +2,8 @@ import { prisma } from '@/lib/prisma'
 import type { MatchStatus } from '@prisma/client'
 
 const matchIncludes = {
-  player1: { select: { id: true, name: true, email: true, image: true } },
-  player2: { select: { id: true, name: true, email: true, image: true } },
+  player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
+  player2: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   tournament: { select: { id: true, name: true, matchFormat: true } },
   category: { select: { id: true, name: true } },
   group: { select: { id: true, number: true } },
@@ -75,6 +75,24 @@ export async function confirmMatch(
       courtNumber: data.courtNumber,
       status: 'CONFIRMED',
       confirmedAt: new Date(),
+    },
+    include: matchIncludes,
+  })
+}
+
+export async function rescheduleMatch(
+  id: string,
+  data: { scheduledAt: Date; courtNumber: number }
+) {
+  const match = await prisma.match.findUnique({ where: { id } })
+  if (!match) throw new Error('Partido no encontrado')
+  if (match.status !== 'CONFIRMED') throw new Error('Solo se pueden reprogramar partidos confirmados')
+
+  return prisma.match.update({
+    where: { id },
+    data: {
+      scheduledAt: data.scheduledAt,
+      courtNumber: data.courtNumber,
     },
     include: matchIncludes,
   })

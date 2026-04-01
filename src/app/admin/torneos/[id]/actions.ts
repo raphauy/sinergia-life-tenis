@@ -10,7 +10,8 @@ import type { ActionResult } from '@/lib/action-types'
 export async function updatePlayerNameAction(
   tournamentId: string,
   playerId: string,
-  name: string
+  firstName: string,
+  lastName: string
 ): Promise<ActionResult> {
   try {
     const session = await auth()
@@ -18,7 +19,7 @@ export async function updatePlayerNameAction(
       return { success: false, error: 'No autorizado' }
     }
 
-    await updatePlayerName(playerId, name)
+    await updatePlayerName(playerId, firstName, lastName)
     revalidatePath(`/admin/torneos/${tournamentId}`)
     return { success: true }
   } catch (error) {

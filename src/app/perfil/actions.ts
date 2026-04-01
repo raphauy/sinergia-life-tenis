@@ -12,7 +12,7 @@ import { z } from 'zod'
 
 export async function updateProfileAction(
   data: Record<string, unknown>
-): Promise<ActionResult<{ name: string; image: string | null }>> {
+): Promise<ActionResult<{ firstName: string; lastName: string; image: string | null }>> {
   try {
     const session = await auth()
     if (!session?.user?.id) {
@@ -33,12 +33,13 @@ export async function updateProfileAction(
     }
 
     const updated = await updateUser(session.user.id, {
-      name: validated.data.name,
+      firstName: validated.data.firstName,
+      lastName: validated.data.lastName,
       ...(validated.data.image !== undefined ? { image: validated.data.image } : {}),
     })
 
     revalidatePath('/perfil')
-    return { success: true, data: { name: updated.name || '', image: updated.image } }
+    return { success: true, data: { firstName: updated.firstName || '', lastName: updated.lastName || '', image: updated.image } }
   } catch (error) {
     console.error('Error updating profile:', error)
     return { success: false, error: 'Error al actualizar el perfil' }

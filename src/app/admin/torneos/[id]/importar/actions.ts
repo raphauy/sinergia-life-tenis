@@ -12,7 +12,8 @@ import type { ActionResult } from '@/lib/action-types'
 export async function uploadCsvAction(
   tournamentId: string,
   rows: Array<{
-    name: string
+    firstName: string
+    lastName: string
     category: string
     whatsappNumber?: string
     email?: string

@@ -8,7 +8,8 @@ import { INVITATION_EXPIRATION_DAYS } from '@/lib/constants'
 
 export async function createAdminInvitation(data: {
   email: string
-  name?: string
+  firstName?: string
+  lastName?: string
   invitedById: string
 }) {
   // Verify inviter is SUPERADMIN
@@ -42,13 +43,14 @@ export async function createAdminInvitation(data: {
   const invitation = await prisma.adminInvitation.create({
     data: {
       email: data.email,
-      name: data.name,
+      firstName: data.firstName,
+      lastName: data.lastName,
       token,
       expiresAt,
       invitedById: data.invitedById,
     },
     include: {
-      invitedBy: { select: { name: true, email: true } },
+      invitedBy: { select: { firstName: true, lastName: true, email: true } },
     },
   })
 
@@ -56,7 +58,7 @@ export async function createAdminInvitation(data: {
   try {
     await sendAdminInvitationEmail({
       to: data.email,
-      inviterName: invitation.invitedBy.name || invitation.invitedBy.email,
+      inviterName: [invitation.invitedBy.firstName, invitation.invitedBy.lastName].filter(Boolean).join(' ') || invitation.invitedBy.email,
       acceptUrl,
     })
   } catch {
@@ -83,14 +85,15 @@ export async function acceptAdminInvitation(token: string) {
       where: { id: user.id },
       data: {
         role: 'ADMIN',
-        ...(invitation.name && !user.name ? { name: invitation.name } : {}),
+        ...(invitation.firstName && !user.firstName ? { firstName: invitation.firstName, lastName: invitation.lastName } : {}),
       },
     })
   } else {
     user = await prisma.user.create({
       data: {
         email: invitation.email,
-        name: invitation.name,
+        firstName: invitation.firstName,
+        lastName: invitation.lastName,
         role: 'ADMIN',
       },
     })
@@ -107,14 +110,14 @@ export async function acceptAdminInvitation(token: string) {
 export async function getAdminInvitationByToken(token: string) {
   return prisma.adminInvitation.findUnique({
     where: { token },
-    include: { invitedBy: { select: { name: true, email: true } } },
+    include: { invitedBy: { select: { firstName: true, lastName: true, email: true } } },
   })
 }
 
 export async function getPendingAdminInvitations() {
   return prisma.adminInvitation.findMany({
     where: { acceptedAt: null, expiresAt: { gt: new Date() } },
-    include: { invitedBy: { select: { name: true, email: true } } },
+    include: { invitedBy: { select: { firstName: true, lastName: true, email: true } } },
     orderBy: { createdAt: 'desc' },
   })
 }
@@ -126,7 +129,7 @@ export async function cancelAdminInvitation(id: string) {
 export async function resendAdminInvitation(id: string) {
   const invitation = await prisma.adminInvitation.findUnique({
     where: { id },
-    include: { invitedBy: { select: { name: true, email: true } } },
+    include: { invitedBy: { select: { firstName: true, lastName: true, email: true } } },
   })
   if (!invitation) throw new Error('Invitación no encontrada')
   if (invitation.acceptedAt) throw new Error('Esta invitación ya fue aceptada')
@@ -135,7 +138,7 @@ export async function resendAdminInvitation(id: string) {
   const acceptUrl = generateAdminInviteUrl(invitation.token)
   await sendAdminInvitationEmail({
     to: invitation.email,
-    inviterName: invitation.invitedBy.name || invitation.invitedBy.email,
+    inviterName: [invitation.invitedBy.firstName, invitation.invitedBy.lastName].filter(Boolean).join(' ') || invitation.invitedBy.email,
     acceptUrl,
   })
 }

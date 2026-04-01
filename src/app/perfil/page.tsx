@@ -27,7 +27,8 @@ export default async function ProfilePage() {
           </div>
           <ProfileForm
             user={{
-              name: user.name || '',
+              firstName: user.firstName || '',
+              lastName: user.lastName || '',
               email: user.email,
               image: blobUrl(user.image) || null,
               phone: user.phone,

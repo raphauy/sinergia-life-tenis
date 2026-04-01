@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+import { fullName } from '@/lib/format-name'
 import { Mail, Save, X, Trash2, Search, MoreHorizontal, UserCheck } from 'lucide-react'
 import {
   updatePlayerNameAction,
@@ -46,13 +47,14 @@ import {
 
 interface Player {
   id: string
-  name: string
+  firstName: string
+  lastName: string
   email: string | null
   whatsappNumber: string | null
   invitedAt: Date | null
   acceptedAt: Date | null
   category: { id: string; name: string }
-  user: { name: string | null } | null
+  user: { firstName: string | null; lastName: string | null } | null
 }
 
 interface Category {
@@ -92,7 +94,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
       if (categoryFilter && p.category.id !== categoryFilter) return false
       if (debouncedSearch) {
         const q = debouncedSearch.toLowerCase()
-        const name = (p.user?.name || p.name).toLowerCase()
+        const name = fullName(p.user?.firstName ?? p.firstName, p.user?.lastName ?? p.lastName).toLowerCase()
         const email = (p.email || '').toLowerCase()
         if (!name.includes(q) && !email.includes(q)) return false
       }
@@ -121,7 +123,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
     setEditingId(player.id)
     setEditingField(field)
     setEditValue(
-      field === 'name' ? (player.user?.name || player.name)
+      field === 'name' ? fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
       : field === 'email' ? (player.email || '')
       : (player.whatsappNumber || '')
     )
@@ -135,8 +137,11 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
 
   function saveField(playerId: string) {
     startTransition(async () => {
+      const nameParts = editValue.trim().split(/\s+/)
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
       const result =
-        editingField === 'name' ? await updatePlayerNameAction(tournamentId, playerId, editValue)
+        editingField === 'name' ? await updatePlayerNameAction(tournamentId, playerId, firstName, lastName)
         : editingField === 'email' ? await updatePlayerEmailAction(tournamentId, playerId, editValue)
         : await updatePlayerWhatsappAction(tournamentId, playerId, editValue)
       if (result.success) {
@@ -321,7 +326,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
                     <Checkbox
                       checked={selectedIds.includes(p.id)}
                       onCheckedChange={() => toggleSelect(p.id)}
-                      aria-label={`Seleccionar ${p.name}`}
+                      aria-label={`Seleccionar ${fullName(p.firstName, p.lastName)}`}
                     />
                   </TableCell>
                   <TableCell>
@@ -353,7 +358,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
                         className="font-medium cursor-pointer hover:underline"
                         onClick={() => startEditing(p, 'name')}
                       >
-                        {p.user?.name || p.name}
+                        {fullName(p.user?.firstName ?? p.firstName, p.user?.lastName ?? p.lastName)}
                       </span>
                     )}
                   </TableCell>
@@ -478,7 +483,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar jugador</AlertDialogTitle>
             <AlertDialogDescription>
-              El jugador &quot;{deleteTarget?.name}&quot; será eliminado del torneo permanentemente.
+              El jugador &quot;{deleteTarget ? fullName(deleteTarget.firstName, deleteTarget.lastName) : ''}&quot; será eliminado del torneo permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

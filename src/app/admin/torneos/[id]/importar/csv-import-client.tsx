@@ -18,7 +18,8 @@ import { Upload, Check, AlertCircle } from 'lucide-react'
 import { uploadCsvAction, confirmImportAction } from './actions'
 
 interface ParsedRow {
-  name: string
+  firstName: string
+  lastName: string
   category: string
   whatsappNumber?: string
   email?: string
@@ -33,7 +34,8 @@ interface Props {
 }
 
 const COLUMN_ALIASES: Record<string, string[]> = {
-  name: ['nombre', 'name', 'jugador', 'player'],
+  firstName: ['nombre', 'first_name', 'name', 'jugador', 'player'],
+  lastName: ['apellido', 'last_name', 'surname'],
   category: ['categoria', 'categoría', 'category', 'cat'],
   whatsappNumber: ['whatsapp', 'telefono', 'teléfono', 'phone', 'celular', 'cel'],
   email: ['email', 'correo', 'mail', 'e-mail'],
@@ -64,12 +66,13 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
       skipEmptyLines: true,
       complete: (results) => {
         const headers = results.meta.fields || []
-        const nameCol = detectColumn(headers, COLUMN_ALIASES.name)
+        const firstNameCol = detectColumn(headers, COLUMN_ALIASES.firstName)
+        const lastNameCol = detectColumn(headers, COLUMN_ALIASES.lastName)
         const catCol = detectColumn(headers, COLUMN_ALIASES.category)
         const whatsappCol = detectColumn(headers, COLUMN_ALIASES.whatsappNumber)
         const emailCol = detectColumn(headers, COLUMN_ALIASES.email)
 
-        if (!nameCol) {
+        if (!firstNameCol) {
           toast.error('No se encontró la columna de nombre')
           return
         }
@@ -80,19 +83,21 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
 
         const parsed: ParsedRow[] = (results.data as Record<string, string>[]).map((raw) => {
           const errors: string[] = []
-          const name = raw[nameCol]?.trim() || ''
+          const firstName = raw[firstNameCol]?.trim() || ''
+          const lastName = lastNameCol ? raw[lastNameCol]?.trim() || '' : ''
           const category = raw[catCol]?.trim().toUpperCase() || ''
           const whatsappNumber = whatsappCol ? raw[whatsappCol]?.trim() : undefined
           const email = emailCol ? raw[emailCol]?.trim().toLowerCase() : undefined
 
-          if (!name) errors.push('Nombre vacío')
+          if (!firstName) errors.push('Nombre vacío')
           if (!category) errors.push('Categoría vacía')
           if (category && !validCategories.map((c) => c.toUpperCase()).includes(category)) {
             errors.push(`Categoría "${category}" inválida`)
           }
 
           return {
-            name,
+            firstName,
+            lastName,
             category,
             whatsappNumber: whatsappNumber || undefined,
             email: email || undefined,
@@ -122,7 +127,8 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
       const uploadResult = await uploadCsvAction(
         tournamentId,
         validRows.map((r) => ({
-          name: r.name,
+          firstName: r.firstName,
+          lastName: r.lastName,
           category: r.category,
           whatsappNumber: r.whatsappNumber,
           email: r.email,
@@ -216,7 +222,7 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
           <TableBody>
             {rows.map((row, i) => (
               <TableRow key={i} className={!row.isValid ? 'bg-destructive/5' : undefined}>
-                <TableCell>{row.name || '-'}</TableCell>
+                <TableCell>{[row.firstName, row.lastName].filter(Boolean).join(' ') || '-'}</TableCell>
                 <TableCell>{row.category || '-'}</TableCell>
                 <TableCell className="text-sm">{row.whatsappNumber || '-'}</TableCell>
                 <TableCell className="text-sm">{row.email || '-'}</TableCell>

@@ -51,7 +51,7 @@ export default async function AdminInvitePage({ params }: Props) {
           <h1 className="text-xl font-bold text-primary">Life Tenis</h1>
           <h2 className="text-lg font-semibold">Invitación de administrador</h2>
           <p className="text-muted-foreground text-sm">
-            <strong>{invitation.invitedBy.name || invitation.invitedBy.email}</strong> te
+            <strong>{[invitation.invitedBy.firstName, invitation.invitedBy.lastName].filter(Boolean).join(' ') || invitation.invitedBy.email}</strong> te
             invitó a ser administrador de la plataforma.
           </p>
           <AcceptAdminInvitation token={token} email={invitation.email} />

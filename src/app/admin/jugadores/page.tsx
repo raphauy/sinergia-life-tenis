@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { fullName } from '@/lib/format-name'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -22,7 +23,7 @@ export default async function JugadoresPage() {
         },
       },
     },
-    orderBy: { name: 'asc' },
+    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
   })
 
   return (
@@ -48,7 +49,7 @@ export default async function JugadoresPage() {
             <TableBody>
               {users.map((u) => (
                 <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.name || '-'}</TableCell>
+                  <TableCell className="font-medium">{fullName(u.firstName, u.lastName) || '-'}</TableCell>
                   <TableCell className="text-sm">{u.email}</TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap">

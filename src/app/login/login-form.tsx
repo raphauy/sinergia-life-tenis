@@ -36,6 +36,7 @@ export function LoginForm() {
 
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!email.trim()) { toast.error('Ingresá tu email'); return }
     setIsLoading(true)
 
     try {
@@ -93,7 +94,6 @@ export function LoginForm() {
                 placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
                 disabled={isLoading}
                 autoComplete="email"
                 autoFocus

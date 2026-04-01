@@ -7,9 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
+import { MatchCard } from '@/components/match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
-import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
-import { COURTS } from '@/lib/constants'
+import { fullName, initials } from '@/lib/format-name'
 
 export async function generateMetadata({
   params,
@@ -20,7 +20,7 @@ export async function generateMetadata({
   const player = await prisma.player.findUnique({
     where: { id: playerId },
     include: {
-      user: { select: { name: true, image: true } },
+      user: { select: { firstName: true, lastName: true, image: true } },
       category: { select: { name: true } },
       tournament: { select: { name: true } },
       group: { select: { number: true } },
@@ -29,7 +29,9 @@ export async function generateMetadata({
 
   if (!player) return { title: 'Jugador no encontrado' }
 
-  const name = player.user?.name || player.name
+  const name = player.user
+    ? fullName(player.user.firstName, player.user.lastName)
+    : fullName(player.firstName, player.lastName)
   const title = `${name} - ${player.tournament.name} - Life Tenis`
   const groupSuffix = player.group ? ` - Grupo ${player.group.number}` : ''
   const description = `${name} - Categoría ${player.category.name}${groupSuffix} - ${player.tournament.name}`
@@ -56,7 +58,7 @@ export default async function JugadorProfilePage({ params }: Props) {
   const player = await prisma.player.findUnique({
     where: { id: playerId },
     include: {
-      user: { select: { id: true, name: true, image: true } },
+      user: { select: { id: true, firstName: true, lastName: true, image: true } },
       category: { select: { name: true } },
       tournament: { select: { name: true } },
       group: { select: { number: true } },
@@ -65,31 +67,37 @@ export default async function JugadorProfilePage({ params }: Props) {
 
   if (!player) notFound()
 
-  const displayName = player.user?.name || player.name
+  const displayName = fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
   const image = blobUrl(player.user?.image)
   const userId = player.userId
 
   // Fetch matches if player has a linked user
-  const upcoming = userId ? await getUpcomingMatches(userId) : []
+  const upcomingRaw = userId ? await getUpcomingMatches(userId) : []
   const allMatches = userId ? await getMatchesByPlayer(userId) : []
   const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED').slice(0, 5)
 
-  function getRivalName(match: (typeof allMatches)[0]) {
-    return match.player1Id === userId ? match.player2.name : match.player1.name
-  }
+  // Sort upcoming: confirmed first, then by date
+  const upcoming = [...upcomingRaw].sort((a, b) => {
+    const order = { CONFIRMED: 0, PENDING: 1 } as const
+    const oa = order[a.status as keyof typeof order] ?? 1
+    const ob = order[b.status as keyof typeof order] ?? 1
+    if (oa !== ob) return oa - ob
+    if (!a.scheduledAt) return 1
+    if (!b.scheduledAt) return -1
+    return a.scheduledAt.getTime() - b.scheduledAt.getTime()
+  })
 
-  function isWinner(match: (typeof allMatches)[0]) {
-    return match.result?.winnerId === userId
+  // Build userId -> playerId map for linking
+  const allUserIds = new Set<string>()
+  for (const m of [...upcoming, ...recentPlayed]) {
+    allUserIds.add(m.player1Id)
+    allUserIds.add(m.player2Id)
   }
-
-  function getScore(match: (typeof allMatches)[0]) {
-    if (!match.result) return ''
-    const r = match.result
-    let score = `${r.set1Player1}-${r.set1Player2}`
-    if (r.set2Player1 != null) score += ` ${r.set2Player1}-${r.set2Player2}`
-    if (r.superTbPlayer1 != null) score += ` [${r.superTbPlayer1}-${r.superTbPlayer2}]`
-    return score
-  }
+  const playerLinks = await prisma.player.findMany({
+    where: { userId: { in: [...allUserIds] }, isActive: true },
+    select: { id: true, userId: true },
+  })
+  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.id]))
 
   return (
     <div>
@@ -98,7 +106,7 @@ export default async function JugadorProfilePage({ params }: Props) {
         <Avatar className="h-20 w-20">
           <AvatarImage src={image || undefined} />
           <AvatarFallback className="text-2xl">
-            {displayName[0]?.toUpperCase() || '?'}
+            {initials(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)}
           </AvatarFallback>
         </Avatar>
         <div>
@@ -128,30 +136,15 @@ export default async function JugadorProfilePage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
-              <Link
+              <MatchCard
                 key={m.id}
-                href={`/jugador/${playerId}/partidos/${m.id}`}
-                className="block rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">vs {getRivalName(m)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {m.scheduledAt ? (
-                        <>
-                          {formatDateUY(m.scheduledAt, 'EEEE dd/MM')} — {formatTimeUY(m.scheduledAt)}
-                          {m.courtNumber && ` — ${COURTS.find((c) => c.number === m.courtNumber)?.name}`}
-                        </>
-                      ) : (
-                        'Por confirmar'
-                      )}
-                    </p>
-                  </div>
-                  <Badge variant={m.status === 'CONFIRMED' ? 'default' : 'outline'}>
-                    {m.status === 'CONFIRMED' ? 'Confirmado' : 'Pendiente'}
-                  </Badge>
-                </div>
-              </Link>
+                match={m}
+                player1LinkId={playerMap.get(m.player1Id)}
+                player2LinkId={playerMap.get(m.player2Id)}
+                coordinateHref={m.status === 'PENDING' ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
+                resultHref={m.status === 'CONFIRMED' && !m.result ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
+                currentUserId={userId ?? undefined}
+              />
             ))}
           </div>
         )}
@@ -165,21 +158,12 @@ export default async function JugadorProfilePage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {recentPlayed.map((m) => (
-              <Link
+              <MatchCard
                 key={m.id}
-                href={`/jugador/${playerId}/partidos/${m.id}`}
-                className="block rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">vs {getRivalName(m)}</p>
-                    <p className="text-sm font-mono">{getScore(m)}</p>
-                  </div>
-                  <Badge variant={isWinner(m) ? 'default' : 'secondary'}>
-                    {isWinner(m) ? 'Victoria' : 'Derrota'}
-                  </Badge>
-                </div>
-              </Link>
+                match={m}
+                player1LinkId={playerMap.get(m.player1Id)}
+                player2LinkId={playerMap.get(m.player2Id)}
+              />
             ))}
           </div>
         )}

@@ -123,17 +123,17 @@ export async function AdminSidebar() {
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={session.user.image || undefined} />
                   <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
-                    {(session.user.name?.[0] || session.user.email?.[0] || '?').toUpperCase()}
+                    {[session.user.firstName?.[0], session.user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || session.user.email?.[0]?.toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="truncate">{session.user.name || session.user.email}</span>
+                <span className="truncate">{[session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || session.user.email}</span>
                 <ChevronUp className="ml-auto h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" className="w-64">
                 <div className="flex items-center justify-between px-2 py-2">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold">
-                      {session.user.name || 'Usuario'}
+                      {[session.user.firstName, session.user.lastName].filter(Boolean).join(' ') || 'Usuario'}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {session.user.email}

@@ -90,16 +90,16 @@ export function MatchResultForm({
                 <span className="text-sm font-medium">{player1Name}</span>
               </td>
               <td className="py-1.5">
-                <Input type="number" min={0} max={7} value={set1P1} onChange={(e) => setSet1P1(e.target.value)} className="w-14 text-center mx-auto" required />
+                <Input type="number" min={0} max={7} value={set1P1} onChange={(e) => setSet1P1(e.target.value)} className="w-14 text-center mx-auto" />
               </td>
               {isTwoSets && (
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={7} value={set2P1} onChange={(e) => setSet2P1(e.target.value)} className="w-14 text-center mx-auto" required />
+                  <Input type="number" min={0} max={7} value={set2P1} onChange={(e) => setSet2P1(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
               )}
               {showSuperTb && (
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={99} value={stbP1} onChange={(e) => setStbP1(e.target.value)} className="w-14 text-center mx-auto" required />
+                  <Input type="number" min={0} max={99} value={stbP1} onChange={(e) => setStbP1(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
               )}
             </tr>
@@ -109,16 +109,16 @@ export function MatchResultForm({
                 <span className="text-sm font-medium">{player2Name}</span>
               </td>
               <td className="py-1.5">
-                <Input type="number" min={0} max={7} value={set1P2} onChange={(e) => setSet1P2(e.target.value)} className="w-14 text-center mx-auto" required />
+                <Input type="number" min={0} max={7} value={set1P2} onChange={(e) => setSet1P2(e.target.value)} className="w-14 text-center mx-auto" />
               </td>
               {isTwoSets && (
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={7} value={set2P2} onChange={(e) => setSet2P2(e.target.value)} className="w-14 text-center mx-auto" required />
+                  <Input type="number" min={0} max={7} value={set2P2} onChange={(e) => setSet2P2(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
               )}
               {showSuperTb && (
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={99} value={stbP2} onChange={(e) => setStbP2(e.target.value)} className="w-14 text-center mx-auto" required />
+                  <Input type="number" min={0} max={99} value={stbP2} onChange={(e) => setStbP2(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
               )}
             </tr>

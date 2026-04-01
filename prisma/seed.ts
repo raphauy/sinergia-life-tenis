@@ -3,7 +3,9 @@ config({ path: '.env.local' })
 
 import { PrismaClient } from '@prisma/client'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DIRECT_DATABASE_URL,
+})
 
 async function main() {
   const superadmin = await prisma.user.upsert({
@@ -11,7 +13,8 @@ async function main() {
     update: {},
     create: {
       email: 'rapha.uy@rapha.uy',
-      name: 'Raphael',
+      firstName: 'Raphael',
+      lastName: '',
       role: 'SUPERADMIN',
     },
   })

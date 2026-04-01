@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { fullName } from '@/lib/format-name'
 import { getMatchById } from '@/services/match-service'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTimeUY } from '@/lib/date-utils'
@@ -35,7 +36,7 @@ export default async function MatchDetailPage({ params }: Props) {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-2xl font-bold">
-            {match.player1.name} vs {match.player2.name}
+            {fullName(match.player1.firstName, match.player1.lastName)} vs {fullName(match.player2.firstName, match.player2.lastName)}
           </h1>
           <Badge variant={statusVariants[match.status]}>{statusLabels[match.status]}</Badge>
         </div>
@@ -64,8 +65,8 @@ export default async function MatchDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground mt-1">
             Ganador:{' '}
             {match.result.winnerId === match.player1Id
-              ? match.player1.name
-              : match.player2.name}
+              ? fullName(match.player1.firstName, match.player1.lastName)
+              : fullName(match.player2.firstName, match.player2.lastName)}
           </p>
         </div>
       )}
@@ -76,9 +77,11 @@ export default async function MatchDetailPage({ params }: Props) {
         matchFormat={match.tournament.matchFormat}
         player1Id={match.player1Id}
         player2Id={match.player2Id}
-        player1Name={match.player1.name || 'Jugador 1'}
-        player2Name={match.player2.name || 'Jugador 2'}
+        player1Name={fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'}
+        player2Name={fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'}
         hasResult={!!match.result}
+        scheduledAt={match.scheduledAt?.toISOString()}
+        courtNumber={match.courtNumber}
         result={
           match.result
             ? {

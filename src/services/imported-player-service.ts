@@ -4,7 +4,8 @@ import type { Prisma } from '@prisma/client'
 export async function createManyImportedPlayers(
   tournamentId: string,
   rows: Array<{
-    name: string
+    firstName: string
+    lastName: string
     category: string
     whatsappNumber?: string
     email?: string
@@ -14,7 +15,8 @@ export async function createManyImportedPlayers(
   return prisma.importedPlayer.createMany({
     data: rows.map((row) => ({
       tournamentId,
-      name: row.name,
+      firstName: row.firstName,
+      lastName: row.lastName,
       category: row.category,
       whatsappNumber: row.whatsappNumber,
       email: row.email,
@@ -91,7 +93,8 @@ export async function processImportedPlayers(tournamentId: string) {
         data: {
           tournamentId,
           categoryId,
-          name: row.name,
+          firstName: row.firstName,
+          lastName: row.lastName,
           email: row.email?.toLowerCase(),
           whatsappNumber: row.whatsappNumber,
           userId,

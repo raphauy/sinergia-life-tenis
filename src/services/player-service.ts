@@ -5,9 +5,9 @@ export async function getPlayersByTournament(tournamentId: string) {
     where: { tournamentId },
     include: {
       category: { select: { id: true, name: true } },
-      user: { select: { name: true } },
+      user: { select: { firstName: true, lastName: true } },
     },
-    orderBy: [{ category: { order: 'asc' } }, { name: 'asc' }],
+    orderBy: [{ category: { order: 'asc' } }, { firstName: 'asc' }, { lastName: 'asc' }],
   })
 }
 
@@ -58,20 +58,22 @@ export async function updatePlayerWhatsapp(playerId: string, whatsapp: string) {
   })
 }
 
-export async function updatePlayerName(playerId: string, name: string) {
-  const trimmed = name.trim()
-  if (!trimmed) throw new Error('Nombre requerido')
+export async function updatePlayerName(playerId: string, firstName: string, lastName: string) {
+  const first = firstName.trim()
+  const last = lastName.trim()
+  if (!first) throw new Error('Nombre requerido')
 
   return prisma.player.update({
     where: { id: playerId },
-    data: { name: trimmed },
+    data: { firstName: first, lastName: last },
   })
 }
 
 export async function createPlayer(data: {
   tournamentId: string
   categoryId: string
-  name: string
+  firstName: string
+  lastName: string
   email?: string
   whatsappNumber?: string
 }) {

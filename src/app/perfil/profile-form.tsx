@@ -17,7 +17,8 @@ import {
 
 interface ProfileFormProps {
   user: {
-    name: string
+    firstName: string
+    lastName: string
     email: string
     image: string | null
     phone: string | null
@@ -27,9 +28,11 @@ interface ProfileFormProps {
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter()
   const { update: updateSession } = useSession()
-  const [name, setName] = useState(user.name)
+  const [firstName, setFirstName] = useState(user.firstName)
+  const [lastName, setLastName] = useState(user.lastName)
   const [displayImage, setDisplayImage] = useState(user.image)
   const [instagramHandle, setInstagramHandle] = useState('')
+  const [submitted, setSubmitted] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -67,10 +70,12 @@ export function ProfileForm({ user }: ProfileFormProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setSubmitted(true)
+    if (!firstName.trim()) return
     startTransition(async () => {
-      const result = await updateProfileAction({ name })
+      const result = await updateProfileAction({ firstName, lastName })
       if (result.success && result.data) {
-        await updateSession({ name: result.data.name, image: result.data.image })
+        await updateSession({ firstName: result.data.firstName, lastName: result.data.lastName, image: result.data.image })
         toast.success('Perfil actualizado')
         router.back()
       } else if (!result.success) {
@@ -86,7 +91,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         <Avatar className="h-24 w-24">
           <AvatarImage src={displayImage || undefined} />
           <AvatarFallback className="text-2xl">
-            {(name[0] || '?').toUpperCase()}
+            {[firstName[0], lastName[0]].filter(Boolean).join('').toUpperCase() || '?'}
           </AvatarFallback>
         </Avatar>
         <div className="flex gap-2">
@@ -152,15 +157,27 @@ export function ProfileForm({ user }: ProfileFormProps) {
         </div>
       </div>
 
-      {/* Name */}
-      <div className="space-y-2">
-        <Label htmlFor="name">Nombre</Label>
-        <Input
-          id="name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
+      {/* Name fields */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="firstName">Nombre</Label>
+          <Input
+            id="firstName"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+          />
+          {!firstName.trim() && submitted && (
+            <p className="text-xs text-destructive">Nombre requerido</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Apellido</Label>
+          <Input
+            id="lastName"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Email (readonly) */}

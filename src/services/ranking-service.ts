@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
+import { fullName } from '@/lib/format-name'
 import type { Match, MatchResult } from '@prisma/client'
 
 export interface RankingEntry {
@@ -20,7 +21,7 @@ export interface RankingEntry {
 type MatchWithResult = Match & { result: MatchResult | null }
 
 function computeRanking(
-  players: { id: string; userId: string; userName: string | null; playerName: string; image: string | null }[],
+  players: { id: string; userId: string; displayName: string; image: string | null }[],
   matches: MatchWithResult[]
 ): RankingEntry[] {
   const entries: RankingEntry[] = players.map((p) => {
@@ -67,7 +68,7 @@ function computeRanking(
       position: 0,
       player: {
         id: p.id,
-        name: p.userName || p.playerName,
+        name: p.displayName,
         image: blobUrl(p.image) || null,
       },
       pj: playerMatches.filter((m) => m.result).length,
@@ -99,7 +100,7 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
   const players = await prisma.player.findMany({
     where: { categoryId, isActive: true, userId: { not: null } },
     include: {
-      user: { select: { id: true, name: true, image: true } },
+      user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },
   })
 
@@ -114,8 +115,7 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
       .map((p) => ({
         id: p.id,
         userId: p.userId!,
-        userName: p.user!.name,
-        playerName: p.name,
+        displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
         image: p.user!.image,
       })),
     matches
@@ -131,7 +131,7 @@ export async function getRankingByGroup(groupId: string): Promise<RankingEntry[]
   const players = await prisma.player.findMany({
     where: { groupId, isActive: true, userId: { not: null } },
     include: {
-      user: { select: { id: true, name: true, image: true } },
+      user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },
   })
 
@@ -146,8 +146,7 @@ export async function getRankingByGroup(groupId: string): Promise<RankingEntry[]
       .map((p) => ({
         id: p.id,
         userId: p.userId!,
-        userName: p.user!.name,
-        playerName: p.name,
+        displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
         image: p.user!.image,
       })),
     matches
