@@ -28,6 +28,7 @@ export async function invitePlayer(playerId: string) {
   })
 
   const acceptUrl = generatePlayerInviteUrl(token)
+  console.log(`[Invite] ${player.firstName} ${player.lastName} → ${acceptUrl}`)
 
   await sendPlayerInvitationEmail({
     to: player.email,
@@ -100,13 +101,12 @@ export async function forceAcceptPlayer(playerId: string) {
     })
   }
 
-  // Link player to user
+  // Link player to user (keep invitationToken so the email link still works)
   await prisma.player.update({
     where: { id: player.id },
     data: {
       userId: user.id,
       acceptedAt: new Date(),
-      invitationToken: null,
     },
   })
 
