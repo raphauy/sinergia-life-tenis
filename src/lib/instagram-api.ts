@@ -125,6 +125,11 @@ export async function getInstagramProfile(
       await delay(RATE_LIMIT_DELAY)
       return { success: false, error: 'Rate limit excedido. Intentá nuevamente en unos minutos' }
     }
+    if (response.status === 401 || response.status === 403) {
+      console.error(`[Instagram] HTTP ${response.status} for @${cleanedHandle}`)
+      await delay(RATE_LIMIT_DELAY)
+      return { success: false, error: 'No se pudo obtener la imagen. Intentá de nuevo o subila manualmente.' }
+    }
     if (response.status < 200 || response.status >= 300) {
       console.error(`[Instagram] HTTP ${response.status} for @${cleanedHandle}:`, response.body.slice(0, 200))
       await delay(RATE_LIMIT_DELAY)
