@@ -13,9 +13,9 @@ export default async function PublicLayout({ children }: { children: React.React
     } else {
       const player = await prisma.player.findFirst({
         where: { userId: session.user.id, isActive: true },
-        select: { id: true },
+        select: { slug: true },
       })
-      userHref = player ? `/jugador/${player.id}` : '/perfil'
+      userHref = player ? `/jugador/${player.slug}` : '/perfil'
     }
   }
 

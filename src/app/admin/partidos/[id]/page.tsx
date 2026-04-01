@@ -5,23 +5,10 @@ import { Badge } from '@/components/ui/badge'
 import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { MatchDetailClient } from './match-detail-client'
+import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 
 interface Props {
   params: Promise<{ id: string }>
-}
-
-const statusLabels: Record<string, string> = {
-  PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmado',
-  PLAYED: 'Jugado',
-  CANCELLED: 'Cancelado',
-}
-
-const statusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  PENDING: 'outline',
-  CONFIRMED: 'default',
-  PLAYED: 'secondary',
-  CANCELLED: 'destructive',
 }
 
 export default async function MatchDetailPage({ params }: Props) {
@@ -38,7 +25,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <h1 className="text-2xl font-bold">
             {fullName(match.player1.firstName, match.player1.lastName)} vs {fullName(match.player2.firstName, match.player2.lastName)}
           </h1>
-          <Badge variant={statusVariants[match.status]}>{statusLabels[match.status]}</Badge>
+          <Badge variant={MATCH_STATUS_VARIANTS[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
           {match.tournament.name} — Categoría {match.category.name}

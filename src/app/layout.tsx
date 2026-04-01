@@ -22,9 +22,29 @@ const fontMono = Ubuntu_Mono({
   weight: ['400', '700'],
 })
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tenis.sinergialife.com'
+
 export const metadata: Metadata = {
-  title: 'Life Tenis',
-  description: 'Plataforma de gestión de torneos de tenis - Club Sinergia Life',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Life Tenis - Club Sinergia Life',
+    template: '%s | Life Tenis',
+  },
+  description: 'Torneos de tenis del Club Sinergia Life. Ranking, fixture, resultados y perfiles de jugadores.',
+  applicationName: 'Life Tenis',
+  openGraph: {
+    siteName: 'Life Tenis',
+    locale: 'es_UY',
+    type: 'website',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Life Tenis - Club Sinergia Life' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export default function RootLayout({

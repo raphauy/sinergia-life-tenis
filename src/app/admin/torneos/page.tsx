@@ -6,7 +6,7 @@ import { CategoryBadge } from '@/components/category-badge'
 import { formatDateUY } from '@/lib/date-utils'
 import { Plus } from 'lucide-react'
 
-export const metadata = { title: 'Torneos - Life Tenis' }
+export const metadata = { title: 'Torneos' }
 
 export default async function TorneosPage() {
   const tournaments = await getTournaments()

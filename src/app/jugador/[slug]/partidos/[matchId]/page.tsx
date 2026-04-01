@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
@@ -8,20 +9,33 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
+import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
 
 interface Props {
-  params: Promise<{ playerId: string; matchId: string }>
+  params: Promise<{ slug: string; matchId: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { matchId } = await params
+  const match = await getMatchById(matchId)
+  if (!match) return { title: 'Partido' }
+  const p1 = fullName(match.player1.firstName, match.player1.lastName)
+  const p2 = fullName(match.player2.firstName, match.player2.lastName)
+  return {
+    title: `${p1} vs ${p2} - ${match.tournament.name}`,
+    description: `${p1} vs ${p2} - Categoría ${match.category.name} - ${match.tournament.name}`,
+  }
 }
 
 export default async function MatchDetailPage({ params }: Props) {
-  const { playerId, matchId } = await params
+  const { slug, matchId } = await params
   const session = await auth()
 
   const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    select: { userId: true },
+    where: { slug },
+    select: { id: true, userId: true },
   })
   if (!player?.userId) notFound()
 
@@ -40,12 +54,13 @@ export default async function MatchDetailPage({ params }: Props) {
   // Can load result: match is CONFIRMED, no result, and user is this player (or admin)
   const isOwner = session?.user?.id === player.userId
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
+  const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
   const canLoadResult =
-    match.status === 'CONFIRMED' && !match.result && (isOwner || isAdmin)
+    match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin)
 
   return (
     <div className="max-w-xl">
-      <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href={`/jugador/${playerId}/partidos`} />}>
+      <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href={`/jugador/${slug}/partidos`} />}>
         <ArrowLeft className="h-4 w-4 mr-1" />
         Volver
       </Button>
@@ -57,22 +72,8 @@ export default async function MatchDetailPage({ params }: Props) {
           {match.tournament.name} — Categoría {match.category.name}
         </p>
         <div className="flex items-center gap-2 mt-2">
-          <Badge
-            variant={
-              match.status === 'CONFIRMED'
-                ? 'default'
-                : match.status === 'PLAYED'
-                  ? 'secondary'
-                  : 'outline'
-            }
-          >
-            {match.status === 'CONFIRMED'
-              ? 'Confirmado'
-              : match.status === 'PLAYED'
-                ? 'Jugado'
-                : match.status === 'CANCELLED'
-                  ? 'Cancelado'
-                  : 'Pendiente'}
+          <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
+            {MATCH_STATUS_LABELS[match.status] || match.status}
           </Badge>
         </div>
         {match.scheduledAt && (
@@ -141,13 +142,20 @@ export default async function MatchDetailPage({ params }: Props) {
         </div>
       )}
 
+      {/* Load result - waiting for match */}
+      {match.status === 'CONFIRMED' && !match.result && !matchPassed && (isOwner || isAdmin) && (
+        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          Podrás cargar el resultado una vez que se juegue el partido.
+        </div>
+      )}
+
       {/* Load result form */}
       {canLoadResult && (
         <div className="rounded-lg border p-4">
           <h2 className="font-semibold mb-3">Cargar resultado</h2>
           <PlayerLoadResult
             matchId={matchId}
-            playerId={playerId}
+            playerId={player.id}
             matchFormat={match.tournament.matchFormat}
             player1Id={match.player1Id}
             player2Id={match.player2Id}

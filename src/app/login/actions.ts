@@ -1,7 +1,7 @@
 'use server'
 
 import { signIn } from '@/lib/auth'
-import { getUserByEmail, getPlayerIdForUser } from '@/services/user-service'
+import { getUserByEmail, getPlayerSlugForUser } from '@/services/user-service'
 import { generateOtp, createOtpToken } from '@/services/auth-service'
 import { sendOtpEmail } from '@/services/email-service'
 import { emailSchema } from '@/lib/validations/auth'
@@ -72,8 +72,8 @@ export async function verifyOtpAction(
     // Redirect based on role
     let redirectUrl = '/admin'
     if (user.role === 'PLAYER') {
-      const playerId = await getPlayerIdForUser(user.id)
-      redirectUrl = playerId ? `/jugador/${playerId}` : '/perfil'
+      const playerSlug = await getPlayerSlugForUser(user.id)
+      redirectUrl = playerSlug ? `/jugador/${playerSlug}` : '/perfil'
     }
 
     return { success: true, data: { redirectUrl } }

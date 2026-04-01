@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
+import { auth } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { blobUrl } from '@/lib/blob-url'
@@ -14,11 +15,11 @@ import { fullName, initials } from '@/lib/format-name'
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ playerId: string }>
+  params: Promise<{ slug: string }>
 }): Promise<Metadata> {
-  const { playerId } = await params
+  const { slug } = await params
   const player = await prisma.player.findUnique({
-    where: { id: playerId },
+    where: { slug },
     include: {
       user: { select: { firstName: true, lastName: true, image: true } },
       category: { select: { name: true } },
@@ -32,9 +33,9 @@ export async function generateMetadata({
   const name = player.user
     ? fullName(player.user.firstName, player.user.lastName)
     : fullName(player.firstName, player.lastName)
-  const title = `${name} - ${player.tournament.name} - Life Tenis`
-  const groupSuffix = player.group ? ` - Grupo ${player.group.number}` : ''
-  const description = `${name} - Categoría ${player.category.name}${groupSuffix} - ${player.tournament.name}`
+  const title = `${name} - ${player.tournament.name}`
+  const groupSuffix = player.group ? `, Grupo ${player.group.number}` : ''
+  const description = `Perfil de ${name} - Categoría ${player.category.name}${groupSuffix} - ${player.tournament.name}`
 
   return {
     title,
@@ -49,14 +50,14 @@ export async function generateMetadata({
 }
 
 interface Props {
-  params: Promise<{ playerId: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function JugadorProfilePage({ params }: Props) {
-  const { playerId } = await params
+  const { slug } = await params
 
   const player = await prisma.player.findUnique({
-    where: { id: playerId },
+    where: { slug },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
       category: { select: { name: true } },
@@ -66,6 +67,11 @@ export default async function JugadorProfilePage({ params }: Props) {
   })
 
   if (!player) notFound()
+
+  const session = await auth()
+  const isOwner = session?.user?.id === player.userId
+  const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
+  const canAct = isOwner || isAdmin
 
   const displayName = fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
   const image = blobUrl(player.user?.image)
@@ -87,7 +93,7 @@ export default async function JugadorProfilePage({ params }: Props) {
     return a.scheduledAt.getTime() - b.scheduledAt.getTime()
   })
 
-  // Build userId -> playerId map for linking
+  // Build userId -> playerSlug map for linking
   const allUserIds = new Set<string>()
   for (const m of [...upcoming, ...recentPlayed]) {
     allUserIds.add(m.player1Id)
@@ -95,9 +101,9 @@ export default async function JugadorProfilePage({ params }: Props) {
   }
   const playerLinks = await prisma.player.findMany({
     where: { userId: { in: [...allUserIds] }, isActive: true },
-    select: { id: true, userId: true },
+    select: { slug: true, userId: true },
   })
-  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.id]))
+  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.slug]))
 
   return (
     <div>
@@ -115,7 +121,7 @@ export default async function JugadorProfilePage({ params }: Props) {
             <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
             <CategoryBadge name={player.category.name} />
             {player.group && (
-              <Badge variant="secondary" className="rounded-md">Grupo {player.group.number}</Badge>
+              <Badge variant="outline" className="rounded-md">Grupo {player.group.number}</Badge>
             )}
           </div>
         </div>
@@ -126,7 +132,7 @@ export default async function JugadorProfilePage({ params }: Props) {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Próximos partidos</h2>
           {userId && (
-            <Button variant="ghost" size="sm" render={<Link href={`/jugador/${playerId}/partidos`} />}>
+            <Button variant="ghost" size="sm" render={<Link href={`/jugador/${slug}/partidos`} />}>
               Ver todos
             </Button>
           )}
@@ -141,9 +147,9 @@ export default async function JugadorProfilePage({ params }: Props) {
                 match={m}
                 player1LinkId={playerMap.get(m.player1Id)}
                 player2LinkId={playerMap.get(m.player2Id)}
-                coordinateHref={m.status === 'PENDING' ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
-                resultHref={m.status === 'CONFIRMED' && !m.result ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
-                currentUserId={userId ?? undefined}
+                coordinateHref={canAct && m.status === 'PENDING' ? `/jugador/${slug}/partidos/${m.id}` : undefined}
+                resultHref={canAct && m.status === 'CONFIRMED' && !m.result ? `/jugador/${slug}/partidos/${m.id}` : undefined}
+                currentUserId={canAct ? userId ?? undefined : undefined}
               />
             ))}
           </div>

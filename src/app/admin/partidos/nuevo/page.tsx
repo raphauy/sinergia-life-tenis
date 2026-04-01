@@ -1,7 +1,7 @@
 import { getTournaments } from '@/services/tournament-service'
 import { MatchCreateForm } from './match-create-form'
 
-export const metadata = { title: 'Nuevo partido - Life Tenis' }
+export const metadata = { title: 'Nuevo partido' }
 
 export default async function NuevoPartidoPage() {
   const tournaments = await getTournaments()

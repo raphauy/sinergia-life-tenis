@@ -8,21 +8,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
   const title = tournament
-    ? `Ranking - ${tournament.name} - Life Tenis`
-    : 'Ranking - Life Tenis'
+    ? `Ranking - ${tournament.name}`
+    : 'Ranking'
+  const description = tournament
+    ? `Posiciones y estadísticas del ${tournament.name} - Club Sinergia Life`
+    : 'Ranking de tenis - Club Sinergia Life'
 
   return {
     title,
-    description: tournament
-      ? `Ranking del torneo ${tournament.name} - Life Tenis`
-      : 'Ranking de tenis - Life Tenis',
-    openGraph: {
-      title,
-      description: tournament
-        ? `Mirá el ranking del torneo ${tournament.name}`
-        : 'Ranking de tenis',
-      type: 'website',
-    },
+    description,
+    openGraph: { title, description },
   }
 }
 

@@ -56,7 +56,7 @@ export function RankingTable({ entries }: { entries: RankingEntry[] }) {
                 <TableCell className="text-center font-bold">{e.position}</TableCell>
                 <TableCell>
                   <Link
-                    href={`/jugador/${e.player.id}`}
+                    href={`/jugador/${e.player.slug}`}
                     className="flex items-center gap-2 hover:underline"
                   >
                     <Avatar className="h-7 w-7">

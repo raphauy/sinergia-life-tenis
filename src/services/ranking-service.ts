@@ -7,6 +7,7 @@ export interface RankingEntry {
   position: number
   player: {
     id: string
+    slug: string
     name: string
     image: string | null
   }
@@ -21,7 +22,7 @@ export interface RankingEntry {
 type MatchWithResult = Match & { result: MatchResult | null }
 
 function computeRanking(
-  players: { id: string; userId: string; displayName: string; image: string | null }[],
+  players: { id: string; slug: string; userId: string; displayName: string; image: string | null }[],
   matches: MatchWithResult[]
 ): RankingEntry[] {
   const entries: RankingEntry[] = players.map((p) => {
@@ -68,6 +69,7 @@ function computeRanking(
       position: 0,
       player: {
         id: p.id,
+        slug: p.slug,
         name: p.displayName,
         image: blobUrl(p.image) || null,
       },
@@ -114,6 +116,7 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
       .filter((p) => p.user)
       .map((p) => ({
         id: p.id,
+        slug: p.slug,
         userId: p.userId!,
         displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
         image: p.user!.image,
@@ -145,6 +148,7 @@ export async function getRankingByGroup(groupId: string): Promise<RankingEntry[]
       .filter((p) => p.user)
       .map((p) => ({
         id: p.id,
+        slug: p.slug,
         userId: p.userId!,
         displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
         image: p.user!.image,

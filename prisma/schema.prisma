@@ -154,6 +154,7 @@ model Group {
 
 model Player {
   id              String    @id @default(cuid())
+  slug            String    @unique
   userId          String?
   tournamentId    String
   categoryId      String
@@ -180,6 +181,7 @@ model Player {
   @@index([userId])
   @@index([groupId])
   @@index([invitationToken])
+  @@index([slug])
 }
 
 model Match {

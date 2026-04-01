@@ -9,30 +9,25 @@ import { prisma } from '@/lib/prisma'
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
   const title = tournament
-    ? `Fixture - ${tournament.name} - Life Tenis`
-    : 'Fixture - Life Tenis'
+    ? `Fixture - ${tournament.name}`
+    : 'Fixture'
+  const description = tournament
+    ? `Fixture y resultados del ${tournament.name} - Club Sinergia Life`
+    : 'Fixture de tenis - Club Sinergia Life'
 
   return {
     title,
-    description: tournament
-      ? `Fixture y resultados del torneo ${tournament.name}`
-      : 'Fixture de tenis - Life Tenis',
-    openGraph: {
-      title,
-      description: tournament
-        ? `Mirá el fixture y resultados del torneo ${tournament.name}`
-        : 'Fixture de tenis',
-      type: 'website',
-    },
+    description,
+    openGraph: { title, description },
   }
 }
 
 async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {
   const players = await prisma.player.findMany({
     where: { categoryId, userId: { not: null } },
-    select: { id: true, userId: true },
+    select: { slug: true, userId: true },
   })
-  return new Map(players.map((p) => [p.userId!, p.id]))
+  return new Map(players.map((p) => [p.userId!, p.slug]))
 }
 
 export default async function FixturePage() {

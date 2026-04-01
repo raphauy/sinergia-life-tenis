@@ -1,6 +1,6 @@
 import { TournamentCreateForm } from './tournament-create-form'
 
-export const metadata = { title: 'Nuevo torneo - Life Tenis' }
+export const metadata = { title: 'Nuevo torneo' }
 
 export default function NuevoTorneoPage() {
   return (

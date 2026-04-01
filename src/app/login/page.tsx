@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import { LoginForm } from './login-form'
 
 export const metadata = {
-  title: 'Iniciar sesión - Life Tenis',
+  title: 'Iniciar sesión',
+  description: 'Accedé a tu cuenta de Life Tenis con tu email.',
 }
 
 export default function LoginPage() {

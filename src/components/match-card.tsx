@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
+import { Eye } from 'lucide-react'
 
 interface MatchCardProps {
   match: {
@@ -16,6 +18,7 @@ interface MatchCardProps {
     player2: { firstName: string | null; lastName: string | null }
     player1Id: string
     player2Id: string
+    group?: { id: string; number: number } | null
     result: {
       set1Player1: number
       set1Player2: number
@@ -72,8 +75,17 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
   const p1Weight = winnerIs1 ? 'font-bold' : 'font-medium'
   const p2Weight = winnerIs2 ? 'font-bold' : 'font-medium'
 
+  const statusBadge = match.status === 'PLAYED'
+    ? <Badge variant="success" className="text-xs">Jugado</Badge>
+    : match.status === 'CONFIRMED'
+      ? <Badge variant="default" className="text-xs">Confirmado</Badge>
+      : match.status === 'CANCELLED'
+        ? <Badge variant="destructive" className="text-xs">Cancelado</Badge>
+        : <Badge variant="outline" className="text-xs">Pendiente</Badge>
+
   return (
     <div className="rounded-lg border p-3">
+      {/* Row 1: names + eye | status badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 text-sm">
           {player1LinkId ? (
@@ -91,28 +103,18 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
           ) : (
             <span className={p2Weight}>{p2Name}</span>
           )}
+          <Link href={`/partido/${match.id}`} className="text-muted-foreground/60 hover:text-muted-foreground ml-1">
+            <Eye className="h-3.5 w-3.5" />
+          </Link>
         </div>
-
-        {match.status === 'PLAYED' && score && (
-          <span className="font-mono text-sm font-bold">{score}</span>
-        )}
-        {match.status === 'CONFIRMED' && (
-          <Badge variant="outline" className="text-xs">Próximo</Badge>
-        )}
-        {coordinateHref && (
-          <Link href={coordinateHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
-            Coordinar con tu rival →
-          </Link>
-        )}
-        {resultHref && (
-          <Link href={resultHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
-            Cargar resultado →
-          </Link>
-        )}
+        {statusBadge}
       </div>
 
+      {/* Row 2: group/date/court | score/actions */}
       <div className="flex items-center justify-between mt-1">
         <div className="text-xs text-muted-foreground">
+          {match.group && <span>Grupo {match.group.number}</span>}
+          {match.group && match.scheduledAt && <span> · </span>}
           {match.scheduledAt && (
             <>
               {formatDateUY(match.scheduledAt, 'dd/MM')} {formatTimeUY(match.scheduledAt)}
@@ -120,16 +122,46 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
             </>
           )}
         </div>
-        {match.status === 'PLAYED' && match.result && (
-          <span className="text-xs text-muted-foreground">
-            Ganador: {winnerIs1 ? p1Name : p2Name}
-          </span>
-        )}
-        {relativeDay && (
-          <span className="text-xs font-medium text-muted-foreground pr-1.5">{relativeDay}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {match.status === 'PLAYED' && score && (
+            <Link href={`/partido/${match.id}`} className="font-mono text-sm font-bold hover:underline">
+              {score}
+            </Link>
+          )}
+          {match.status === 'PLAYED' && match.result && (
+            <span className="text-xs text-muted-foreground">
+              Ganador: {winnerIs1 ? p1Name : p2Name}
+            </span>
+          )}
+          {coordinateHref && (
+            <Link href={coordinateHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+              Coordinar con tu rival →
+            </Link>
+          )}
+          {resultHref && (() => {
+            const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
+            return matchPassed ? (
+              <Link href={resultHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+                Cargar resultado →
+              </Link>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={<span className="text-xs font-medium text-muted-foreground/50 whitespace-nowrap cursor-not-allowed" />}>
+                    Cargar resultado →
+                  </TooltipTrigger>
+                  <TooltipContent>Disponible después del partido</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )
+          })()}
+          {relativeDay && (
+            <span className="text-xs font-medium text-muted-foreground">
+              {relativeDay}
+            </span>
+          )}
+        </div>
       </div>
-
     </div>
   )
 }

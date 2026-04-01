@@ -16,11 +16,10 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 interface JugadorLayoutProps {
   children: React.ReactNode
-  params: Promise<{ playerId: string }>
+  params: Promise<{ slug: string }>
 }
 
-export default async function JugadorLayout({ children, params }: JugadorLayoutProps) {
-  const { playerId } = await params
+export default async function JugadorLayout({ children }: JugadorLayoutProps) {
   const session = await auth()
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
 

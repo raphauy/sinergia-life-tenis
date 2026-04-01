@@ -3,7 +3,7 @@ import { getPendingAdminInvitations } from '@/services/admin-invitation-service'
 import { getAdminUsers } from '@/services/user-service'
 import { AdminUsersClient } from './admin-invitations-client'
 
-export const metadata = { title: 'Usuarios admin - Life Tenis' }
+export const metadata = { title: 'Administradores' }
 
 export default async function InvitacionesPage() {
   const session = await auth()

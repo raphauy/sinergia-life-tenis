@@ -1,4 +1,31 @@
 import { prisma } from '@/lib/prisma'
+import { generateSlug } from '@/lib/utils'
+
+export async function generateUniquePlayerSlug(firstName: string, lastName: string, excludeId?: string): Promise<string> {
+  const baseSlug = generateSlug(`${firstName} ${lastName}`) || 'jugador'
+  let slug = baseSlug
+  let suffix = 0
+
+  while (true) {
+    const existing = await prisma.player.findUnique({ where: { slug } })
+    if (!existing || existing.id === excludeId) break
+    suffix++
+    slug = `${baseSlug}-${suffix}`
+  }
+
+  return slug
+}
+
+export async function getPlayerBySlug(slug: string) {
+  return prisma.player.findUnique({
+    where: { slug },
+    include: {
+      category: true,
+      tournament: true,
+      user: true,
+    },
+  })
+}
 
 export async function getPlayersByTournament(tournamentId: string) {
   return prisma.player.findMany({
@@ -63,9 +90,11 @@ export async function updatePlayerName(playerId: string, firstName: string, last
   const last = lastName.trim()
   if (!first) throw new Error('Nombre requerido')
 
+  const slug = await generateUniquePlayerSlug(first, last, playerId)
+
   return prisma.player.update({
     where: { id: playerId },
-    data: { firstName: first, lastName: last },
+    data: { firstName: first, lastName: last, slug },
   })
 }
 
@@ -84,9 +113,12 @@ export async function createPlayer(data: {
     if (user) userId = user.id
   }
 
+  const slug = await generateUniquePlayerSlug(data.firstName, data.lastName)
+
   return prisma.player.create({
     data: {
       ...data,
+      slug,
       userId,
     },
   })

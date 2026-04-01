@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { generateUniquePlayerSlug } from '@/services/player-service'
 import type { Prisma } from '@prisma/client'
 
 export async function createManyImportedPlayers(
@@ -89,12 +90,15 @@ export async function processImportedPlayers(tournamentId: string) {
         if (user) userId = user.id
       }
 
+      const slug = await generateUniquePlayerSlug(row.firstName, row.lastName)
+
       await prisma.player.create({
         data: {
           tournamentId,
           categoryId,
           firstName: row.firstName,
           lastName: row.lastName,
+          slug,
           email: row.email?.toLowerCase(),
           whatsappNumber: row.whatsappNumber,
           userId,

@@ -15,6 +15,7 @@ export default async function proxy(request: NextRequest) {
     '/invite',
     '/ranking',
     '/fixture',
+    '/partido',
   ]
   const isPublicRoute = publicRoutes.some(
     (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`))
@@ -69,14 +70,14 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // /jugador/[playerId]/* sub-routes: authenticated users
+  // /jugador/[slug]/* sub-routes: authenticated users
   const jugadorSubRoute = pathname.match(/^\/jugador\/([^/]+)\//)
   if (jugadorSubRoute) {
     // PLAYER can only access own player
     if (user.role === 'PLAYER') {
-      const playerId = jugadorSubRoute[1]
+      const slug = jugadorSubRoute[1]
       const player = await prisma.player.findFirst({
-        where: { id: playerId, userId: token.id as string },
+        where: { slug, userId: token.id as string },
         select: { id: true },
       })
       if (!player) {

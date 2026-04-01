@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
@@ -14,6 +15,22 @@ import { Button } from '@/components/ui/button'
 import { Trophy, Calendar } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 
+export async function generateMetadata(): Promise<Metadata> {
+  const tournament = await getActiveTournament()
+  const title = tournament
+    ? `${tournament.name} - Life Tenis`
+    : 'Life Tenis - Club Sinergia Life'
+  const description = tournament
+    ? `Ranking, fixture y resultados del ${tournament.name} - Club Sinergia Life`
+    : 'Torneos de tenis del Club Sinergia Life'
+
+  return {
+    title,
+    description,
+    openGraph: { title, description },
+  }
+}
+
 export default async function HomePage() {
   const session = await auth()
   const tournament = await getActiveTournament()
@@ -26,9 +43,9 @@ export default async function HomePage() {
     } else {
       const player = await prismaDb.player.findFirst({
         where: { userId: session.user.id, isActive: true },
-        select: { id: true },
+        select: { slug: true },
       })
-      userHref = player ? `/jugador/${player.id}` : '/perfil'
+      userHref = player ? `/jugador/${player.slug}` : '/perfil'
     }
   }
 
@@ -299,11 +316,11 @@ async function TournamentContent({
   )
 }
 
-/** Map userId -> playerId for linking to public profiles */
+/** Map userId -> playerSlug for linking to public profiles */
 async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {
   const players = await prisma.player.findMany({
     where: { categoryId, userId: { not: null } },
-    select: { id: true, userId: true },
+    select: { slug: true, userId: true },
   })
-  return new Map(players.map((p) => [p.userId!, p.id]))
+  return new Map(players.map((p) => [p.userId!, p.slug]))
 }

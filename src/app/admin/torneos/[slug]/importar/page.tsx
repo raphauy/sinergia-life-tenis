@@ -6,7 +6,7 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
-export const metadata = { title: 'Importar jugadores - Life Tenis' }
+export const metadata = { title: 'Importar jugadores' }
 
 export default async function ImportarPage({ params }: Props) {
   const { slug } = await params

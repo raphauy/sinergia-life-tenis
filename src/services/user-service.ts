@@ -70,11 +70,11 @@ export async function removeAdminRole(userId: string, removedById: string) {
   return prisma.user.update({ where: { id: userId }, data: { role: 'PLAYER', isActive: false } })
 }
 
-export async function getPlayerIdForUser(userId: string): Promise<string | null> {
+export async function getPlayerSlugForUser(userId: string): Promise<string | null> {
   const player = await prisma.player.findFirst({
     where: { userId, isActive: true },
     orderBy: { createdAt: 'desc' },
-    select: { id: true },
+    select: { slug: true },
   })
-  return player?.id ?? null
+  return player?.slug ?? null
 }

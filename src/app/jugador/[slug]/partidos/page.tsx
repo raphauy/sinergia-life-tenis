@@ -1,18 +1,35 @@
+import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { getMatchesByPlayer } from '@/services/match-service'
 import { MatchCard } from '@/components/match-card'
+import { fullName } from '@/lib/format-name'
 
 interface Props {
-  params: Promise<{ playerId: string }>
+  params: Promise<{ slug: string }>
 }
 
-export const metadata = { title: 'Mis partidos - Life Tenis' }
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const player = await prisma.player.findUnique({
+    where: { slug },
+    include: {
+      user: { select: { firstName: true, lastName: true } },
+      tournament: { select: { name: true } },
+    },
+  })
+  if (!player) return { title: 'Partidos' }
+  const name = fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
+  return {
+    title: `Partidos de ${name} - ${player.tournament.name}`,
+    description: `Partidos y resultados de ${name} en el ${player.tournament.name}`,
+  }
+}
 
 export default async function JugadorPartidosPage({ params }: Props) {
-  const { playerId } = await params
+  const { slug } = await params
   const player = await prisma.player.findUnique({
-    where: { id: playerId },
+    where: { slug },
     select: { userId: true },
   })
   if (!player?.userId) notFound()
@@ -34,7 +51,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
 
   const played = matches.filter((m) => m.status === 'PLAYED')
 
-  // Build userId -> playerId map for linking
+  // Build userId -> playerSlug map for linking
   const allUserIds = new Set<string>()
   for (const m of [...upcoming, ...played]) {
     allUserIds.add(m.player1Id)
@@ -42,9 +59,9 @@ export default async function JugadorPartidosPage({ params }: Props) {
   }
   const playerLinks = await prisma.player.findMany({
     where: { userId: { in: [...allUserIds] }, isActive: true },
-    select: { id: true, userId: true },
+    select: { slug: true, userId: true },
   })
-  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.id]))
+  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.slug]))
 
   return (
     <div>
@@ -62,8 +79,8 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 match={m}
                 player1LinkId={playerMap.get(m.player1Id)}
                 player2LinkId={playerMap.get(m.player2Id)}
-                coordinateHref={m.status === 'PENDING' ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
-                resultHref={m.status === 'CONFIRMED' && !m.result ? `/jugador/${playerId}/partidos/${m.id}` : undefined}
+                coordinateHref={m.status === 'PENDING' ? `/jugador/${slug}/partidos/${m.id}` : undefined}
+                resultHref={m.status === 'CONFIRMED' && !m.result ? `/jugador/${slug}/partidos/${m.id}` : undefined}
                 currentUserId={userId}
               />
             ))}

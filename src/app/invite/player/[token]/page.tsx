@@ -5,7 +5,7 @@ interface Props {
   params: Promise<{ token: string }>
 }
 
-export const metadata = { title: 'Aceptar invitación - Life Tenis' }
+export const metadata = { title: 'Aceptar invitación' }
 
 export default async function PlayerInvitePage({ params }: Props) {
   const { token } = await params

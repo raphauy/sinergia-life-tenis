@@ -8,23 +8,10 @@ import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { Plus } from 'lucide-react'
 import { MatchFilters } from './match-filters'
+import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import type { MatchStatus } from '@prisma/client'
 
-export const metadata = { title: 'Partidos - Life Tenis' }
-
-const statusLabels: Record<string, string> = {
-  PENDING: 'Pendiente',
-  CONFIRMED: 'Confirmado',
-  PLAYED: 'Jugado',
-  CANCELLED: 'Cancelado',
-}
-
-const statusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  PENDING: 'outline',
-  CONFIRMED: 'default',
-  PLAYED: 'secondary',
-  CANCELLED: 'destructive',
-}
+export const metadata = { title: 'Partidos' }
 
 interface Props {
   searchParams: Promise<{ tournamentId?: string; categoryId?: string; status?: string; q?: string }>
@@ -89,7 +76,7 @@ export default async function PartidosPage({ searchParams }: Props) {
                   </p>
                 </div>
                 <div className="text-right">
-                  <Badge variant={statusVariants[m.status]}>{statusLabels[m.status]}</Badge>
+                  <Badge variant={MATCH_STATUS_VARIANTS[m.status]}>{MATCH_STATUS_LABELS[m.status]}</Badge>
                   {m.scheduledAt && (
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatDateTimeUY(m.scheduledAt)}

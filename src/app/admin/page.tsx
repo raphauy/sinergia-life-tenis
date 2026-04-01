@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Dashboard - Life Tenis',
+  title: 'Dashboard',
 }
 
 export default function AdminDashboardPage() {

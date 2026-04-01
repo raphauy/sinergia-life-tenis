@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-export const metadata = { title: 'Jugadores - Life Tenis' }
+export const metadata = { title: 'Jugadores' }
 
 export default async function JugadoresPage() {
   const users = await prisma.user.findMany({

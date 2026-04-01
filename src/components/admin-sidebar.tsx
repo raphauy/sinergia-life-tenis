@@ -54,7 +54,7 @@ export async function AdminSidebar() {
 
   const playerLink = await prisma.player.findFirst({
     where: { userId: session.user.id, isActive: true },
-    select: { id: true },
+    select: { slug: true },
   })
 
   return (
@@ -91,7 +91,7 @@ export async function AdminSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton render={<Link href={`/jugador/${playerLink.id}`} />}>
+                  <SidebarMenuButton render={<Link href={`/jugador/${playerLink.slug}`} />}>
                     <UserCircle className="h-4 w-4" />
                     <span>Mi panel de jugador</span>
                   </SidebarMenuButton>
