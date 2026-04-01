@@ -35,20 +35,55 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [submitted, setSubmitted] = useState(false)
   const [isPending, startTransition] = useTransition()
 
+  async function resizeImage(file: File, maxSize = 800): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let { width, height } = img
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width)
+            width = maxSize
+          } else {
+            width = Math.round((width * maxSize) / height)
+            height = maxSize
+          }
+        }
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, width, height)
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error('Error al procesar imagen'))),
+          'image/jpeg',
+          0.85
+        )
+      }
+      img.onerror = () => reject(new Error('Error al leer imagen'))
+      img.src = URL.createObjectURL(file)
+    })
+  }
+
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
 
     startTransition(async () => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const result = await uploadProfileImageAction(formData)
-      if (result.success && result.data) {
-        setDisplayImage(result.data.displayUrl)
-        await updateSession({ image: result.data.displayUrl })
-        toast.success('Imagen subida')
-      } else if (!result.success) {
-        toast.error(result.error)
+      try {
+        const resized = await resizeImage(file)
+        const formData = new FormData()
+        formData.append('file', new File([resized], 'profile.jpg', { type: 'image/jpeg' }))
+        const result = await uploadProfileImageAction(formData)
+        if (result.success && result.data) {
+          setDisplayImage(result.data.displayUrl)
+          await updateSession({ image: result.data.displayUrl })
+          toast.success('Imagen subida')
+        } else if (!result.success) {
+          toast.error(result.error)
+        }
+      } catch {
+        toast.error('Error al procesar la imagen')
       }
     })
   }
