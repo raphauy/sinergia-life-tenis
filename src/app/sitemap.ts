@@ -1,7 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
-
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tenis.sinergialife.com'
+import { SITE_URL } from '@/lib/site-url'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [players, matches] = await Promise.all([

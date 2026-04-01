@@ -22,7 +22,7 @@ const fontMono = Ubuntu_Mono({
   weight: ['400', '700'],
 })
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://tenis.sinergialife.com'
+import { SITE_URL } from '@/lib/site-url'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     siteName: 'Life Tenis',
     locale: 'es_UY',
     type: 'website',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Life Tenis - Club Sinergia Life' }],
+    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Life Tenis - Club Sinergia Life' }],
   },
   twitter: {
     card: 'summary_large_image',
