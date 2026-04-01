@@ -11,9 +11,9 @@ export interface RankingEntry {
   }
   pj: number // partidos jugados
   pg: number // partidos ganados
-  pp: number // partidos perdidos
-  setsFor: number
-  setsAgainst: number
+  gamesFor: number
+  gamesAgainst: number
+  gamesDiff: number
   points: number // TODO: lógica real de puntos (pendiente Mati)
 }
 
@@ -31,9 +31,8 @@ function computeRanking(
     )
 
     let pg = 0
-    let pp = 0
-    let setsFor = 0
-    let setsAgainst = 0
+    let gamesFor = 0
+    let gamesAgainst = 0
 
     for (const m of playerMatches) {
       if (!m.result) continue
@@ -41,28 +40,25 @@ function computeRanking(
       const won = m.result.winnerId === userId
 
       if (won) pg++
-      else pp++
 
-      // Count sets
-      const s1p1 = m.result.set1Player1
-      const s1p2 = m.result.set1Player2
-      if (isPlayer1) {
-        setsFor += s1p1 > s1p2 ? 1 : 0
-        setsAgainst += s1p2 > s1p1 ? 1 : 0
-      } else {
-        setsFor += s1p2 > s1p1 ? 1 : 0
-        setsAgainst += s1p1 > s1p2 ? 1 : 0
+      // Count games (not super tiebreak)
+      const sets: [number, number][] = [
+        [m.result.set1Player1, m.result.set1Player2],
+      ]
+      if (m.result.set2Player1 != null && m.result.set2Player2 != null) {
+        sets.push([m.result.set2Player1, m.result.set2Player2])
+      }
+      if (m.result.set3Player1 != null && m.result.set3Player2 != null) {
+        sets.push([m.result.set3Player1, m.result.set3Player2])
       }
 
-      if (m.result.set2Player1 != null && m.result.set2Player2 != null) {
-        const s2p1 = m.result.set2Player1
-        const s2p2 = m.result.set2Player2
+      for (const [p1Games, p2Games] of sets) {
         if (isPlayer1) {
-          setsFor += s2p1 > s2p2 ? 1 : 0
-          setsAgainst += s2p2 > s2p1 ? 1 : 0
+          gamesFor += p1Games
+          gamesAgainst += p2Games
         } else {
-          setsFor += s2p2 > s2p1 ? 1 : 0
-          setsAgainst += s2p1 > s2p2 ? 1 : 0
+          gamesFor += p2Games
+          gamesAgainst += p1Games
         }
       }
     }
@@ -74,20 +70,21 @@ function computeRanking(
         name: p.userName || p.playerName,
         image: blobUrl(p.image) || null,
       },
-      pj: pg + pp,
+      pj: playerMatches.filter((m) => m.result).length,
       pg,
-      pp,
-      setsFor,
-      setsAgainst,
+      gamesFor,
+      gamesAgainst,
+      gamesDiff: gamesFor - gamesAgainst,
       points: pg, // TODO: lógica real de puntos
     }
   })
 
-  // Sort by points desc, then pg desc, then sets diff desc
+  // Sort by points desc, then pg desc, then games diff desc, then name asc
   entries.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points
     if (b.pg !== a.pg) return b.pg - a.pg
-    return (b.setsFor - b.setsAgainst) - (a.setsFor - a.setsAgainst)
+    if (b.gamesDiff !== a.gamesDiff) return b.gamesDiff - a.gamesDiff
+    return a.player.name.localeCompare(b.player.name)
   })
 
   // Assign positions

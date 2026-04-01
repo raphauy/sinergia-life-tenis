@@ -83,16 +83,18 @@ export default async function RankingPage() {
               <div className="space-y-6">
                 {groupRankings.length > 0 && (
                   <>
-                    {groupRankings.map(({ group, ranking: groupRanking }) => (
-                      <section key={group.id}>
-                        <h2 className="text-sm font-semibold border-b pb-1 mb-3">
-                          Grupo {group.number}
-                        </h2>
-                        <RankingTable entries={groupRanking} />
-                      </section>
-                    ))}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {groupRankings.map(({ group, ranking: groupRanking }) => (
+                        <section key={group.id}>
+                          <h2 className="text-base font-bold mb-3">
+                            Grupo {group.number}
+                          </h2>
+                          <RankingTable entries={groupRanking} />
+                        </section>
+                      ))}
+                    </div>
                     <section>
-                      <h2 className="text-sm font-semibold border-b pb-1 mb-3">
+                      <h2 className="text-base font-bold mb-3">
                         Ranking general
                       </h2>
                       <RankingTable entries={ranking} />

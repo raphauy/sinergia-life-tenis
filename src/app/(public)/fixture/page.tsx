@@ -59,8 +59,15 @@ export default async function FixturePage() {
 
       const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
+      const confirmed = matches
+        .filter((m) => m.status === 'CONFIRMED')
+        .sort((a, b) => {
+          if (!a.scheduledAt) return 1
+          if (!b.scheduledAt) return -1
+          return a.scheduledAt.getTime() - b.scheduledAt.getTime()
+        })
 
-      return { cat, upcoming, played, playerMap, groups }
+      return { cat, upcoming, played, confirmed, playerMap, groups }
     })
   )
 
@@ -85,59 +92,63 @@ export default async function FixturePage() {
             ))}
           </TabsList>
 
-          {fixtureData.map(({ cat, upcoming, played, playerMap, groups }) => (
+          {fixtureData.map(({ cat, upcoming, played, confirmed, playerMap, groups }) => (
             <TabsContent key={cat.id} value={cat.id}>
-              <div className="space-y-6">
+              <div className="space-y-10">
+                {confirmed.length > 0 && (
+                  <section>
+                    <h2 className="text-base font-bold mb-3">
+                      Próximos partidos confirmados ({confirmed.length})
+                    </h2>
+                    <div className="space-y-2">
+                      {confirmed.map((m) => (
+                        <MatchCard
+                          key={m.id}
+                          match={m}
+                          player1LinkId={playerMap.get(m.player1Id)}
+                          player2LinkId={playerMap.get(m.player2Id)}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {groups.length > 0 ? (
                   // Grouped display
                   <>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {groups.map((group) => {
-                      const groupUpcoming = upcoming.filter((m) => m.group?.id === group.id)
-                      const groupPlayed = played.filter((m) => m.group?.id === group.id)
-                      if (groupUpcoming.length === 0 && groupPlayed.length === 0) return null
+                      const groupMatches = [...upcoming, ...played]
+                        .filter((m) => m.group?.id === group.id)
+                        .sort((a, b) => {
+                          const order = { CONFIRMED: 0, PENDING: 1, PLAYED: 2 } as const
+                          const oa = order[a.status as keyof typeof order] ?? 1
+                          const ob = order[b.status as keyof typeof order] ?? 1
+                          if (oa !== ob) return oa - ob
+                          if (!a.scheduledAt) return 1
+                          if (!b.scheduledAt) return -1
+                          return a.scheduledAt.getTime() - b.scheduledAt.getTime()
+                        })
+                      if (groupMatches.length === 0) return null
 
                       return (
-                        <div key={group.id} className="space-y-3">
-                          <h2 className="text-sm font-semibold border-b pb-1">Grupo {group.number}</h2>
-
-                          {groupUpcoming.length > 0 && (
-                            <section>
-                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
-                                Próximos partidos ({groupUpcoming.length})
-                              </h3>
-                              <div className="space-y-2">
-                                {groupUpcoming.map((m) => (
-                                  <MatchCard
-                                    key={m.id}
-                                    match={m}
-                                    player1LinkId={playerMap.get(m.player1Id)}
-                                    player2LinkId={playerMap.get(m.player2Id)}
-                                  />
-                                ))}
-                              </div>
-                            </section>
-                          )}
-
-                          {groupPlayed.length > 0 && (
-                            <section>
-                              <h3 className="text-xs font-medium text-muted-foreground mb-2">
-                                Resultados ({groupPlayed.length})
-                              </h3>
-                              <div className="space-y-2">
-                                {groupPlayed.map((m) => (
-                                  <MatchCard
-                                    key={m.id}
-                                    match={m}
-                                    player1LinkId={playerMap.get(m.player1Id)}
-                                    player2LinkId={playerMap.get(m.player2Id)}
-                                  />
-                                ))}
-                              </div>
-                            </section>
-                          )}
+                        <div key={group.id}>
+                          <h2 className="text-base font-bold mb-3">Grupo {group.number}</h2>
+                          <div className="space-y-2">
+                            {groupMatches.map((m) => (
+                              <MatchCard
+                                key={m.id}
+                                match={m}
+                                player1LinkId={playerMap.get(m.player1Id)}
+                                player2LinkId={playerMap.get(m.player2Id)}
+                              />
+                            ))}
+                          </div>
                         </div>
                       )
                     })}
+
+                  </div>
 
                     {/* Matches without group */}
                     {(() => {
@@ -147,7 +158,7 @@ export default async function FixturePage() {
 
                       return (
                         <div className="space-y-3">
-                          <h2 className="text-sm font-semibold border-b pb-1">General</h2>
+                          <h2 className="text-base font-bold mb-1">General</h2>
                           {ungroupedUpcoming.length > 0 && (
                             <section>
                               <h3 className="text-xs font-medium text-muted-foreground mb-2">

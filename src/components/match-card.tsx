@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
-import { COURTS } from '@/lib/constants'
+import { COURTS, TIMEZONE } from '@/lib/constants'
+import { toZonedTime } from 'date-fns-tz'
+import { differenceInCalendarDays } from 'date-fns'
 
 interface MatchCardProps {
   match: {
@@ -42,32 +44,51 @@ export function MatchCard({ match, player1LinkId, player2LinkId }: MatchCardProp
     return score
   }
 
+  function getRelativeDay() {
+    if (!match.scheduledAt || match.status === 'PLAYED') return null
+    const now = toZonedTime(new Date(), TIMEZONE)
+    const scheduled = toZonedTime(match.scheduledAt, TIMEZONE)
+    const diff = differenceInCalendarDays(scheduled, now)
+    if (diff < 0) return 'Finalizado'
+    if (diff === 0) return 'Hoy'
+    if (diff === 1) return 'Mañana'
+    if (diff <= 6) {
+      const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+      return days[scheduled.getDay()]
+    }
+    return `En ${diff} días`
+  }
+
   const score = getScore()
+  const relativeDay = getRelativeDay()
   const winnerIs1 = match.result?.winnerId === match.player1Id
+  const winnerIs2 = match.result?.winnerId === match.player2Id
+  const p1Weight = winnerIs1 ? 'font-bold' : 'font-medium'
+  const p2Weight = winnerIs2 ? 'font-bold' : 'font-medium'
 
   return (
     <div className="rounded-lg border p-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1 text-sm">
           {player1LinkId ? (
-            <Link href={`/jugador/${player1LinkId}`} className="font-medium hover:underline">
+            <Link href={`/jugador/${player1LinkId}`} className={`${p1Weight} hover:underline`}>
               {p1Name}
             </Link>
           ) : (
-            <span className="font-medium">{p1Name}</span>
+            <span className={p1Weight}>{p1Name}</span>
           )}
           <span className="text-muted-foreground mx-1">vs</span>
           {player2LinkId ? (
-            <Link href={`/jugador/${player2LinkId}`} className="font-medium hover:underline">
+            <Link href={`/jugador/${player2LinkId}`} className={`${p2Weight} hover:underline`}>
               {p2Name}
             </Link>
           ) : (
-            <span className="font-medium">{p2Name}</span>
+            <span className={p2Weight}>{p2Name}</span>
           )}
         </div>
 
         {match.status === 'PLAYED' && score && (
-          <span className="font-mono text-sm font-medium">{score}</span>
+          <span className="font-mono text-sm font-bold">{score}</span>
         )}
         {match.status === 'CONFIRMED' && (
           <Badge variant="outline" className="text-xs">Próximo</Badge>
@@ -87,6 +108,9 @@ export function MatchCard({ match, player1LinkId, player2LinkId }: MatchCardProp
           <span className="text-xs text-muted-foreground">
             Ganador: {winnerIs1 ? p1Name : p2Name}
           </span>
+        )}
+        {relativeDay && (
+          <span className="text-xs font-medium text-muted-foreground pr-1.5">{relativeDay}</span>
         )}
       </div>
     </div>

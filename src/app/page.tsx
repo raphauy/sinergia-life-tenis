@@ -141,8 +141,15 @@ async function TournamentContent({
 
       const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
+      const confirmed = matches
+        .filter((m) => m.status === 'CONFIRMED')
+        .sort((a, b) => {
+          if (!a.scheduledAt) return 1
+          if (!b.scheduledAt) return -1
+          return a.scheduledAt.getTime() - b.scheduledAt.getTime()
+        })
 
-      return { cat, ranking, upcoming, played, playerMap, groups, groupRankings }
+      return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings }
     })
   )
 
@@ -158,9 +165,9 @@ async function TournamentContent({
         ))}
       </TabsList>
 
-      {data.map(({ cat, ranking, upcoming, played, playerMap, groups, groupRankings }) => (
+      {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings }) => (
         <TabsContent key={cat.id} value={cat.id}>
-          <div className="space-y-8">
+          <div className="space-y-12">
             {/* Ranking */}
             <section>
               <div className="flex items-center gap-2 mb-3">
@@ -171,10 +178,10 @@ async function TournamentContent({
                 </Link>
               </div>
               {groupRankings.length > 0 ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {groupRankings.map(({ group, ranking: gr }) => (
                     <div key={group.id}>
-                      <h3 className="text-sm font-semibold border-b pb-1 mb-2">Grupo {group.number}</h3>
+                      <h3 className="text-base font-bold mb-2">Grupo {group.number}</h3>
                       <RankingTable entries={gr} />
                     </div>
                   ))}
@@ -194,46 +201,53 @@ async function TournamentContent({
                 </Link>
               </div>
 
+              {confirmed.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-base font-bold mb-2">
+                    Próximos partidos confirmados ({confirmed.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {confirmed.slice(0, 5).map((m) => (
+                      <MatchCard
+                        key={m.id}
+                        match={m}
+                        player1LinkId={playerMap.get(m.player1Id)}
+                        player2LinkId={playerMap.get(m.player2Id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {groups.length > 0 ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {groups.map((group) => {
-                    const gu = upcoming.filter((m) => m.group?.id === group.id)
-                    const gp = played.filter((m) => m.group?.id === group.id)
-                    if (gu.length === 0 && gp.length === 0) return null
+                    const groupMatches = [...upcoming, ...played]
+                      .filter((m) => m.group?.id === group.id)
+                      .sort((a, b) => {
+                        const order = { CONFIRMED: 0, PENDING: 1, PLAYED: 2 } as const
+                        const oa = order[a.status as keyof typeof order] ?? 1
+                        const ob = order[b.status as keyof typeof order] ?? 1
+                        if (oa !== ob) return oa - ob
+                        if (!a.scheduledAt) return 1
+                        if (!b.scheduledAt) return -1
+                        return a.scheduledAt.getTime() - b.scheduledAt.getTime()
+                      })
+                    if (groupMatches.length === 0) return null
 
                     return (
                       <div key={group.id}>
-                        <h3 className="text-sm font-semibold border-b pb-1 mb-2">Grupo {group.number}</h3>
-                        {gu.length > 0 && (
-                          <div className="mb-3">
-                            <h4 className="text-xs font-medium text-muted-foreground mb-2">Próximos partidos</h4>
-                            <div className="space-y-2">
-                              {gu.slice(0, 5).map((m) => (
-                                <MatchCard
-                                  key={m.id}
-                                  match={m}
-                                  player1LinkId={playerMap.get(m.player1Id)}
-                                  player2LinkId={playerMap.get(m.player2Id)}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {gp.length > 0 && (
-                          <div>
-                            <h4 className="text-xs font-medium text-muted-foreground mb-2">Resultados</h4>
-                            <div className="space-y-2">
-                              {gp.slice(0, 5).map((m) => (
-                                <MatchCard
-                                  key={m.id}
-                                  match={m}
-                                  player1LinkId={playerMap.get(m.player1Id)}
-                                  player2LinkId={playerMap.get(m.player2Id)}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        <h3 className="text-base font-bold mb-2">Grupo {group.number}</h3>
+                        <div className="space-y-2">
+                          {groupMatches.slice(0, 10).map((m) => (
+                            <MatchCard
+                              key={m.id}
+                              match={m}
+                              player1LinkId={playerMap.get(m.player1Id)}
+                              player2LinkId={playerMap.get(m.player2Id)}
+                            />
+                          ))}
+                        </div>
                       </div>
                     )
                   })}
