@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['dev.bondsquad.ai'],
   images: {
     remotePatterns: [
       { hostname: '*.public.blob.vercel-storage.com' },

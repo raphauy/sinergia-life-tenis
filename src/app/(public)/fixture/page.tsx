@@ -15,11 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ? `Fixture y resultados del ${tournament.name} - Club Sinergia Life`
     : 'Fixture de tenis - Club Sinergia Life'
 
-  return {
-    title,
-    description,
-    openGraph: { title, description },
-  }
+  return { title, description }
 }
 
 async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {

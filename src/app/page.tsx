@@ -24,11 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     ? `Ranking, fixture y resultados del ${tournament.name} - Club Sinergia Life`
     : 'Torneos de tenis del Club Sinergia Life'
 
-  return {
-    title,
-    description,
-    openGraph: { title, description },
-  }
+  return { title, description }
 }
 
 export default async function HomePage() {

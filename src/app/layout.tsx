@@ -22,10 +22,12 @@ const fontMono = Ubuntu_Mono({
   weight: ['400', '700'],
 })
 
-import { SITE_URL } from '@/lib/site-url'
-
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(
+    process.env.APP_URL
+    || process.env.NEXT_PUBLIC_APP_URL
+    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  ),
   title: {
     default: 'Life Tenis - Club Sinergia Life',
     template: '%s | Life Tenis',
@@ -36,7 +38,6 @@ export const metadata: Metadata = {
     siteName: 'Life Tenis',
     locale: 'es_UY',
     type: 'website',
-    images: [{ url: '/og-image.jpg', width: 1200, height: 630, alt: 'Life Tenis - Club Sinergia Life' }],
   },
   twitter: {
     card: 'summary_large_image',
