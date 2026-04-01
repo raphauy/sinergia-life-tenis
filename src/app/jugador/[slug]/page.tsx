@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
+import { SITE_URL } from '@/lib/site-url'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { blobUrl } from '@/lib/blob-url'
@@ -44,7 +45,7 @@ export async function generateMetadata({
       title,
       description,
       type: 'profile',
-      ...(player.user?.image ? { images: [{ url: player.user.image }] } : {}),
+      ...(player.user?.image ? { images: [{ url: `${SITE_URL}/api/blob?url=${encodeURIComponent(player.user.image)}` }] } : {}),
     },
   }
 }
