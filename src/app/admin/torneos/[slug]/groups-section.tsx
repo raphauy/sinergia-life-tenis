@@ -77,7 +77,7 @@ interface SimplePlayer {
 }
 
 interface Props {
-  tournamentId: string
+  tournamentSlug: string
   categories: Category[]
   groups: Group[]
   allPlayers: SimplePlayer[]
@@ -145,7 +145,7 @@ function DroppableColumn({
   )
 }
 
-export function GroupsSection({ tournamentId, categories, groups, allPlayers }: Props) {
+export function GroupsSection({ tournamentSlug, categories, groups, allPlayers }: Props) {
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null)
   const [generateTarget, setGenerateTarget] = useState<Group | null>(null)
@@ -231,7 +231,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
   function doSaveGroupPlayers(cancelPending: boolean) {
     if (!editingGroup) return
     startTransition(async () => {
-      const result = await setGroupPlayersAction(tournamentId, editingGroup.id, groupPlayerIds, cancelPending)
+      const result = await setGroupPlayersAction(tournamentSlug, editingGroup.id, groupPlayerIds, cancelPending)
       if (result.success) {
         toast.success(
           cancelPending
@@ -248,7 +248,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
 
   function handleCreateGroup(categoryId: string) {
     startTransition(async () => {
-      const result = await createGroupAction(tournamentId, categoryId)
+      const result = await createGroupAction(tournamentSlug, categoryId)
       if (result.success) {
         toast.success('Grupo creado')
       } else {
@@ -260,7 +260,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
   function handleDeleteGroup() {
     if (!deleteTarget) return
     startTransition(async () => {
-      const result = await deleteGroupAction(tournamentId, deleteTarget.id)
+      const result = await deleteGroupAction(tournamentSlug, deleteTarget.id)
       if (result.success) {
         toast.success('Grupo eliminado')
       } else {
@@ -273,7 +273,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
   function handleDeletePendingMatches() {
     if (!deleteMatchesTarget) return
     startTransition(async () => {
-      const result = await deletePendingMatchesAction(tournamentId, deleteMatchesTarget.id)
+      const result = await deletePendingMatchesAction(tournamentSlug, deleteMatchesTarget.id)
       if (result.success) {
         const count = result.data?.count ?? 0
         toast.success(`${count} partidos pendientes eliminados`)
@@ -287,7 +287,7 @@ export function GroupsSection({ tournamentId, categories, groups, allPlayers }: 
   function handleGenerateMatches() {
     if (!generateTarget) return
     startTransition(async () => {
-      const result = await generateRoundRobinMatchesAction(tournamentId, generateTarget.id)
+      const result = await generateRoundRobinMatchesAction(tournamentSlug, generateTarget.id)
       if (result.success) {
         const count = result.data?.count ?? 0
         if (count === 0) {

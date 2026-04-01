@@ -41,7 +41,8 @@ export async function uploadCsvAction(
 }
 
 export async function confirmImportAction(
-  tournamentId: string
+  tournamentId: string,
+  tournamentSlug: string
 ): Promise<ActionResult<{ processed: number; errors: number }>> {
   try {
     const session = await auth()
@@ -51,8 +52,8 @@ export async function confirmImportAction(
 
     const result = await processImportedPlayers(tournamentId)
 
-    revalidatePath(`/admin/torneos/${tournamentId}`)
-    revalidatePath(`/admin/torneos/${tournamentId}/importar`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}/importar`)
     return {
       success: true,
       data: { processed: result.processed, errors: result.errors },

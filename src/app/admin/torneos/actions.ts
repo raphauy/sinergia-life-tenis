@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { createTournament, updateTournament } from '@/services/tournament-service'
+import { createTournament, updateTournament, getTournamentById, deleteTournament, getTournamentStats } from '@/services/tournament-service'
 import { createCategory, deleteCategory } from '@/services/tournament-category-service'
 import { createTournamentSchema, updateTournamentSchema } from '@/lib/validations/tournament'
 import { revalidatePath } from 'next/cache'
@@ -9,7 +9,7 @@ import type { ActionResult } from '@/lib/action-types'
 
 export async function createTournamentAction(
   data: Record<string, unknown>
-): Promise<ActionResult<{ id: string }>> {
+): Promise<ActionResult<{ id: string; slug: string }>> {
   try {
     const session = await auth()
     if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
@@ -31,7 +31,7 @@ export async function createTournamentAction(
     })
 
     revalidatePath('/admin/torneos')
-    return { success: true, data: { id: tournament.id } }
+    return { success: true, data: { id: tournament.id, slug: tournament.slug } }
   } catch (error) {
     console.error('Error creating tournament:', error)
     return { success: false, error: 'Error al crear el torneo' }
@@ -53,14 +53,14 @@ export async function updateTournamentAction(
       return { success: false, error: 'Datos inválidos' }
     }
 
-    await updateTournament(id, {
+    const updated = await updateTournament(id, {
       ...validated.data,
       startDate: validated.data.startDate ? new Date(validated.data.startDate) : undefined,
       endDate: validated.data.endDate ? new Date(validated.data.endDate) : undefined,
     })
 
     revalidatePath('/admin/torneos')
-    revalidatePath(`/admin/torneos/${id}`)
+    revalidatePath(`/admin/torneos/${updated.slug}`)
     return { success: true }
   } catch (error) {
     console.error('Error updating tournament:', error)
@@ -81,7 +81,8 @@ export async function addCategoryAction(
     if (!name.trim()) return { success: false, error: 'Nombre requerido' }
 
     await createCategory({ tournamentId, name: name.trim() })
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    const tournament = await getTournamentById(tournamentId)
+    revalidatePath(`/admin/torneos/${tournament?.slug}`)
     return { success: true }
   } catch (error) {
     if (error instanceof Error && error.message.includes('Unique constraint')) {
@@ -103,10 +104,46 @@ export async function deleteCategoryAction(
     }
 
     await deleteCategory(categoryId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    const tournament = await getTournamentById(tournamentId)
+    revalidatePath(`/admin/torneos/${tournament?.slug}`)
     return { success: true }
   } catch (error) {
     console.error('Error deleting category:', error)
     return { success: false, error: 'No se puede eliminar la categoría (puede tener jugadores o partidos)' }
+  }
+}
+
+export async function getTournamentStatsAction(
+  tournamentId: string
+): Promise<ActionResult<{ players: number; matches: number; groups: number }>> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const stats = await getTournamentStats(tournamentId)
+    return { success: true, data: stats }
+  } catch (error) {
+    console.error('Error getting tournament stats:', error)
+    return { success: false, error: 'Error al obtener estadísticas' }
+  }
+}
+
+export async function deleteTournamentAction(
+  tournamentId: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await deleteTournament(tournamentId)
+    revalidatePath('/admin/torneos')
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting tournament:', error)
+    return { success: false, error: 'Error al eliminar el torneo' }
   }
 }

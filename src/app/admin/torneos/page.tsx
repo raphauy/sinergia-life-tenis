@@ -31,7 +31,7 @@ export default async function TorneosPage() {
           {tournaments.map((t) => (
             <Link
               key={t.id}
-              href={`/admin/torneos/${t.id}`}
+              href={`/admin/torneos/${t.slug}`}
               className="block rounded-lg border p-4 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center justify-between">

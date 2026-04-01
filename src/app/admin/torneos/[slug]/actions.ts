@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
 export async function updatePlayerNameAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string,
   firstName: string,
   lastName: string
@@ -20,7 +20,7 @@ export async function updatePlayerNameAction(
     }
 
     await updatePlayerName(playerId, firstName, lastName)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al actualizar nombre'
@@ -29,7 +29,7 @@ export async function updatePlayerNameAction(
 }
 
 export async function updatePlayerWhatsappAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string,
   whatsapp: string
 ): Promise<ActionResult> {
@@ -40,7 +40,7 @@ export async function updatePlayerWhatsappAction(
     }
 
     await updatePlayerWhatsapp(playerId, whatsapp)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al actualizar WhatsApp'
@@ -49,7 +49,7 @@ export async function updatePlayerWhatsappAction(
 }
 
 export async function updatePlayerEmailAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string,
   email: string
 ): Promise<ActionResult> {
@@ -60,7 +60,7 @@ export async function updatePlayerEmailAction(
     }
 
     await updatePlayerEmail(playerId, email)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al actualizar email'
@@ -69,7 +69,7 @@ export async function updatePlayerEmailAction(
 }
 
 export async function invitePlayerAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string
 ): Promise<ActionResult> {
   try {
@@ -79,7 +79,7 @@ export async function invitePlayerAction(
     }
 
     await invitePlayer(playerId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al invitar jugador'
@@ -88,7 +88,7 @@ export async function invitePlayerAction(
 }
 
 export async function forceAcceptPlayerAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string
 ): Promise<ActionResult> {
   try {
@@ -98,7 +98,7 @@ export async function forceAcceptPlayerAction(
     }
 
     await forceAcceptPlayer(playerId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al marcar jugador como aceptado'
@@ -107,7 +107,7 @@ export async function forceAcceptPlayerAction(
 }
 
 export async function deletePlayerAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerId: string
 ): Promise<ActionResult> {
   try {
@@ -117,7 +117,7 @@ export async function deletePlayerAction(
     }
 
     await deletePlayer(playerId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al eliminar jugador'
@@ -126,7 +126,7 @@ export async function deletePlayerAction(
 }
 
 export async function deleteManyPlayersAction(
-  tournamentId: string,
+  tournamentSlug: string,
   playerIds: string[]
 ): Promise<ActionResult> {
   try {
@@ -138,7 +138,7 @@ export async function deleteManyPlayersAction(
     if (playerIds.length === 0) return { success: false, error: 'No hay jugadores seleccionados' }
 
     await deleteManyPlayers(playerIds)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al eliminar jugadores'
@@ -151,7 +151,7 @@ export async function deleteManyPlayersAction(
 // ============================================================================
 
 export async function createGroupAction(
-  tournamentId: string,
+  tournamentSlug: string,
   categoryId: string
 ): Promise<ActionResult> {
   try {
@@ -161,7 +161,7 @@ export async function createGroupAction(
     }
 
     await createGroup(categoryId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al crear grupo'
@@ -170,7 +170,7 @@ export async function createGroupAction(
 }
 
 export async function deleteGroupAction(
-  tournamentId: string,
+  tournamentSlug: string,
   groupId: string
 ): Promise<ActionResult> {
   try {
@@ -180,7 +180,7 @@ export async function deleteGroupAction(
     }
 
     await deleteGroup(groupId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al eliminar grupo'
@@ -207,7 +207,7 @@ export async function checkAffectedMatchesAction(
 }
 
 export async function setGroupPlayersAction(
-  tournamentId: string,
+  tournamentSlug: string,
   groupId: string,
   playerIds: string[],
   cancelPending: boolean = false
@@ -219,7 +219,7 @@ export async function setGroupPlayersAction(
     }
 
     await setGroupPlayers(groupId, playerIds, cancelPending)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     revalidatePath('/admin/partidos')
     return { success: true }
   } catch (error) {
@@ -229,7 +229,7 @@ export async function setGroupPlayersAction(
 }
 
 export async function generateRoundRobinMatchesAction(
-  tournamentId: string,
+  tournamentSlug: string,
   groupId: string
 ): Promise<ActionResult<{ count: number }>> {
   try {
@@ -239,7 +239,7 @@ export async function generateRoundRobinMatchesAction(
     }
 
     const count = await generateRoundRobinMatches(groupId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     revalidatePath('/admin/partidos')
     return { success: true, data: { count } }
   } catch (error) {
@@ -249,7 +249,7 @@ export async function generateRoundRobinMatchesAction(
 }
 
 export async function deletePendingMatchesAction(
-  tournamentId: string,
+  tournamentSlug: string,
   groupId: string
 ): Promise<ActionResult<{ count: number }>> {
   try {
@@ -259,7 +259,7 @@ export async function deletePendingMatchesAction(
     }
 
     const count = await deletePendingMatches(groupId)
-    revalidatePath(`/admin/torneos/${tournamentId}`)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
     revalidatePath('/admin/partidos')
     return { success: true, data: { count } }
   } catch (error) {

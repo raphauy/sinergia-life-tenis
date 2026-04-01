@@ -53,11 +53,17 @@ export default async function JugadoresPage() {
                   <TableCell className="text-sm">{u.email}</TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap">
-                      {u.players.map((p) => (
-                        <Badge key={p.id} variant="outline" className="text-xs">
-                          {p.tournament.name} ({p.category.name})
+                      {u.players.length === 0 ? (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Sin torneo
                         </Badge>
-                      ))}
+                      ) : (
+                        u.players.map((p) => (
+                          <Badge key={p.id} variant="outline" className="text-xs">
+                            {p.tournament.name} ({p.category.name})
+                          </Badge>
+                        ))
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

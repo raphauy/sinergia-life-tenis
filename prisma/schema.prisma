@@ -102,6 +102,7 @@ model AdminInvitation {
 model Tournament {
   id          String      @id @default(cuid())
   name        String
+  slug        String      @unique
   description String?
   matchFormat MatchFormat  @default(SINGLE_SET)
   startDate   DateTime
@@ -115,6 +116,7 @@ model Tournament {
   players    Player[]
 
   @@index([isActive])
+  @@index([slug])
 }
 
 model TournamentCategory {

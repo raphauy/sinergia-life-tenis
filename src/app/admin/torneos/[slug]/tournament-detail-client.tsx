@@ -63,12 +63,12 @@ interface Category {
 }
 
 interface Props {
-  tournamentId: string
+  tournamentSlug: string
   players: Player[]
   categories: Category[]
 }
 
-export function TournamentDetailClient({ tournamentId, players, categories }: Props) {
+export function TournamentDetailClient({ tournamentSlug, players, categories }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingField, setEditingField] = useState<'name' | 'email' | 'whatsapp' | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -141,9 +141,9 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
       const firstName = nameParts[0] || ''
       const lastName = nameParts.slice(1).join(' ') || ''
       const result =
-        editingField === 'name' ? await updatePlayerNameAction(tournamentId, playerId, firstName, lastName)
-        : editingField === 'email' ? await updatePlayerEmailAction(tournamentId, playerId, editValue)
-        : await updatePlayerWhatsappAction(tournamentId, playerId, editValue)
+        editingField === 'name' ? await updatePlayerNameAction(tournamentSlug, playerId, firstName, lastName)
+        : editingField === 'email' ? await updatePlayerEmailAction(tournamentSlug, playerId, editValue)
+        : await updatePlayerWhatsappAction(tournamentSlug, playerId, editValue)
       if (result.success) {
         toast.success(
           editingField === 'name' ? 'Nombre actualizado'
@@ -159,7 +159,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
 
   function handleInvite(playerId: string) {
     startTransition(async () => {
-      const result = await invitePlayerAction(tournamentId, playerId)
+      const result = await invitePlayerAction(tournamentSlug, playerId)
       if (result.success) {
         toast.success('Invitación enviada')
       } else {
@@ -170,7 +170,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
 
   function handleForceAccept(playerId: string) {
     startTransition(async () => {
-      const result = await forceAcceptPlayerAction(tournamentId, playerId)
+      const result = await forceAcceptPlayerAction(tournamentSlug, playerId)
       if (result.success) {
         toast.success('Jugador marcado como aceptado')
       } else {
@@ -182,7 +182,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
   function handleDelete() {
     if (!deleteTarget) return
     startTransition(async () => {
-      const result = await deletePlayerAction(tournamentId, deleteTarget.id)
+      const result = await deletePlayerAction(tournamentSlug, deleteTarget.id)
       if (result.success) {
         toast.success('Jugador eliminado')
         setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id))
@@ -195,7 +195,7 @@ export function TournamentDetailClient({ tournamentId, players, categories }: Pr
 
   function handleBulkDelete() {
     startTransition(async () => {
-      const result = await deleteManyPlayersAction(tournamentId, selectedIds)
+      const result = await deleteManyPlayersAction(tournamentSlug, selectedIds)
       if (result.success) {
         toast.success(`${selectedIds.length} jugador(es) eliminado(s)`)
         setSelectedIds([])

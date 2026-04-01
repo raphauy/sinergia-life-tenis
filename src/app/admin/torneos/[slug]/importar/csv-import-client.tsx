@@ -30,6 +30,7 @@ interface ParsedRow {
 
 interface Props {
   tournamentId: string
+  tournamentSlug: string
   validCategories: string[]
 }
 
@@ -50,7 +51,7 @@ function detectColumn(headers: string[], aliases: string[]): string | null {
   return null
 }
 
-export function CsvImportClient({ tournamentId, validCategories }: Props) {
+export function CsvImportClient({ tournamentId, tournamentSlug, validCategories }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<ParsedRow[]>([])
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload')
@@ -141,7 +142,7 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
         return
       }
 
-      const confirmResult = await confirmImportAction(tournamentId)
+      const confirmResult = await confirmImportAction(tournamentId, tournamentSlug)
       if (confirmResult.success && confirmResult.data) {
         setResult(confirmResult.data)
         setStep('done')
@@ -165,7 +166,7 @@ export function CsvImportClient({ tournamentId, validCategories }: Props) {
             {result?.errors ? `, ${result.errors} con errores` : ''}
           </p>
         </div>
-        <Button onClick={() => router.push(`/admin/torneos/${tournamentId}`)}>
+        <Button onClick={() => router.push(`/admin/torneos/${tournamentSlug}`)}>
           Volver al torneo
         </Button>
       </div>

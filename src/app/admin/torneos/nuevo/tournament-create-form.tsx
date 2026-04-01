@@ -58,7 +58,7 @@ export function TournamentCreateForm() {
 
       if (result.success && result.data) {
         toast.success('Torneo creado')
-        router.push(`/admin/torneos/${result.data.id}`)
+        router.push(`/admin/torneos/${result.data.slug}`)
       } else if (!result.success) {
         toast.error(result.error)
       }

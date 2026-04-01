@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getTournamentById } from '@/services/tournament-service'
+import { getTournamentBySlug } from '@/services/tournament-service'
 import { getPlayersByTournament } from '@/services/player-service'
 import { getGroupsByCategory } from '@/services/group-service'
 import { Badge } from '@/components/ui/badge'
@@ -11,17 +11,18 @@ import { fullName } from '@/lib/format-name'
 import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
 import { GroupsSection } from './groups-section'
+import { DeleteTournamentButton } from './delete-tournament-button'
 
 interface Props {
-  params: Promise<{ id: string }>
+  params: Promise<{ slug: string }>
 }
 
 export default async function TournamentDetailPage({ params }: Props) {
-  const { id } = await params
-  const tournament = await getTournamentById(id)
+  const { slug } = await params
+  const tournament = await getTournamentBySlug(slug)
   if (!tournament) notFound()
 
-  const players = await getPlayersByTournament(id)
+  const players = await getPlayersByTournament(tournament.id)
 
   const allGroups = await Promise.all(
     tournament.categories.map((c) => getGroupsByCategory(c.id))
@@ -43,11 +44,17 @@ export default async function TournamentDetailPage({ params }: Props) {
             <p className="text-sm text-muted-foreground mt-1">{tournament.description}</p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" render={<Link href={`/admin/torneos/${id}/importar`} />}>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" render={<Link href={`/admin/torneos/${slug}/importar`} />}>
             <Upload className="h-4 w-4 mr-1" />
             Importar jugadores
           </Button>
+          <DeleteTournamentButton
+            tournamentId={tournament.id}
+            playerCount={tournament._count.players}
+            matchCount={tournament._count.matches}
+            groupCount={groups.length}
+          />
         </div>
       </div>
 
@@ -60,14 +67,14 @@ export default async function TournamentDetailPage({ params }: Props) {
 
       {/* Players list */}
       <TournamentDetailClient
-        tournamentId={id}
+        tournamentSlug={slug}
         players={players}
         categories={tournament.categories}
       />
 
       {/* Groups management */}
       <GroupsSection
-        tournamentId={id}
+        tournamentSlug={slug}
         categories={tournament.categories}
         groups={groups}
         allPlayers={players.map((p) => ({

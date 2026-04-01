@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
 export const createTournamentSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(100),
   description: z.string().max(500).optional(),
@@ -14,6 +16,12 @@ export const updateTournamentSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   isActive: z.boolean().optional(),
+  slug: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(slugRegex, 'El slug solo puede contener letras minúsculas, números y guiones')
+    .optional(),
 })
 
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>
