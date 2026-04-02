@@ -83,83 +83,135 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
         ? <Badge variant="destructive" className="text-xs">Cancelado</Badge>
         : <Badge variant="outline" className="text-xs">Pendiente</Badge>
 
-  return (
-    <div className="rounded-lg border p-3">
-      {/* Row 1: names + eye | status badge */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-sm">
-          {player1LinkId ? (
-            <Link href={`/jugador/${player1LinkId}`} className={`${p1Weight} hover:underline`}>
-              {p1Name}
-            </Link>
-          ) : (
-            <span className={p1Weight}>{p1Name}</span>
-          )}
-          <span className="text-muted-foreground mx-1">vs</span>
-          {player2LinkId ? (
-            <Link href={`/jugador/${player2LinkId}`} className={`${p2Weight} hover:underline`}>
-              {p2Name}
-            </Link>
-          ) : (
-            <span className={p2Weight}>{p2Name}</span>
-          )}
-          <Link href={`/partido/${match.id}`} className="text-muted-foreground/60 hover:text-muted-foreground ml-1">
-            <Eye className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-        {statusBadge}
-      </div>
+  const p1Link = player1LinkId ? (
+    <Link href={`/jugador/${player1LinkId}`} className={`${p1Weight} hover:underline`}>{p1Name}</Link>
+  ) : (
+    <span className={p1Weight}>{p1Name}</span>
+  )
+  const p2Link = player2LinkId ? (
+    <Link href={`/jugador/${player2LinkId}`} className={`${p2Weight} hover:underline`}>{p2Name}</Link>
+  ) : (
+    <span className={p2Weight}>{p2Name}</span>
+  )
 
-      {/* Row 2: group/date/court | score/actions */}
-      <div className="flex items-center justify-between mt-1">
-        <div className="text-xs text-muted-foreground">
-          {match.group && <span>Grupo {match.group.number}</span>}
-          {match.group && match.scheduledAt && <span> · </span>}
-          {match.scheduledAt && (
-            <>
-              {formatDateUY(match.scheduledAt, 'dd/MM')} {formatTimeUY(match.scheduledAt)}
-              {court && ` — ${court.name}`}
-            </>
-          )}
+  const metaInfo = (
+    <>
+      {match.group && <span>Grupo {match.group.number}</span>}
+      {match.group && match.scheduledAt && <span> · </span>}
+      {match.scheduledAt && (
+        <>
+          {formatDateUY(match.scheduledAt, 'dd/MM')} {formatTimeUY(match.scheduledAt)}
+          {court && ` — ${court.name}`}
+        </>
+      )}
+    </>
+  )
+
+  const actionLink = coordinateHref ? (
+    <Link href={coordinateHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+      Coordinar con tu rival →
+    </Link>
+  ) : resultHref ? (() => {
+    const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
+    return matchPassed ? (
+      <Link href={resultHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
+        Cargar resultado →
+      </Link>
+    ) : (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger render={<span className="text-xs font-medium text-muted-foreground/50 whitespace-nowrap cursor-not-allowed" />}>
+            Cargar resultado →
+          </TooltipTrigger>
+          <TooltipContent>Disponible después del partido</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  })() : null
+
+  return (
+    <div className="rounded-lg border p-3 md:p-3">
+      {/* ===== MOBILE layout (< md): scoreboard style ===== */}
+      <div className="md:hidden">
+        {/* Names: symmetric grid */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 text-sm">
+          <div className="min-w-0 text-right">{p1Link}</div>
+          <span className="text-muted-foreground/50 text-[11px] font-light">vs</span>
+          <div className="min-w-0">{p2Link}</div>
         </div>
-        <div className="flex items-center gap-2">
-          {match.status === 'PLAYED' && score && (
+
+        {/* Score (played matches) */}
+        {match.status === 'PLAYED' && score && (
+          <div className="text-center mt-1.5">
             <Link href={`/partido/${match.id}`} className="font-mono text-sm font-bold hover:underline">
               {score}
             </Link>
-          )}
-          {match.status === 'PLAYED' && match.result && (
-            <span className="text-xs text-muted-foreground">
-              Ganador: {winnerIs1 ? p1Name : p2Name}
-            </span>
-          )}
-          {coordinateHref && (
-            <Link href={coordinateHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
-              Coordinar con tu rival →
+          </div>
+        )}
+
+        {/* Meta row: group/date | status + eye */}
+        <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+          <div>{metaInfo}</div>
+          <div className="flex items-center gap-1.5">
+            {relativeDay && <span className="font-medium">{relativeDay}</span>}
+            {statusBadge}
+            <Link href={`/partido/${match.id}`} className="text-muted-foreground/60 hover:text-muted-foreground">
+              <Eye className="h-3.5 w-3.5" />
             </Link>
-          )}
-          {resultHref && (() => {
-            const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
-            return matchPassed ? (
-              <Link href={resultHref} className="text-xs font-medium text-primary hover:underline whitespace-nowrap">
-                Cargar resultado →
+          </div>
+        </div>
+
+        {/* Winner (played matches) */}
+        {match.status === 'PLAYED' && match.result && (
+          <p className="text-center text-xs text-muted-foreground mt-1">
+            Ganador: {winnerIs1 ? p1Name : p2Name}
+          </p>
+        )}
+
+        {/* Action */}
+        {actionLink && (
+          <div className="flex justify-center mt-2 pt-2 border-t border-border/50">
+            {actionLink}
+          </div>
+        )}
+      </div>
+
+      {/* ===== DESKTOP layout (≥ md): original inline style ===== */}
+      <div className="hidden md:block">
+        {/* Row 1: names + eye | status badge */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-sm">
+            {p1Link}
+            <span className="text-muted-foreground mx-1">vs</span>
+            {p2Link}
+            <Link href={`/partido/${match.id}`} className="text-muted-foreground/60 hover:text-muted-foreground ml-1">
+              <Eye className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          {statusBadge}
+        </div>
+
+        {/* Row 2: group/date/court | score/actions */}
+        <div className="flex items-center justify-between mt-1">
+          <div className="text-xs text-muted-foreground">{metaInfo}</div>
+          <div className="flex items-center gap-2">
+            {match.status === 'PLAYED' && score && (
+              <Link href={`/partido/${match.id}`} className="font-mono text-sm font-bold hover:underline">
+                {score}
               </Link>
-            ) : (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger render={<span className="text-xs font-medium text-muted-foreground/50 whitespace-nowrap cursor-not-allowed" />}>
-                    Cargar resultado →
-                  </TooltipTrigger>
-                  <TooltipContent>Disponible después del partido</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )
-          })()}
-          {relativeDay && (
-            <span className="text-xs font-medium text-muted-foreground">
-              {relativeDay}
-            </span>
-          )}
+            )}
+            {match.status === 'PLAYED' && match.result && (
+              <span className="text-xs text-muted-foreground">
+                Ganador: {winnerIs1 ? p1Name : p2Name}
+              </span>
+            )}
+            {actionLink}
+            {relativeDay && (
+              <span className="text-xs font-medium text-muted-foreground">
+                {relativeDay}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { BackButton } from '@/components/back-button'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
+import { auth } from '@/lib/auth'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -46,6 +47,15 @@ export default async function PartidoPublicPage({ params }: Props) {
   const slugMap = new Map(playerSlugs.map((p) => [p.userId, p.slug]))
   const p1Slug = slugMap.get(match.player1Id)
   const p2Slug = slugMap.get(match.player2Id)
+
+  // Check if logged-in user is a participant
+  const session = await auth()
+  const currentUserId = session?.user?.id
+  const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
+  const isParticipant = currentUserId === match.player1Id || currentUserId === match.player2Id
+  const canAct = isParticipant || isAdmin
+  // Find the slug of the current user's player to build the action href
+  const currentPlayerSlug = currentUserId ? slugMap.get(currentUserId) : undefined
 
   const winnerIs1 = match.result?.winnerId === match.player1Id
   const winnerIs2 = match.result?.winnerId === match.player2Id
@@ -113,6 +123,26 @@ export default async function PartidoPublicPage({ params }: Props) {
             </>
           )}
         </div>
+
+        {/* Action link for participants */}
+        {canAct && currentPlayerSlug && (
+          <>
+            {match.status === 'PENDING' && (
+              <div className="pt-3 border-t mt-3">
+                <Link href={`/jugador/${currentPlayerSlug}/partidos/${match.id}`} className="text-sm font-medium text-primary hover:underline">
+                  Coordinar con tu rival →
+                </Link>
+              </div>
+            )}
+            {match.status === 'CONFIRMED' && !match.result && (
+              <div className="pt-3 border-t mt-3">
+                <Link href={`/jugador/${currentPlayerSlug}/partidos/${match.id}`} className="text-sm font-medium text-primary hover:underline">
+                  Cargar resultado →
+                </Link>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
