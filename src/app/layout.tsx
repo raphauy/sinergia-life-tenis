@@ -3,6 +3,7 @@ import { Montserrat, Merriweather, Ubuntu_Mono } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import { SessionProvider } from '@/components/session-provider'
 import { ThemeProvider } from '@/components/theme-provider'
+import { Analytics } from '@vercel/analytics/react'
 import './globals.css'
 
 const fontSans = Montserrat({
@@ -66,6 +67,7 @@ export default function RootLayout({
             <Toaster richColors position="top-right" />
           </SessionProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
