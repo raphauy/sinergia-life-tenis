@@ -40,14 +40,14 @@ export function RankingTable({ entries }: { entries: RankingEntry[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12 text-center">#</TableHead>
+              <TableHead className="w-8 text-center">#</TableHead>
               <TableHead>Jugador</TableHead>
-              <ColumnHeader abbr="PJ" full="Partidos jugados" className="text-center w-14" />
-              <ColumnHeader abbr="PG" full="Partidos ganados" className="text-center w-14" />
-              <ColumnHeader abbr="GF" full="Games a favor" className="text-center w-14" />
-              <ColumnHeader abbr="GC" full="Games en contra" className="text-center w-14" />
-              <ColumnHeader abbr="DG" full="Diferencia de games" className="text-center w-14" />
-              <ColumnHeader abbr="Pts" full="Puntos" className="text-center w-16" />
+              <ColumnHeader abbr="PJ" full="Partidos jugados" className="text-center w-9 px-1" />
+              <ColumnHeader abbr="PG" full="Partidos ganados" className="text-center w-9 px-1" />
+              <ColumnHeader abbr="GF" full="Games a favor" className="text-center w-9 px-1" />
+              <ColumnHeader abbr="GC" full="Games en contra" className="text-center w-9 px-1" />
+              <ColumnHeader abbr="DG" full="Diferencia de games" className="text-center w-9 px-1" />
+              <ColumnHeader abbr="Pts" full="Puntos" className="text-center w-10 px-1" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -59,21 +59,21 @@ export function RankingTable({ entries }: { entries: RankingEntry[] }) {
                     href={`/jugador/${e.player.slug}`}
                     className="flex items-center gap-2 hover:underline"
                   >
-                    <Avatar className="h-7 w-7">
+                    <Avatar className="h-7 w-7 shrink-0">
                       <AvatarImage src={e.player.image || undefined} />
                       <AvatarFallback className="text-xs">
                         {(e.player.name[0] || '?').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium text-sm">{e.player.name}</span>
+                    <span className="font-medium text-sm max-w-[10rem] sm:max-w-none truncate">{e.player.name}</span>
                   </Link>
                 </TableCell>
-                <TableCell className="text-center text-sm">{e.pj}</TableCell>
-                <TableCell className="text-center text-sm font-medium">{e.pg}</TableCell>
-                <TableCell className="text-center text-sm">{e.gamesFor}</TableCell>
-                <TableCell className="text-center text-sm">{e.gamesAgainst}</TableCell>
-                <TableCell className="text-center text-sm">{e.gamesDiff}</TableCell>
-                <TableCell className="text-center text-sm font-bold">{e.points}</TableCell>
+                <TableCell className="text-center text-sm px-1">{e.pj}</TableCell>
+                <TableCell className="text-center text-sm font-medium px-1">{e.pg}</TableCell>
+                <TableCell className="text-center text-sm px-1">{e.gamesFor}</TableCell>
+                <TableCell className="text-center text-sm px-1">{e.gamesAgainst}</TableCell>
+                <TableCell className="text-center text-sm px-1">{e.gamesDiff}</TableCell>
+                <TableCell className="text-center text-sm font-bold px-1">{e.points}</TableCell>
               </TableRow>
             ))}
           </TableBody>
