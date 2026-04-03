@@ -35,8 +35,12 @@ interface Props {
   result?: {
     set1Player1: number
     set1Player2: number
+    tb1Player1?: number | null
+    tb1Player2?: number | null
     set2Player1?: number | null
     set2Player2?: number | null
+    tb2Player1?: number | null
+    tb2Player2?: number | null
     superTbPlayer1?: number | null
     superTbPlayer2?: number | null
   }

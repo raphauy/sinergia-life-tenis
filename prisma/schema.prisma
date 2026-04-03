@@ -221,8 +221,12 @@ model MatchResult {
   reportedById   String
   set1Player1    Int
   set1Player2    Int
+  tb1Player1     Int?
+  tb1Player2     Int?
   set2Player1    Int?
   set2Player2    Int?
+  tb2Player1     Int?
+  tb2Player2     Int?
   superTbPlayer1 Int?
   superTbPlayer2 Int?
   set3Player1    Int?

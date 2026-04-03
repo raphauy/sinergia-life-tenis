@@ -5,8 +5,12 @@ export async function createMatchResult(data: {
   reportedById: string
   set1Player1: number
   set1Player2: number
+  tb1Player1?: number | null
+  tb1Player2?: number | null
   set2Player1?: number
   set2Player2?: number
+  tb2Player1?: number | null
+  tb2Player2?: number | null
   superTbPlayer1?: number
   superTbPlayer2?: number
   winnerId: string
@@ -26,8 +30,12 @@ export async function createMatchResult(data: {
         reportedById: data.reportedById,
         set1Player1: data.set1Player1,
         set1Player2: data.set1Player2,
+        tb1Player1: data.tb1Player1,
+        tb1Player2: data.tb1Player2,
         set2Player1: data.set2Player1,
         set2Player2: data.set2Player2,
+        tb2Player1: data.tb2Player1,
+        tb2Player2: data.tb2Player2,
         superTbPlayer1: data.superTbPlayer1,
         superTbPlayer2: data.superTbPlayer2,
         winnerId: data.winnerId,
@@ -48,8 +56,12 @@ export async function updateMatchResult(
   data: {
     set1Player1: number
     set1Player2: number
+    tb1Player1?: number | null
+    tb1Player2?: number | null
     set2Player1?: number
     set2Player2?: number
+    tb2Player1?: number | null
+    tb2Player2?: number | null
     superTbPlayer1?: number
     superTbPlayer2?: number
     winnerId: string
@@ -67,8 +79,12 @@ export async function updateMatchResult(
     data: {
       set1Player1: data.set1Player1,
       set1Player2: data.set1Player2,
+      tb1Player1: data.tb1Player1,
+      tb1Player2: data.tb1Player2,
       set2Player1: data.set2Player1,
       set2Player2: data.set2Player2,
+      tb2Player1: data.tb2Player1,
+      tb2Player2: data.tb2Player2,
       superTbPlayer1: data.superTbPlayer1,
       superTbPlayer2: data.superTbPlayer2,
       winnerId: data.winnerId,

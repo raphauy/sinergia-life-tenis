@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
+import { formatMatchScore } from '@/lib/format-score'
 import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
@@ -61,9 +62,7 @@ export default async function PartidoPublicPage({ params }: Props) {
   const winnerIs2 = match.result?.winnerId === match.player2Id
 
   const r = match.result
-  const score = r
-    ? `${r.set1Player1}-${r.set1Player2}${r.set2Player1 != null ? `  ${r.set2Player1}-${r.set2Player2}` : ''}${r.superTbPlayer1 != null ? `  [${r.superTbPlayer1}-${r.superTbPlayer2}]` : ''}`
-    : null
+  const score = r ? formatMatchScore(r) : null
 
   return (
     <div className="max-w-xl mx-auto">

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { fullName } from '@/lib/format-name'
+import { formatMatchScore } from '@/lib/format-score'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
@@ -22,8 +23,12 @@ interface MatchCardProps {
     result: {
       set1Player1: number
       set1Player2: number
+      tb1Player1: number | null
+      tb1Player2: number | null
       set2Player1: number | null
       set2Player2: number | null
+      tb2Player1: number | null
+      tb2Player2: number | null
       superTbPlayer1: number | null
       superTbPlayer2: number | null
       winnerId: string
@@ -46,11 +51,7 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
 
   function getScore() {
     if (!match.result) return null
-    const r = match.result
-    let score = `${r.set1Player1}-${r.set1Player2}`
-    if (r.set2Player1 != null) score += `  ${r.set2Player1}-${r.set2Player2}`
-    if (r.superTbPlayer1 != null) score += `  [${r.superTbPlayer1}-${r.superTbPlayer2}]`
-    return score
+    return formatMatchScore(match.result)
   }
 
   function getRelativeDay() {

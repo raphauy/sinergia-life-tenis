@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { fullName } from '@/lib/format-name'
+import { formatMatchScore } from '@/lib/format-score'
 import { getMatches } from '@/services/match-service'
 import { getTournaments } from '@/services/tournament-service'
 import { Button } from '@/components/ui/button'
@@ -85,9 +86,7 @@ export default async function PartidosPage({ searchParams }: Props) {
                   )}
                   {m.result && (
                     <p className="text-xs font-mono mt-1">
-                      {m.result.set1Player1}-{m.result.set1Player2}
-                      {m.result.set2Player1 != null && ` ${m.result.set2Player1}-${m.result.set2Player2}`}
-                      {m.result.superTbPlayer1 != null && ` [${m.result.superTbPlayer1}-${m.result.superTbPlayer2}]`}
+                      {formatMatchScore(m.result)}
                     </p>
                   )}
                 </div>

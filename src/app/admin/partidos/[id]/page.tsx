@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { fullName } from '@/lib/format-name'
+import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById } from '@/services/match-service'
 import { Badge } from '@/components/ui/badge'
 import { formatDateTimeUY } from '@/lib/date-utils'
@@ -43,11 +44,7 @@ export default async function MatchDetailPage({ params }: Props) {
         <div className="rounded-lg border p-4 mb-6">
           <h2 className="font-semibold mb-2">Resultado</h2>
           <p className="font-mono text-lg">
-            {match.result.set1Player1}-{match.result.set1Player2}
-            {match.result.set2Player1 != null &&
-              ` ${match.result.set2Player1}-${match.result.set2Player2}`}
-            {match.result.superTbPlayer1 != null &&
-              ` [${match.result.superTbPlayer1}-${match.result.superTbPlayer2}]`}
+            {formatMatchScore(match.result)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             Ganador:{' '}
@@ -74,8 +71,12 @@ export default async function MatchDetailPage({ params }: Props) {
             ? {
                 set1Player1: match.result.set1Player1,
                 set1Player2: match.result.set1Player2,
+                tb1Player1: match.result.tb1Player1,
+                tb1Player2: match.result.tb1Player2,
                 set2Player1: match.result.set2Player1,
                 set2Player2: match.result.set2Player2,
+                tb2Player1: match.result.tb2Player1,
+                tb2Player2: match.result.tb2Player2,
                 superTbPlayer1: match.result.superTbPlayer1,
                 superTbPlayer2: match.result.superTbPlayer2,
               }
