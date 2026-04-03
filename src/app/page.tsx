@@ -159,7 +159,12 @@ async function TournamentContent({
           return a.scheduledAt.getTime() - b.scheduledAt.getTime()
         })
 
-      return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings }
+      const pendingCount = matches.filter((m) => m.status === 'PENDING').length
+      const confirmedCount = confirmed.length
+      const playedCount = played.length
+      const totalCount = pendingCount + confirmedCount + playedCount
+
+      return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, pendingCount, confirmedCount, playedCount, totalCount }
     })
   )
 
@@ -197,8 +202,39 @@ async function TournamentContent({
         ))}
       </TabsList>
 
-      {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings }) => (
+      {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, pendingCount, confirmedCount, playedCount, totalCount }) => (
         <TabsContent key={cat.id} value={cat.id}>
+          {/* Resumen de partidos */}
+          {totalCount > 0 && (
+            <div className="mb-6 rounded-lg border bg-muted/30 px-3 py-2">
+              <div className="h-2 rounded-full bg-muted overflow-hidden mb-1.5 flex">
+                {playedCount > 0 && (
+                  <div className="bg-emerald-500 h-full transition-all" style={{ width: `${(playedCount / totalCount) * 100}%` }} />
+                )}
+                {confirmedCount > 0 && (
+                  <div className="bg-orange-400 h-full transition-all" style={{ width: `${(confirmedCount / totalCount) * 100}%` }} />
+                )}
+              </div>
+              <div className="flex items-center justify-between sm:justify-start sm:gap-6 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{totalCount} partidos</span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground/30" />
+                  <span className="sm:hidden">Pend. {pendingCount}</span>
+                  <span className="hidden sm:inline">Pendientes {pendingCount}</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-2 h-2 rounded-full bg-orange-400" />
+                  <span className="sm:hidden">Conf. {confirmedCount}</span>
+                  <span className="hidden sm:inline">Confirmados {confirmedCount}</span>
+                </span>
+                <span className="flex items-center gap-1 text-emerald-600">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                  Jugados {playedCount}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-12">
             {/* Ranking */}
             <section>
