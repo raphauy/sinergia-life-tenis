@@ -7,7 +7,7 @@ const matchIncludes = {
   tournament: { select: { id: true, name: true, matchFormat: true } },
   category: { select: { id: true, name: true } },
   group: { select: { id: true, number: true } },
-  result: true,
+  result: { include: { reportedBy: { select: { firstName: true, lastName: true } } } },
 } as const
 
 export async function createMatch(data: {

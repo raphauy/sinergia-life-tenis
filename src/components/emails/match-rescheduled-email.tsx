@@ -10,7 +10,7 @@ import {
 } from '@react-email/components'
 import { theme } from './email-theme'
 
-interface MatchConfirmationEmailProps {
+interface MatchRescheduledEmailProps {
   playerName: string
   rivalName: string
   tournamentName: string
@@ -19,14 +19,23 @@ interface MatchConfirmationEmailProps {
   courtName: string
 }
 
-export default function MatchConfirmationEmail({
+MatchRescheduledEmail.PreviewProps = {
+  playerName: 'Juan Pérez',
+  rivalName: 'Carlos López',
+  tournamentName: 'Torneo Apertura 2026',
+  date: '15/04/2026',
+  time: '19:00',
+  courtName: 'Cancha 1',
+} satisfies MatchRescheduledEmailProps
+
+export default function MatchRescheduledEmail({
   playerName,
   rivalName,
   tournamentName,
   date,
   time,
   courtName,
-}: MatchConfirmationEmailProps) {
+}: MatchRescheduledEmailProps) {
   return (
     <Html>
       <Head />
@@ -40,7 +49,7 @@ export default function MatchConfirmationEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Tu partido contra <strong>{rivalName}</strong> en el torneo <strong>{tournamentName}</strong> ha sido confirmado:
+            Tu partido contra <strong>{rivalName}</strong> en el torneo <strong>{tournamentName}</strong> fue reprogramado. Los nuevos datos son:
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>

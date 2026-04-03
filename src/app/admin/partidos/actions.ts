@@ -3,7 +3,8 @@
 import { auth } from '@/lib/auth'
 import { createMatch, confirmMatch, rescheduleMatch, cancelMatch, getMatchById } from '@/services/match-service'
 import { createMatchResult, updateMatchResult } from '@/services/match-result-service'
-import { sendMatchConfirmationEmail } from '@/services/email-service'
+import { notifyMatchResult, notifyMatchResultEdited } from '@/services/match-result-notification'
+import { sendMatchConfirmationEmail, sendMatchRescheduledEmail } from '@/services/email-service'
 import { createMatchSchema, confirmMatchSchema } from '@/lib/validations/match'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { fullName } from '@/lib/format-name'
@@ -117,10 +118,37 @@ export async function rescheduleMatchAction(
     }
 
     const scheduledAt = parseFromUY(validated.data.date, validated.data.time)
-    await rescheduleMatch(matchId, {
+    const match = await rescheduleMatch(matchId, {
       scheduledAt,
       courtNumber: validated.data.courtNumber,
     })
+
+    // Send emails to both players
+    const court = COURTS.find((c) => c.number === match.courtNumber)
+    const dateStr = formatDateUY(match.scheduledAt!)
+    const timeStr = formatTimeUY(match.scheduledAt!)
+
+    const emailPromises = [
+      sendMatchRescheduledEmail({
+        to: match.player1.email,
+        playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
+        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        tournamentName: match.tournament.name,
+        date: dateStr,
+        time: timeStr,
+        courtName: court?.name || `Cancha ${match.courtNumber}`,
+      }),
+      sendMatchRescheduledEmail({
+        to: match.player2.email,
+        playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
+        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        tournamentName: match.tournament.name,
+        date: dateStr,
+        time: timeStr,
+        courtName: court?.name || `Cancha ${match.courtNumber}`,
+      }),
+    ]
+    await Promise.allSettled(emailPromises)
 
     revalidatePath('/admin/partidos')
     revalidatePath(`/admin/partidos/${matchId}`)
@@ -173,7 +201,8 @@ export async function adminLoadResultAction(
       return { success: false, error: validated.error.issues[0]?.message || 'Datos inválidos' }
     }
 
-    if (match.result) {
+    const isEdit = !!match.result
+    if (isEdit) {
       await updateMatchResult(matchId, validated.data)
     } else {
       await createMatchResult({
@@ -181,6 +210,17 @@ export async function adminLoadResultAction(
         reportedById: session.user.id,
         ...validated.data,
       })
+    }
+
+    // Notify group players + admins (fire-and-forget)
+    const updatedMatch = await getMatchById(matchId)
+    if (updatedMatch) {
+      const adminName = fullName(session.user.firstName, session.user.lastName) || 'Admin'
+      if (isEdit) {
+        notifyMatchResultEdited(updatedMatch, adminName)
+      } else {
+        notifyMatchResult(updatedMatch)
+      }
     }
 
     revalidatePath('/admin/partidos')

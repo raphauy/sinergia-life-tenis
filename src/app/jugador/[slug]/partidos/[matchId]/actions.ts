@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth'
 import { getMatchById } from '@/services/match-service'
 import { createMatchResult } from '@/services/match-result-service'
+import { notifyMatchResult } from '@/services/match-result-notification'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
@@ -55,6 +56,12 @@ export async function playerLoadResultAction(
       reportedById: session.user.id,
       ...validated.data,
     })
+
+    // Notify group players + admins (fire-and-forget)
+    const updatedMatch = await getMatchById(matchId)
+    if (updatedMatch) {
+      notifyMatchResult(updatedMatch)
+    }
 
     revalidatePath(`/jugador`)
     revalidatePath(`/admin/partidos`)

@@ -12,5 +12,5 @@ export const theme = {
     sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     mono: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
   },
-  logoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/life-logo.png`,
+  logoUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://life-tenis.raphauy.dev'}/life-logo.png`,
 } as const
