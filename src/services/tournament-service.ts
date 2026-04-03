@@ -81,6 +81,7 @@ export async function updateTournament(
   data: {
     name?: string
     description?: string
+    rules?: string | null
     startDate?: Date
     endDate?: Date
     isActive?: boolean

@@ -2,18 +2,18 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
-import { prisma as prismaDb } from '@/lib/prisma'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getRankingByCategory, getRankingByGroup } from '@/services/ranking-service'
 import { getMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
+import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
 import { RankingTable } from '@/components/ranking-table'
 import { MatchCard } from '@/components/match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Trophy, Calendar } from 'lucide-react'
-import { prisma } from '@/lib/prisma'
+import { Trophy, Calendar, FileText, ChevronRight } from 'lucide-react'
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
@@ -37,11 +37,8 @@ export default async function HomePage() {
     if (session.user.role === 'SUPERADMIN' || session.user.role === 'ADMIN') {
       userHref = '/admin'
     } else {
-      const player = await prismaDb.player.findFirst({
-        where: { userId: session.user.id, isActive: true },
-        select: { slug: true },
-      })
-      userHref = player ? `/jugador/${player.slug}` : '/perfil'
+      const slug = await getActivePlayerSlugByUserId(session.user.id)
+      userHref = slug ? `/jugador/${slug}` : '/perfil'
     }
   }
 
@@ -141,7 +138,7 @@ async function TournamentContent({
       const [ranking, matches, playerMap, groups] = await Promise.all([
         getRankingByCategory(cat.id),
         getMatches({ categoryId: cat.id }),
-        getPlayerMap(cat.id),
+        getPlayerMapByCategory(cat.id),
         getGroupsByCategory(cat.id),
       ])
 
@@ -169,6 +166,28 @@ async function TournamentContent({
   const defaultTab = categories[0].id
 
   return (
+    <>
+    {/* Reglamento */}
+    <Collapsible className="mb-8 rounded-lg border border-input">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 p-4 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
+        <FileText className="h-5 w-5 text-primary shrink-0" />
+        <span className="text-lg font-semibold flex-1">Reglamento</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[open]:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-4">
+        {tournament.rules ? (
+          <div
+            className="tiptap-content text-sm"
+            dangerouslySetInnerHTML={{ __html: tournament.rules }}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            El reglamento estará disponible en breve.
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
+
     <Tabs defaultValue={defaultTab}>
       <TabsList className="mb-6 w-full h-11 bg-orange-100 dark:bg-orange-950">
         {categories.map((cat) => (
@@ -309,14 +328,6 @@ async function TournamentContent({
         </TabsContent>
       ))}
     </Tabs>
+    </>
   )
-}
-
-/** Map userId -> playerSlug for linking to public profiles */
-async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {
-  const players = await prisma.player.findMany({
-    where: { categoryId, userId: { not: null } },
-    select: { slug: true, userId: true },
-  })
-  return new Map(players.map((p) => [p.userId!, p.slug]))
 }

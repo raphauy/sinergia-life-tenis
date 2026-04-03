@@ -12,6 +12,7 @@ import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
 import { GroupsSection } from './groups-section'
 import { DeleteTournamentButton } from './delete-tournament-button'
+import { RulesEditorSection } from './rules-editor-section'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -64,6 +65,12 @@ export default async function TournamentDetailPage({ params }: Props) {
           <CategoryBadge key={c.id} name={c.name} />
         ))}
       </div>
+
+      {/* Rules editor */}
+      <RulesEditorSection
+        tournamentId={tournament.id}
+        initialRules={tournament.rules || ''}
+      />
 
       {/* Players list */}
       <TournamentDetailClient

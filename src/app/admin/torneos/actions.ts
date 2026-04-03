@@ -130,6 +130,32 @@ export async function getTournamentStatsAction(
   }
 }
 
+export async function updateTournamentRulesAction(
+  id: string,
+  rules: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    if (rules.length > 50000) {
+      return { success: false, error: 'El reglamento es demasiado largo' }
+    }
+
+    const updated = await updateTournament(id, { rules: rules || null })
+
+    revalidatePath('/admin/torneos')
+    revalidatePath(`/admin/torneos/${updated.slug}`)
+    revalidatePath('/')
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating tournament rules:', error)
+    return { success: false, error: 'Error al guardar el reglamento' }
+  }
+}
+
 export async function deleteTournamentAction(
   tournamentId: string
 ): Promise<ActionResult> {

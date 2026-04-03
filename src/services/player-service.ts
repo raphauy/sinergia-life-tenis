@@ -138,3 +138,19 @@ export async function linkPlayerToUser(playerId: string, userId: string) {
     data: { userId, acceptedAt: new Date() },
   })
 }
+
+export async function getActivePlayerSlugByUserId(userId: string): Promise<string | null> {
+  const player = await prisma.player.findFirst({
+    where: { userId, isActive: true },
+    select: { slug: true },
+  })
+  return player?.slug ?? null
+}
+
+export async function getPlayerMapByCategory(categoryId: string): Promise<Map<string, string>> {
+  const players = await prisma.player.findMany({
+    where: { categoryId, userId: { not: null } },
+    select: { slug: true, userId: true },
+  })
+  return new Map(players.map((p) => [p.userId!, p.slug]))
+}
