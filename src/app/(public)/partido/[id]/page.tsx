@@ -109,19 +109,20 @@ export default async function PartidoPublicPage({ params }: Props) {
           )}
         </div>
 
-        {/* Details footer */}
-        <div className="flex items-center gap-2 pt-3 border-t text-sm text-muted-foreground">
-          {match.scheduledAt && (
-            <span>{formatDateTimeUY(match.scheduledAt)}</span>
-          )}
-          {court && <span>— {court.name}</span>}
-          {match.result && (
-            <>
-              {match.scheduledAt && <span>—</span>}
-              <span>Ganador: <span className="font-medium text-foreground">{winnerIs1 ? p1Name : p2Name}</span></span>
-            </>
-          )}
-        </div>
+        {/* Winner */}
+        {match.result && (
+          <div className="pt-3 border-t text-sm">
+            Ganador: <span className="font-medium">{winnerIs1 ? p1Name : p2Name}</span>
+          </div>
+        )}
+
+        {/* Date & court */}
+        {(match.scheduledAt || court) && (
+          <div className={`flex items-center justify-between text-sm text-muted-foreground ${match.result ? 'pt-1' : 'pt-3 border-t'}`}>
+            <span>{match.scheduledAt ? formatDateTimeUY(match.scheduledAt) : ''}</span>
+            {court && <span>{court.name}</span>}
+          </div>
+        )}
 
         {/* Action link for participants */}
         {canAct && currentPlayerSlug && (

@@ -15,6 +15,7 @@ function formatSet(p1: number, p2: number, tbP1?: number | null, tbP2?: number |
 }
 
 interface MatchResultScore {
+  walkover?: boolean
   set1Player1: number
   set1Player2: number
   tb1Player1?: number | null
@@ -28,6 +29,7 @@ interface MatchResultScore {
 }
 
 export function formatMatchScore(r: MatchResultScore): string {
+  if (r.walkover) return 'W/O'
   let score = formatSet(r.set1Player1, r.set1Player2, r.tb1Player1, r.tb1Player2)
   if (r.set2Player1 != null && r.set2Player2 != null) {
     score += `  ${formatSet(r.set2Player1, r.set2Player2, r.tb2Player1, r.tb2Player2)}`

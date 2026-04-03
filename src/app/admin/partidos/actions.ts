@@ -161,10 +161,12 @@ export async function adminLoadResultAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
+    const isWalkover = data.walkover === true || data.walkover === 'true'
     const schema = createMatchResultSchema(
       match.tournament.matchFormat,
       match.player1Id,
-      match.player2Id
+      match.player2Id,
+      isWalkover
     )
     const validated = schema.safeParse(data)
     if (!validated.success) {

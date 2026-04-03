@@ -232,6 +232,7 @@ model MatchResult {
   superTbPlayer2 Int?
   set3Player1    Int?
   set3Player2    Int?
+  walkover       Boolean  @default(false)
   winnerId       String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

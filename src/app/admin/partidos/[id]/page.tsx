@@ -69,6 +69,7 @@ export default async function MatchDetailPage({ params }: Props) {
         result={
           match.result
             ? {
+                walkover: match.result.walkover,
                 set1Player1: match.result.set1Player1,
                 set1Player2: match.result.set1Player2,
                 tb1Player1: match.result.tb1Player1,
@@ -79,6 +80,7 @@ export default async function MatchDetailPage({ params }: Props) {
                 tb2Player2: match.result.tb2Player2,
                 superTbPlayer1: match.result.superTbPlayer1,
                 superTbPlayer2: match.result.superTbPlayer2,
+                winnerId: match.result.winnerId,
               }
             : undefined
         }

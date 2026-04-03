@@ -33,6 +33,7 @@ interface Props {
   scheduledAt?: string | null
   courtNumber?: number | null
   result?: {
+    walkover?: boolean
     set1Player1: number
     set1Player2: number
     tb1Player1?: number | null
@@ -43,6 +44,7 @@ interface Props {
     tb2Player2?: number | null
     superTbPlayer1?: number | null
     superTbPlayer2?: number | null
+    winnerId?: string
   }
 }
 
@@ -253,6 +255,8 @@ export function MatchDetailClient({
           </h2>
           <MatchResultForm
             matchFormat={matchFormat}
+            player1Id={player1Id}
+            player2Id={player2Id}
             player1Name={player1Name}
             player2Name={player2Name}
             defaultValues={result}

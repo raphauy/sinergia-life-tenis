@@ -35,10 +35,12 @@ export async function playerLoadResultAction(
       return { success: false, error: 'Este partido ya tiene resultado' }
     }
 
+    const isWalkover = data.walkover === true || data.walkover === 'true'
     const schema = createMatchResultSchema(
       match.tournament.matchFormat,
       match.player1Id,
-      match.player2Id
+      match.player2Id,
+      isWalkover
     )
     const validated = schema.safeParse(data)
     if (!validated.success) {

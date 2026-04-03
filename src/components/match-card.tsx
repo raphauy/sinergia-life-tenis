@@ -21,6 +21,7 @@ interface MatchCardProps {
     player2Id: string
     group?: { id: string; number: number } | null
     result: {
+      walkover: boolean
       set1Player1: number
       set1Player2: number
       tb1Player1: number | null
@@ -150,8 +151,15 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
           </div>
         )}
 
+        {/* Winner (played matches) */}
+        {match.status === 'PLAYED' && match.result && (
+          <p className="text-center text-xs text-muted-foreground mt-1.5">
+            Ganador: {winnerIs1 ? p1Name : p2Name}
+          </p>
+        )}
+
         {/* Meta row: group/date | status + eye */}
-        <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between mt-1.5 text-xs text-muted-foreground">
           <div>{metaInfo}</div>
           <div className="flex items-center gap-1.5">
             {relativeDay && <span className="font-medium">{relativeDay}</span>}
@@ -161,13 +169,6 @@ export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref,
             </Link>
           </div>
         </div>
-
-        {/* Winner (played matches) */}
-        {match.status === 'PLAYED' && match.result && (
-          <p className="text-center text-xs text-muted-foreground mt-1">
-            Ganador: {winnerIs1 ? p1Name : p2Name}
-          </p>
-        )}
 
         {/* Action */}
         {actionLink && (

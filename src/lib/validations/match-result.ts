@@ -209,11 +209,41 @@ const twoSetsSuperTbSchema = (player1Id: string, player2Id: string) =>
       }
     })
 
+const walkoverSchema = (player1Id: string, player2Id: string) =>
+  z
+    .object({
+      winnerId: z.string(),
+    })
+    .refine((d) => d.winnerId === player1Id || d.winnerId === player2Id, {
+      message: 'Ganador inválido',
+      path: ['winnerId'],
+    })
+    .transform((d) => {
+      const p1Wins = d.winnerId === player1Id
+      return {
+        walkover: true as const,
+        set1Player1: p1Wins ? 6 : 0,
+        set1Player2: p1Wins ? 0 : 6,
+        tb1Player1: null,
+        tb1Player2: null,
+        set2Player1: null,
+        set2Player2: null,
+        tb2Player1: null,
+        tb2Player2: null,
+        superTbPlayer1: null,
+        superTbPlayer2: null,
+        winnerId: d.winnerId,
+      }
+    })
+
 export function createMatchResultSchema(
   matchFormat: MatchFormat,
   player1Id: string,
-  player2Id: string
+  player2Id: string,
+  walkover = false
 ) {
+  if (walkover) return walkoverSchema(player1Id, player2Id)
+
   switch (matchFormat) {
     case 'SINGLE_SET':
       return singleSetSchema(player1Id, player2Id)

@@ -21,6 +21,8 @@ interface Props {
 export function PlayerLoadResult({
   matchId,
   matchFormat,
+  player1Id,
+  player2Id,
   player1Name,
   player2Name,
 }: Props) {
@@ -43,6 +45,8 @@ export function PlayerLoadResult({
   return (
     <MatchResultForm
       matchFormat={matchFormat}
+      player1Id={player1Id}
+      player2Id={player2Id}
       player1Name={player1Name}
       player2Name={player2Name}
       onSubmit={handleSubmit}

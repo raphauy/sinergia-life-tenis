@@ -3,16 +3,17 @@ import { prisma } from '@/lib/prisma'
 export async function createMatchResult(data: {
   matchId: string
   reportedById: string
+  walkover?: boolean
   set1Player1: number
   set1Player2: number
   tb1Player1?: number | null
   tb1Player2?: number | null
-  set2Player1?: number
-  set2Player2?: number
+  set2Player1?: number | null
+  set2Player2?: number | null
   tb2Player1?: number | null
   tb2Player2?: number | null
-  superTbPlayer1?: number
-  superTbPlayer2?: number
+  superTbPlayer1?: number | null
+  superTbPlayer2?: number | null
   winnerId: string
 }) {
   const match = await prisma.match.findUnique({
@@ -28,6 +29,7 @@ export async function createMatchResult(data: {
       data: {
         matchId: data.matchId,
         reportedById: data.reportedById,
+        walkover: data.walkover ?? false,
         set1Player1: data.set1Player1,
         set1Player2: data.set1Player2,
         tb1Player1: data.tb1Player1,
@@ -54,16 +56,17 @@ export async function createMatchResult(data: {
 export async function updateMatchResult(
   matchId: string,
   data: {
+    walkover?: boolean
     set1Player1: number
     set1Player2: number
     tb1Player1?: number | null
     tb1Player2?: number | null
-    set2Player1?: number
-    set2Player2?: number
+    set2Player1?: number | null
+    set2Player2?: number | null
     tb2Player1?: number | null
     tb2Player2?: number | null
-    superTbPlayer1?: number
-    superTbPlayer2?: number
+    superTbPlayer1?: number | null
+    superTbPlayer2?: number | null
     winnerId: string
   }
 ) {
@@ -77,6 +80,7 @@ export async function updateMatchResult(
   return prisma.matchResult.update({
     where: { id: match.result.id },
     data: {
+      walkover: data.walkover ?? false,
       set1Player1: data.set1Player1,
       set1Player2: data.set1Player2,
       tb1Player1: data.tb1Player1,
