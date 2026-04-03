@@ -169,9 +169,9 @@ async function TournamentContent({
     <>
     {/* Reglamento */}
     <Collapsible className="mb-8 rounded-lg border border-input">
-      <CollapsibleTrigger className="flex w-full items-center gap-2 p-4 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
-        <FileText className="h-5 w-5 text-primary shrink-0" />
-        <span className="text-lg font-semibold flex-1">Reglamento</span>
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-2.5 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
+        <FileText className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold flex-1">Reglamento</span>
         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pb-4">
