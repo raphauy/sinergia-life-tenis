@@ -64,6 +64,7 @@ export function MatchDetailClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [confirmDate, setConfirmDate] = useState<Date | undefined>()
+  const [confirmCourt, setConfirmCourt] = useState('2')
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(
     scheduledAt ? new Date(scheduledAt) : undefined
   )
@@ -71,7 +72,7 @@ export function MatchDetailClient({
     scheduledAt ? format(toZonedTime(new Date(scheduledAt), TIMEZONE), 'HH:mm') : ''
   )
   const [rescheduleCourt, setRescheduleCourt] = useState(
-    courtNumber?.toString() ?? ''
+    courtNumber?.toString() ?? '2'
   )
 
   const timeSlots = Array.from({ length: 28 }, (_, i) => {
@@ -80,19 +81,17 @@ export function MatchDetailClient({
     return `${h.toString().padStart(2, '0')}:${m}`
   })
   const timeItems = timeSlots.map((t) => ({ value: t, label: t }))
-  const courtItems = COURTS.map((c) => ({ value: c.number.toString(), label: c.name }))
-
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
     if (!confirmDate) { toast.error('Seleccioná una fecha'); return }
     if (!form.get('time')) { toast.error('Seleccioná una hora'); return }
-    if (!form.get('courtNumber')) { toast.error('Seleccioná una cancha'); return }
+    if (!confirmCourt) { toast.error('Seleccioná una cancha'); return }
     startTransition(async () => {
       const res = await confirmMatchAction(matchId, {
         date: confirmDate ? format(confirmDate, 'yyyy-MM-dd') : null,
         time: form.get('time'),
-        courtNumber: form.get('courtNumber'),
+        courtNumber: confirmCourt,
       })
       if (res.success) {
         toast.success('Partido confirmado. Emails enviados.')
@@ -149,8 +148,8 @@ export function MatchDetailClient({
       {status === 'PENDING' && (
         <div className="rounded-lg border p-4">
           <h2 className="font-semibold mb-3">Confirmar partido</h2>
-          <form onSubmit={handleConfirm} className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+          <form onSubmit={handleConfirm} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <DatePicker value={confirmDate} onChange={setConfirmDate} />
@@ -168,23 +167,25 @@ export function MatchDetailClient({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Cancha</Label>
-                <Select name="courtNumber" items={courtItems}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Cancha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COURTS.map((c) => (
-                      <SelectItem key={c.number} value={c.number.toString()}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cancha</Label>
+              <div className="flex gap-1.5">
+                {COURTS.map((c) => (
+                  <Button
+                    key={c.number}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                      className={confirmCourt === c.number.toString() ? 'border-foreground bg-foreground text-background' : ''}
+                    onClick={() => setConfirmCourt(c.number.toString())}
+                  >
+                    {c.name}
+                  </Button>
+                ))}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Confirmando...' : 'Confirmar'}
               </Button>
@@ -200,8 +201,8 @@ export function MatchDetailClient({
       {status === 'CONFIRMED' && !hasResult && (
         <div className="rounded-lg border p-4 space-y-4">
           <h2 className="font-semibold">Reprogramar partido</h2>
-          <form onSubmit={handleReschedule} className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+          <form onSubmit={handleReschedule} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <DatePicker value={rescheduleDate} onChange={setRescheduleDate} />
@@ -219,23 +220,25 @@ export function MatchDetailClient({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Cancha</Label>
-                <Select value={rescheduleCourt} onValueChange={(v) => setRescheduleCourt(v ?? '')} items={courtItems}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Cancha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COURTS.map((c) => (
-                      <SelectItem key={c.number} value={c.number.toString()}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Cancha</Label>
+              <div className="flex gap-1.5">
+                {COURTS.map((c) => (
+                  <Button
+                    key={c.number}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                      className={rescheduleCourt === c.number.toString() ? 'border-foreground bg-foreground text-background' : ''}
+                    onClick={() => setRescheduleCourt(c.number.toString())}
+                  >
+                    {c.name}
+                  </Button>
+                ))}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Guardando...' : 'Guardar cambios'}
               </Button>
