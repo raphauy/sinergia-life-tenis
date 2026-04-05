@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { CLASS_SCHEDULE, getSlotsForDay } from '@/lib/constants'
+import { CLASS_SCHEDULE, getSlotsForDay, getMinReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
 
@@ -30,6 +30,7 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
   const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
+  const isReservable = day >= getMinReservationDate(new Date())
 
   useEffect(() => {
     firstOccupiedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -78,7 +79,9 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
               {isClass ? (
                 <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
               ) : total === 0 ? (
-                <span className="text-xs text-muted-foreground/40">libre</span>
+                isReservable
+                  ? <span className="text-xs text-muted-foreground/40">libre</span>
+                  : <span className="text-xs text-muted-foreground/40" />
               ) : (
                 <div className="flex-1 min-w-0 space-y-1">
                   {slotMatches.map((m, i) => (
