@@ -4,16 +4,17 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getRankingByCategory, getRankingByGroup } from '@/services/ranking-service'
-import { getMatches } from '@/services/match-service'
+import { getMatches, getTodayMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
 import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
 import { RankingTable } from '@/components/ranking-table'
-import { MatchCard } from '@/components/match-card'
+import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Trophy, Calendar, FileText, ChevronRight } from 'lucide-react'
+import { Trophy, Calendar, FileText, ChevronRight, Clock } from 'lucide-react'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
+import { TodayMatchCard } from '@/components/today-match-card'
 
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
@@ -31,14 +32,15 @@ export default async function HomePage() {
   const session = await auth()
   const tournament = await getActiveTournament()
 
-  // Determine where to link the logged-in user
+  // Determine where to link the logged-in user + resolve player slug for actions
   let userHref: string | null = null
+  let currentPlayerSlug: string | null = null
   if (session?.user) {
+    currentPlayerSlug = await getActivePlayerSlugByUserId(session.user.id)
     if (session.user.role === 'SUPERADMIN' || session.user.role === 'ADMIN') {
       userHref = '/admin'
     } else {
-      const slug = await getActivePlayerSlugByUserId(session.user.id)
-      userHref = slug ? `/jugador/${slug}` : '/perfil'
+      userHref = currentPlayerSlug ? `/jugador/${currentPlayerSlug}` : '/perfil'
     }
   }
 
@@ -98,7 +100,7 @@ export default async function HomePage() {
             <p className="text-muted-foreground">No hay torneo activo en este momento.</p>
           </div>
         ) : (
-          <TournamentContent tournament={tournament} />
+          <TournamentContent tournament={tournament} currentUserId={session?.user?.id} currentPlayerSlug={currentPlayerSlug ?? undefined} />
         )}
       </main>
 
@@ -123,8 +125,12 @@ export default async function HomePage() {
 
 async function TournamentContent({
   tournament,
+  currentUserId,
+  currentPlayerSlug,
 }: {
   tournament: NonNullable<Awaited<ReturnType<typeof getActiveTournament>>>
+  currentUserId?: string
+  currentPlayerSlug?: string
 }) {
   const categories = tournament.categories
 
@@ -132,9 +138,10 @@ async function TournamentContent({
     return <p className="text-muted-foreground">No hay categorías configuradas.</p>
   }
 
-  // Fetch ranking + matches + groups for all categories
-  const data = await Promise.all(
-    categories.map(async (cat) => {
+  // Fetch today's matches + ranking + matches + groups for all categories
+  const [todayMatches, ...data] = await Promise.all([
+    getTodayMatches(tournament.id),
+    ...categories.map(async (cat) => {
       const [ranking, matches, playerMap, groups] = await Promise.all([
         getRankingByCategory(cat.id),
         getMatches({ categoryId: cat.id }),
@@ -165,13 +172,43 @@ async function TournamentContent({
       const totalCount = pendingCount + confirmedCount + playedCount
 
       return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, pendingCount, confirmedCount, playedCount, totalCount }
-    })
-  )
+    }),
+  ])
 
   const defaultTab = categories[0].id
 
+  // Merge all player maps for today's matches
+  const allPlayerSlugs = new Map<string, string>()
+  for (const { playerMap } of data) {
+    for (const [userId, slug] of playerMap) {
+      allPlayerSlugs.set(userId, slug)
+    }
+  }
+
   return (
     <>
+    {/* Partidos de hoy */}
+    {todayMatches.length > 0 && (
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Clock className="h-5 w-5 text-primary" />
+          <h2 className="text-lg font-semibold">Partidos de hoy ({todayMatches.length})</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {todayMatches.map((m) => (
+            <TodayMatchCard
+              key={m.id}
+              match={m}
+              player1Slug={allPlayerSlugs.get(m.player1Id)}
+              player2Slug={allPlayerSlugs.get(m.player2Id)}
+              currentUserId={currentUserId}
+              currentPlayerSlug={currentPlayerSlug}
+            />
+          ))}
+        </div>
+      </section>
+    )}
+
     {/* Reglamento */}
     <Collapsible className="mb-8 rounded-lg border border-input">
       <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-2.5 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
@@ -276,11 +313,14 @@ async function TournamentContent({
                   </h3>
                   <div className="space-y-2">
                     {confirmed.slice(0, 5).map((m) => (
-                      <MatchCard
+                      <FixtureMatchCard
                         key={m.id}
                         match={m}
-                        player1LinkId={playerMap.get(m.player1Id)}
-                        player2LinkId={playerMap.get(m.player2Id)}
+                        showDate
+                        player1Slug={playerMap.get(m.player1Id)}
+                        player2Slug={playerMap.get(m.player2Id)}
+                        currentUserId={currentUserId}
+                        currentPlayerSlug={currentPlayerSlug}
                       />
                     ))}
                   </div>
@@ -308,11 +348,14 @@ async function TournamentContent({
                         <h3 className="text-base font-bold mb-2">Grupo {group.number}</h3>
                         <div className="space-y-2">
                           {groupMatches.slice(0, 10).map((m) => (
-                            <MatchCard
+                            <FixtureMatchCard
                               key={m.id}
                               match={m}
-                              player1LinkId={playerMap.get(m.player1Id)}
-                              player2LinkId={playerMap.get(m.player2Id)}
+                              showDate
+                              player1Slug={playerMap.get(m.player1Id)}
+                              player2Slug={playerMap.get(m.player2Id)}
+                              currentUserId={currentUserId}
+                              currentPlayerSlug={currentPlayerSlug}
                             />
                           ))}
                         </div>
@@ -327,11 +370,14 @@ async function TournamentContent({
                       <h3 className="text-sm font-medium text-muted-foreground mb-2">Próximos partidos</h3>
                       <div className="space-y-2">
                         {upcoming.slice(0, 5).map((m) => (
-                          <MatchCard
+                          <FixtureMatchCard
                             key={m.id}
                             match={m}
-                            player1LinkId={playerMap.get(m.player1Id)}
-                            player2LinkId={playerMap.get(m.player2Id)}
+                            showDate
+                            player1Slug={playerMap.get(m.player1Id)}
+                            player2Slug={playerMap.get(m.player2Id)}
+                            currentUserId={currentUserId}
+                            currentPlayerSlug={currentPlayerSlug}
                           />
                         ))}
                       </div>
@@ -343,11 +389,14 @@ async function TournamentContent({
                       <h3 className="text-sm font-medium text-muted-foreground mb-2">Últimos resultados</h3>
                       <div className="space-y-2">
                         {played.slice(0, 5).map((m) => (
-                          <MatchCard
+                          <FixtureMatchCard
                             key={m.id}
                             match={m}
-                            player1LinkId={playerMap.get(m.player1Id)}
-                            player2LinkId={playerMap.get(m.player2Id)}
+                            showDate
+                            player1Slug={playerMap.get(m.player1Id)}
+                            player2Slug={playerMap.get(m.player2Id)}
+                            currentUserId={currentUserId}
+                            currentPlayerSlug={currentPlayerSlug}
                           />
                         ))}
                       </div>

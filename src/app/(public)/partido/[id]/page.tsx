@@ -5,13 +5,16 @@ import { getMatchById } from '@/services/match-service'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { formatDateTimeUY } from '@/lib/date-utils'
-import { COURTS } from '@/lib/constants'
+import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import { COURTS, TIMEZONE } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { BackButton } from '@/components/back-button'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { auth } from '@/lib/auth'
+import { toZonedTime } from 'date-fns-tz'
+import { differenceInCalendarDays } from 'date-fns'
+import { Sun, Sunset } from 'lucide-react'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -73,7 +76,7 @@ export default async function PartidoPublicPage({ params }: Props) {
         <div className="mb-4">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-bold">{match.tournament.name}</h1>
-            <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
+            <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'} className="text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold">
               {MATCH_STATUS_LABELS[match.status] || match.status}
             </Badge>
           </div>
@@ -86,21 +89,22 @@ export default async function PartidoPublicPage({ params }: Props) {
         </div>
 
         {/* Players & score */}
-        <div className="flex items-center justify-between py-3 border-t">
-          <div className="space-y-1">
+        <div className="flex items-center justify-between py-4 border-t">
+          <div className="flex items-center gap-2 text-2xl">
             {p1Slug ? (
-              <Link href={`/jugador/${p1Slug}`} className={`block text-xl hover:underline ${winnerIs1 ? 'font-bold' : 'font-medium'}`}>
+              <Link href={`/jugador/${p1Slug}`} className={`hover:underline ${winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
                 {p1Name}
               </Link>
             ) : (
-              <p className={`text-xl ${winnerIs1 ? 'font-bold' : 'font-medium'}`}>{p1Name}</p>
+              <span className={winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p1Name}</span>
             )}
+            <span className="text-muted-foreground text-base">vs</span>
             {p2Slug ? (
-              <Link href={`/jugador/${p2Slug}`} className={`block text-xl hover:underline ${winnerIs2 ? 'font-bold' : 'font-medium'}`}>
+              <Link href={`/jugador/${p2Slug}`} className={`hover:underline ${winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
                 {p2Name}
               </Link>
             ) : (
-              <p className={`text-xl ${winnerIs2 ? 'font-bold' : 'font-medium'}`}>{p2Name}</p>
+              <span className={winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p2Name}</span>
             )}
           </div>
 
@@ -117,12 +121,44 @@ export default async function PartidoPublicPage({ params }: Props) {
         )}
 
         {/* Date & court */}
-        {(match.scheduledAt || court) && (
-          <div className={`flex items-center justify-between text-sm text-muted-foreground ${match.result ? 'pt-1' : 'pt-3 border-t'}`}>
-            <span>{match.scheduledAt ? formatDateTimeUY(match.scheduledAt) : ''}</span>
-            {court && <span>{court.name}</span>}
-          </div>
-        )}
+        {(match.scheduledAt || court) && (() => {
+          let dateLabel = ''
+          let isMorning = false
+          if (match.scheduledAt) {
+            const scheduledUY = toZonedTime(match.scheduledAt, TIMEZONE)
+            isMorning = scheduledUY.getHours() < 12
+            const time = `${formatTimeUY(match.scheduledAt)} hs`
+
+            if (match.status !== 'PLAYED') {
+              const nowUY = toZonedTime(new Date(), TIMEZONE)
+              const diff = differenceInCalendarDays(scheduledUY, nowUY)
+              if (diff === 0) dateLabel = `Hoy ${time}`
+              else if (diff === 1) dateLabel = `Mañana ${time}`
+              else if (diff >= 2 && diff <= 6) {
+                const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+                dateLabel = `${days[scheduledUY.getDay()]} ${time}`
+              } else {
+                dateLabel = `${formatDateUY(match.scheduledAt, 'dd/MM')} ${time}`
+              }
+            } else {
+              dateLabel = `${formatDateUY(match.scheduledAt, 'dd/MM')} ${time}`
+            }
+          }
+
+          return (
+            <div className={`flex items-center justify-between text-sm text-muted-foreground ${match.result ? 'pt-1' : 'pt-3 border-t'}`}>
+              <span className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground">{dateLabel}</span>
+                {match.scheduledAt && (
+                  isMorning
+                    ? <Sun className="h-4 w-4 text-yellow-500" />
+                    : <Sunset className="h-4 w-4 text-indigo-400" />
+                )}
+              </span>
+              {court && <span>{court.name}</span>}
+            </div>
+          )
+        })()}
 
         {/* Action link for participants */}
         {canAct && currentPlayerSlug && (

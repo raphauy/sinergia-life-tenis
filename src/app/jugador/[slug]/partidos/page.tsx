@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { getMatchesByPlayer } from '@/services/match-service'
-import { MatchCard } from '@/components/match-card'
+import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { fullName } from '@/lib/format-name'
 
 interface Props {
@@ -74,14 +74,14 @@ export default async function JugadorPartidosPage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
-              <MatchCard
+              <FixtureMatchCard
                 key={m.id}
                 match={m}
-                player1LinkId={playerMap.get(m.player1Id)}
-                player2LinkId={playerMap.get(m.player2Id)}
-                coordinateHref={m.status === 'PENDING' ? `/jugador/${slug}/partidos/${m.id}` : undefined}
-                resultHref={m.status === 'CONFIRMED' && !m.result ? `/jugador/${slug}/partidos/${m.id}` : undefined}
+                showDate
+                player1Slug={playerMap.get(m.player1Id)}
+                player2Slug={playerMap.get(m.player2Id)}
                 currentUserId={userId}
+                currentPlayerSlug={slug}
               />
             ))}
           </div>
@@ -95,11 +95,12 @@ export default async function JugadorPartidosPage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {played.map((m) => (
-              <MatchCard
+              <FixtureMatchCard
                 key={m.id}
                 match={m}
-                player1LinkId={playerMap.get(m.player1Id)}
-                player2LinkId={playerMap.get(m.player2Id)}
+                showDate
+                player1Slug={playerMap.get(m.player1Id)}
+                player2Slug={playerMap.get(m.player2Id)}
               />
             ))}
           </div>

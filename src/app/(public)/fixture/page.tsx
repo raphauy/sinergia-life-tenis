@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
+import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
-import { MatchCard } from '@/components/match-card'
+import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
+import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { prisma } from '@/lib/prisma'
 
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
@@ -18,16 +19,8 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title, description }
 }
 
-async function getPlayerMap(categoryId: string): Promise<Map<string, string>> {
-  const players = await prisma.player.findMany({
-    where: { categoryId, userId: { not: null } },
-    select: { slug: true, userId: true },
-  })
-  return new Map(players.map((p) => [p.userId!, p.slug]))
-}
-
 export default async function FixturePage() {
-  const tournament = await getActiveTournament()
+  const [session, tournament] = await Promise.all([auth(), getActiveTournament()])
 
   if (!tournament) {
     return (
@@ -38,13 +31,18 @@ export default async function FixturePage() {
     )
   }
 
+  const currentUserId = session?.user?.id
+  const currentPlayerSlug = currentUserId
+    ? await getActivePlayerSlugByUserId(currentUserId) ?? undefined
+    : undefined
+
   const categories = tournament.categories
 
   const fixtureData = await Promise.all(
     categories.map(async (cat) => {
       const [matches, playerMap, groups] = await Promise.all([
         getMatches({ categoryId: cat.id }),
-        getPlayerMap(cat.id),
+        getPlayerMapByCategory(cat.id),
         getGroupsByCategory(cat.id),
       ])
 
@@ -93,11 +91,14 @@ export default async function FixturePage() {
                     </h2>
                     <div className="space-y-2">
                       {confirmed.map((m) => (
-                        <MatchCard
+                        <FixtureMatchCard
                           key={m.id}
                           match={m}
-                          player1LinkId={playerMap.get(m.player1Id)}
-                          player2LinkId={playerMap.get(m.player2Id)}
+                          showDate
+                          player1Slug={playerMap.get(m.player1Id)}
+                          player2Slug={playerMap.get(m.player2Id)}
+                          currentUserId={currentUserId}
+                          currentPlayerSlug={currentPlayerSlug}
                         />
                       ))}
                     </div>
@@ -127,11 +128,14 @@ export default async function FixturePage() {
                           <h2 className="text-base font-bold mb-3">Grupo {group.number}</h2>
                           <div className="space-y-2">
                             {groupMatches.map((m) => (
-                              <MatchCard
+                              <FixtureMatchCard
                                 key={m.id}
                                 match={m}
-                                player1LinkId={playerMap.get(m.player1Id)}
-                                player2LinkId={playerMap.get(m.player2Id)}
+                                showDate
+                                player1Slug={playerMap.get(m.player1Id)}
+                                player2Slug={playerMap.get(m.player2Id)}
+                                currentUserId={currentUserId}
+                                currentPlayerSlug={currentPlayerSlug}
                               />
                             ))}
                           </div>
@@ -157,11 +161,14 @@ export default async function FixturePage() {
                               </h3>
                               <div className="space-y-2">
                                 {ungroupedUpcoming.map((m) => (
-                                  <MatchCard
+                                  <FixtureMatchCard
                                     key={m.id}
                                     match={m}
-                                    player1LinkId={playerMap.get(m.player1Id)}
-                                    player2LinkId={playerMap.get(m.player2Id)}
+                                    showDate
+                                    player1Slug={playerMap.get(m.player1Id)}
+                                    player2Slug={playerMap.get(m.player2Id)}
+                                    currentUserId={currentUserId}
+                                    currentPlayerSlug={currentPlayerSlug}
                                   />
                                 ))}
                               </div>
@@ -174,11 +181,14 @@ export default async function FixturePage() {
                               </h3>
                               <div className="space-y-2">
                                 {ungroupedPlayed.map((m) => (
-                                  <MatchCard
+                                  <FixtureMatchCard
                                     key={m.id}
                                     match={m}
-                                    player1LinkId={playerMap.get(m.player1Id)}
-                                    player2LinkId={playerMap.get(m.player2Id)}
+                                    showDate
+                                    player1Slug={playerMap.get(m.player1Id)}
+                                    player2Slug={playerMap.get(m.player2Id)}
+                                    currentUserId={currentUserId}
+                                    currentPlayerSlug={currentPlayerSlug}
                                   />
                                 ))}
                               </div>
@@ -198,11 +208,14 @@ export default async function FixturePage() {
                         </h2>
                         <div className="space-y-2">
                           {upcoming.map((m) => (
-                            <MatchCard
+                            <FixtureMatchCard
                               key={m.id}
                               match={m}
-                              player1LinkId={playerMap.get(m.player1Id)}
-                              player2LinkId={playerMap.get(m.player2Id)}
+                              showDate
+                              player1Slug={playerMap.get(m.player1Id)}
+                              player2Slug={playerMap.get(m.player2Id)}
+                              currentUserId={currentUserId}
+                              currentPlayerSlug={currentPlayerSlug}
                             />
                           ))}
                         </div>
@@ -216,11 +229,14 @@ export default async function FixturePage() {
                         </h2>
                         <div className="space-y-2">
                           {played.map((m) => (
-                            <MatchCard
+                            <FixtureMatchCard
                               key={m.id}
                               match={m}
-                              player1LinkId={playerMap.get(m.player1Id)}
-                              player2LinkId={playerMap.get(m.player2Id)}
+                              showDate
+                              player1Slug={playerMap.get(m.player1Id)}
+                              player2Slug={playerMap.get(m.player2Id)}
+                              currentUserId={currentUserId}
+                              currentPlayerSlug={currentPlayerSlug}
                             />
                           ))}
                         </div>

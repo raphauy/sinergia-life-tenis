@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
-import { MatchCard } from '@/components/match-card'
+import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { fullName, initials } from '@/lib/format-name'
 
@@ -143,14 +143,14 @@ export default async function JugadorProfilePage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {upcoming.map((m) => (
-              <MatchCard
+              <FixtureMatchCard
                 key={m.id}
                 match={m}
-                player1LinkId={playerMap.get(m.player1Id)}
-                player2LinkId={playerMap.get(m.player2Id)}
-                coordinateHref={canAct && m.status === 'PENDING' ? `/jugador/${slug}/partidos/${m.id}` : undefined}
-                resultHref={canAct && m.status === 'CONFIRMED' && !m.result ? `/jugador/${slug}/partidos/${m.id}` : undefined}
+                showDate
+                player1Slug={playerMap.get(m.player1Id)}
+                player2Slug={playerMap.get(m.player2Id)}
                 currentUserId={canAct ? userId ?? undefined : undefined}
+                currentPlayerSlug={canAct ? slug : undefined}
               />
             ))}
           </div>
@@ -165,11 +165,12 @@ export default async function JugadorProfilePage({ params }: Props) {
         ) : (
           <div className="space-y-2">
             {recentPlayed.map((m) => (
-              <MatchCard
+              <FixtureMatchCard
                 key={m.id}
                 match={m}
-                player1LinkId={playerMap.get(m.player1Id)}
-                player2LinkId={playerMap.get(m.player2Id)}
+                showDate
+                player1Slug={playerMap.get(m.player1Id)}
+                player2Slug={playerMap.get(m.player2Id)}
               />
             ))}
           </div>
