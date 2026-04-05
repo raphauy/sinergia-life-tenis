@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
-import { differenceInCalendarDays } from 'date-fns'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -98,21 +97,9 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
 
   function getDateTimeLabel() {
     if (!hasDateTime) return null
-    const time = `${formatTimeUY(match.scheduledAt!)} hs`
-    if (!showDate) return time
-
-    if (match.status !== 'PLAYED') {
-      const nowUY = toZonedTime(new Date(), TIMEZONE)
-      const scheduledUY = toZonedTime(match.scheduledAt!, TIMEZONE)
-      const diff = differenceInCalendarDays(scheduledUY, nowUY)
-      if (diff === 0) return `Hoy ${time}`
-      if (diff === 1) return `Mañana ${time}`
-      if (diff >= 2 && diff <= 6) {
-        const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
-        return `${days[scheduledUY.getDay()]} ${time}`
-      }
-    }
-    return `${formatDateUY(match.scheduledAt!, 'dd/MM')} ${time}`
+    if (match.status === 'PLAYED') return `${formatDateUY(match.scheduledAt!, 'dd/MM')} ${formatTimeUY(match.scheduledAt!)} hs`
+    if (!showDate) return `${formatTimeUY(match.scheduledAt!)} hs`
+    return friendlyDateTimeUY(match.scheduledAt!)
   }
 
   const dateTimeLabel = getDateTimeLabel()
@@ -205,8 +192,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
           <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
           <span>
-            Reservado {showDate ? formatDateUY(reservation.scheduledAt, 'dd/MM') + ' ' : ''}
-            {formatTimeUY(reservation.scheduledAt)} hs — pendiente de confirmación
+            Reservado {showDate ? friendlyDateTimeUY(reservation.scheduledAt) : `${formatTimeUY(reservation.scheduledAt)} hs`} — pendiente de confirmación
           </span>
         </div>
       )}

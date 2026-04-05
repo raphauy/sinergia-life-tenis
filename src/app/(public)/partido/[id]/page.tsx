@@ -5,7 +5,7 @@ import { getMatchById } from '@/services/match-service'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
@@ -167,7 +167,7 @@ export default async function PartidoPublicPage({ params }: Props) {
           <div className="pt-3 border-t mt-3 flex items-center justify-center gap-1.5 text-sm text-blue-600 dark:text-blue-400">
             <CalendarCheck className="h-4 w-4 shrink-0" />
             <span>
-              Reservado {formatDateUY(reservation.scheduledAt, 'dd/MM')} {formatTimeUY(reservation.scheduledAt)} hs — pendiente de confirmación
+              Reservado {friendlyDateTimeUY(reservation.scheduledAt)} — pendiente de confirmación
             </span>
           </div>
         )}

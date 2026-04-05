@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition, useCallback } from 'react'
 import { CalendarCheck, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { friendlyDateTimeUY } from '@/lib/date-utils'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { PlayerDailySchedule } from './player-daily-schedule'
@@ -183,8 +184,7 @@ export function PlayerCalendar({
               Tenés una reserva
             </p>
             <p className="text-muted-foreground mt-0.5">
-              {new Date(currentReservation.scheduledAt).toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short' })}
-              {' · '}{currentReservation.timeUY}
+              {friendlyDateTimeUY(new Date(currentReservation.scheduledAt))}
               {' · Cancha '}{currentReservation.courtNumber}
             </p>
             <p className="text-muted-foreground">Pendiente de confirmación del admin</p>
