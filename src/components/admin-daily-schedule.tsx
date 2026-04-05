@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
-import { TIME_SLOTS, COURTS } from '@/lib/constants'
+import { COURTS, CLASS_SCHEDULE, getSlotsForDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,9 +32,15 @@ function formatDateKey(day: Date) {
   return `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`
 }
 
+function hasClass(dayOfWeek: number, slot: string) {
+  return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
+}
+
 export function AdminDailySchedule({ matches, day, searchAction, confirmAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const byTime = groupByTime(matches)
+  const dayOfWeek = day.getDay()
+  const slots = getSlotsForDay(dayOfWeek)
 
   const [openSlot, setOpenSlot] = useState<string | null>(null)
   const [courtNumber, setCourtNumber] = useState(2)
@@ -110,14 +116,18 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
       <h3 className="text-sm font-semibold mb-2 capitalize">
         {day.toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' })}
       </h3>
+      {slots.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">Club cerrado</p>
+      ) : (
       <div className="rounded-lg border overflow-hidden divide-y">
-        {TIME_SLOTS.map((slot) => {
+        {slots.map((slot) => {
           const slotMatches = byTime.get(slot) || []
           const occupied = slotMatches.length
-          const isFirst = occupied > 0 && !foundFirst
+          const isClass = hasClass(dayOfWeek, slot)
+          const isFirst = (occupied > 0 || isClass) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const isFree = occupied < 2
+          const isFree = occupied < 2 && !isClass
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
@@ -125,9 +135,10 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
               <div
                 className={cn(
                   'flex items-start gap-2 px-3 border-l-3',
-                  occupied === 0 && 'py-2 border-l-muted-foreground/20',
-                  occupied === 1 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
-                  occupied >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                  !isClass && occupied === 0 && 'py-2 border-l-muted-foreground/20',
+                  !isClass && occupied === 1 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                  !isClass && occupied >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                  isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
                   isFree && !isOpen && 'cursor-pointer hover:bg-muted/50 active:bg-muted select-none',
                   isOpen && 'bg-primary/5 border-l-primary',
                 )}
@@ -135,11 +146,13 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
               >
                 <span className={cn(
                   'text-xs font-mono w-11 shrink-0 pt-0.5',
-                  occupied === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
+                  !isClass && occupied === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
                 )}>
                   {slot}
                 </span>
-                {occupied === 0 && !isOpen ? (
+                {isClass ? (
+                  <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
+                ) : occupied === 0 && !isOpen ? (
                   <span className="text-xs text-muted-foreground/40">libre</span>
                 ) : (
                   <div className="flex-1 min-w-0 space-y-1">
@@ -285,9 +298,7 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
           )
         })}
       </div>
-      <p className="text-xs text-muted-foreground mt-2 px-1">
-        Cancha 1 suele tener clases. Consultá disponibilidad con Mati.
-      </p>
+      )}
     </div>
   )
 }
