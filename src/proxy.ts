@@ -15,6 +15,7 @@ export default async function proxy(request: NextRequest) {
     '/invite',
     '/ranking',
     '/fixture',
+    '/calendario',
     '/partido',
   ]
   const isPublicRoute = publicRoutes.some(

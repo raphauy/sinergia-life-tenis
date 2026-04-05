@@ -65,7 +65,7 @@ export function DailyScheduleView({ matches, day }: Props) {
                   {slotMatches.map((m, i) => (
                     <div key={i} className="text-xs leading-tight">
                       <span className="text-muted-foreground">
-                        Cancha {m.courtNumber ?? '?'} | {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
+                        Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
                       </span>
                       <br />
                       <span className="font-medium">

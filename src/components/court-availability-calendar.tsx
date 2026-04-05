@@ -4,7 +4,6 @@ import { useState, useMemo, useTransition, useCallback } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { DailyScheduleView } from './daily-schedule-view'
-import { fetchMonthMatchesAction } from '@/app/jugador/[slug]/partidos/[matchId]/actions'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
@@ -20,11 +19,15 @@ export type CalendarMatch = {
   groupNumber: number | null
 }
 
+export type FetchMonthMatches = (tournamentId: string, year: number, month: number) => Promise<CalendarMatch[]>
+
 interface Props {
   initialMatches: CalendarMatch[]
   tournamentId: string
   initialYear: number
   initialMonth: number // 1-based
+  fetchAction: FetchMonthMatches
+  title?: string
 }
 
 export function CourtAvailabilityCalendar({
@@ -32,6 +35,8 @@ export function CourtAvailabilityCalendar({
   tournamentId,
   initialYear,
   initialMonth,
+  fetchAction,
+  title = 'Disponibilidad de canchas',
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
@@ -63,11 +68,11 @@ export function CourtAvailabilityCalendar({
     const key = `${y}-${m.toString().padStart(2, '0')}`
     if (!matchesByMonth.has(key)) {
       startTransition(async () => {
-        const matches = await fetchMonthMatchesAction(tournamentId, y, m)
+        const matches = await fetchAction(tournamentId, y, m)
         setMatchesByMonth((prev) => new Map(prev).set(key, matches))
       })
     }
-  }, [tournamentId, matchesByMonth])
+  }, [tournamentId, matchesByMonth, fetchAction])
 
   const handleDayClick = useCallback((day: Date) => {
     setSelectedDay((prev) =>
@@ -117,7 +122,7 @@ export function CourtAvailabilityCalendar({
 
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 px-2 py-3">
-      <h2 className="font-semibold mb-2 text-center">Disponibilidad de canchas</h2>
+      <h2 className="font-semibold mb-2 text-center">{title}</h2>
       <div className={cn(isPending && 'opacity-50')}>
         <Calendar
           mode="single"

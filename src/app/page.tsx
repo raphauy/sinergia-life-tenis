@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Trophy, Calendar, FileText, ChevronRight, Clock } from 'lucide-react'
+import { PublicNav } from '@/components/public-nav'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { TodayMatchCard } from '@/components/today-match-card'
 
@@ -53,23 +54,7 @@ export default async function HomePage() {
             <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
             <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/ranking" className="text-muted-foreground hover:text-foreground">
-              Ranking
-            </Link>
-            <Link href="/fixture" className="text-muted-foreground hover:text-foreground">
-              Fixture
-            </Link>
-            {userHref ? (
-              <Link href={userHref} className="text-muted-foreground hover:text-foreground">
-                Mi panel
-              </Link>
-            ) : (
-              <Link href="/login" className="text-muted-foreground hover:text-foreground">
-                Iniciar sesión
-              </Link>
-            )}
-          </nav>
+          <PublicNav userHref={userHref} />
         </div>
       </header>
 
@@ -111,11 +96,7 @@ export default async function HomePage() {
           <div className="flex gap-4">
             <Link href="/ranking" className="hover:text-foreground">Ranking</Link>
             <Link href="/fixture" className="hover:text-foreground">Fixture</Link>
-            {userHref ? (
-              <Link href={userHref} className="hover:text-foreground">Mi panel</Link>
-            ) : (
-              <Link href="/login" className="hover:text-foreground">Login</Link>
-            )}
+            <Link href="/calendario" className="hover:text-foreground">Calendario</Link>
           </div>
         </div>
       </footer>

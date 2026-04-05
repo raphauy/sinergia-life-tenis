@@ -6,6 +6,8 @@ import { getGroupsByCategory } from '@/services/group-service'
 import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import Link from 'next/link'
+import { CalendarDays } from 'lucide-react'
 
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
@@ -64,9 +66,18 @@ export default async function FixturePage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Fixture y Resultados</h1>
-        <p className="text-muted-foreground text-sm">{tournament.name}</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Fixture y Resultados</h1>
+          <p className="text-muted-foreground text-sm">{tournament.name}</p>
+        </div>
+        <Link
+          href="/calendario"
+          className="flex items-center gap-1.5 text-sm text-primary hover:underline shrink-0 mt-1"
+        >
+          <CalendarDays className="h-4 w-4" />
+          Ver calendario
+        </Link>
       </div>
 
       {categories.length === 0 ? (

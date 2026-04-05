@@ -14,6 +14,7 @@ import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
 import { CourtAvailabilityCalendar } from '@/components/court-availability-calendar'
+import { fetchMonthMatchesAction } from './actions'
 import { toZonedTime } from 'date-fns-tz'
 
 interface Props {
@@ -170,6 +171,7 @@ export default async function MatchDetailPage({ params }: Props) {
             tournamentId={match.tournamentId}
             initialYear={calendarYear}
             initialMonth={calendarMonth}
+            fetchAction={fetchMonthMatchesAction}
           />
         </div>
       )}

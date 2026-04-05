@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PublicNav } from '@/components/public-nav'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -27,23 +28,7 @@ export default async function PublicLayout({ children }: { children: React.React
             <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
             <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
           </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/ranking" className="text-muted-foreground hover:text-foreground">
-              Ranking
-            </Link>
-            <Link href="/fixture" className="text-muted-foreground hover:text-foreground">
-              Fixture
-            </Link>
-            {userHref ? (
-              <Link href={userHref} className="text-muted-foreground hover:text-foreground">
-                Mi panel
-              </Link>
-            ) : (
-              <Link href="/login" className="text-muted-foreground hover:text-foreground">
-                Iniciar sesión
-              </Link>
-            )}
-          </nav>
+          <PublicNav userHref={userHref} />
         </div>
       </header>
       <main className="flex-1 container mx-auto p-4 md:p-6">{children}</main>
