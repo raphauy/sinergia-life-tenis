@@ -1,9 +1,10 @@
 'use server'
 
 import { getMonthMatches } from '@/services/match-service'
+import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
-import type { CalendarMatch } from '@/components/court-availability-calendar'
+import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 
 export async function fetchMonthMatchesPublicAction(
   tournamentId: string,
@@ -21,4 +22,13 @@ export async function fetchMonthMatchesPublicAction(
     categoryName: m.category.name,
     groupNumber: m.group?.number ?? null,
   }))
+}
+
+export async function fetchMonthReservationsPublicAction(
+  tournamentId: string,
+  year: number,
+  month: number
+): Promise<CalendarReservation[]> {
+  const reservations = await getReservationsByMonth(tournamentId, year, month)
+  return reservations.map(mapReservationToCalendar)
 }

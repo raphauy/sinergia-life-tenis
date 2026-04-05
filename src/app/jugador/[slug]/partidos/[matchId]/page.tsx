@@ -13,8 +13,9 @@ import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
-import { CourtAvailabilityCalendar } from '@/components/court-availability-calendar'
-import { fetchMonthMatchesAction } from './actions'
+import { PlayerCalendar } from '@/components/player-calendar'
+import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservationAction, cancelReservationAction } from './actions'
+import { getReservationsByMonth, getReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
 import { toZonedTime } from 'date-fns-tz'
 
 interface Props {
@@ -62,25 +63,43 @@ export default async function MatchDetailPage({ params }: Props) {
   const canLoadResult =
     match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin)
 
-  // Fetch court availability for pending matches
-  let calendarMatches: { scheduledAt: string; timeUY: string; dateUY: string; courtNumber: number | null; player1Name: string; player2Name: string; categoryName: string; groupNumber: number | null }[] | null = null
-  let calendarYear = 0
-  let calendarMonth = 0
+  // Fetch court availability + reservations for pending matches
+  let calendarData: {
+    matches: import('@/components/court-availability-calendar').CalendarMatch[]
+    reservations: import('@/components/court-availability-calendar').CalendarReservation[]
+    currentReservation: import('@/components/court-availability-calendar').CalendarReservation | null
+    year: number
+    month: number
+  } | null = null
   if (match.status === 'PENDING' && isOwner) {
     const nowUY = toZonedTime(new Date(), TIMEZONE)
-    calendarYear = nowUY.getFullYear()
-    calendarMonth = nowUY.getMonth() + 1
-    const monthMatches = await getMonthMatches(match.tournamentId, calendarYear, calendarMonth)
-    calendarMatches = monthMatches.map((m) => ({
-      scheduledAt: m.scheduledAt!.toISOString(),
-      timeUY: formatTimeUY(m.scheduledAt!),
-      dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
-      courtNumber: m.courtNumber,
-      player1Name: fullName(m.player1.firstName, m.player1.lastName),
-      player2Name: fullName(m.player2.firstName, m.player2.lastName),
-      categoryName: m.category.name,
-      groupNumber: m.group?.number ?? null,
-    }))
+    const year = nowUY.getFullYear()
+    const month = nowUY.getMonth() + 1
+    const [monthMatches, monthReservations, myReservation] = await Promise.all([
+      getMonthMatches(match.tournamentId, year, month),
+      getReservationsByMonth(match.tournamentId, year, month),
+      getReservationByMatch(matchId),
+    ])
+    const reservationsList = monthReservations.map(mapReservationToCalendar)
+    const currentRes = myReservation
+      ? reservationsList.find((r) => r.matchId === matchId) ?? null
+      : null
+    calendarData = {
+      matches: monthMatches.map((m) => ({
+        scheduledAt: m.scheduledAt!.toISOString(),
+        timeUY: formatTimeUY(m.scheduledAt!),
+        dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
+        courtNumber: m.courtNumber,
+        player1Name: fullName(m.player1.firstName, m.player1.lastName),
+        player2Name: fullName(m.player2.firstName, m.player2.lastName),
+        categoryName: m.category.name,
+        groupNumber: m.group?.number ?? null,
+      })),
+      reservations: reservationsList,
+      currentReservation: currentRes,
+      year,
+      month,
+    }
   }
 
   return (
@@ -129,9 +148,12 @@ export default async function MatchDetailPage({ params }: Props) {
       {match.status === 'PENDING' && isOwner && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 p-4 mb-6">
           <h2 className="font-semibold mb-2">Coordiná tu partido</h2>
-          <p className="text-sm text-muted-foreground mb-3">
-            Coordiná con <span className="font-medium text-foreground">{rival.firstName || rivalName}</span> la fecha y hora en que puedan jugar y avisale a Mati para que les confirme la cancha.
-            Más abajo podés ver los horarios que ya tienen partidos confirmados.
+          <p className="text-sm text-muted-foreground mb-2">
+            Coordiná con <span className="font-medium text-foreground">{rival.firstName || rivalName}</span> la fecha y hora en que puedan jugar.
+            Más abajo podés ver los horarios disponibles y reservar directamente el que les quede bien.
+          </p>
+          <p className="text-xs text-muted-foreground mb-3">
+            Cualquier duda o cambio, escribile a Mati.
           </p>
 
           <div className="space-y-2">
@@ -163,15 +185,21 @@ export default async function MatchDetailPage({ params }: Props) {
         </div>
       )}
 
-      {/* Court availability calendar for pending matches */}
-      {match.status === 'PENDING' && isOwner && calendarMatches && (
+      {/* Court availability calendar with reservation for pending matches */}
+      {match.status === 'PENDING' && isOwner && calendarData && (
         <div className="mb-6">
-          <CourtAvailabilityCalendar
-            initialMatches={calendarMatches}
+          <PlayerCalendar
+            initialMatches={calendarData.matches}
+            initialReservations={calendarData.reservations}
             tournamentId={match.tournamentId}
-            initialYear={calendarYear}
-            initialMonth={calendarMonth}
+            initialYear={calendarData.year}
+            initialMonth={calendarData.month}
+            matchId={matchId}
+            currentReservation={calendarData.currentReservation}
             fetchAction={fetchMonthMatchesAction}
+            fetchReservationsAction={fetchMonthReservationsAction}
+            createReservationAction={createReservationAction}
+            cancelReservationAction={cancelReservationAction}
           />
         </div>
       )}

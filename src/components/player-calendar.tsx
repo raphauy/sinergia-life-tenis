@@ -1,41 +1,43 @@
 'use client'
 
 import { useState, useMemo, useTransition, useCallback } from 'react'
+import { CalendarCheck, Loader2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
-import { AdminDailySchedule } from './admin-daily-schedule'
+import { PlayerDailySchedule } from './player-daily-schedule'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
 import type { CalendarMatch, CalendarReservation, FetchMonthMatches, FetchMonthReservations } from './court-availability-calendar'
-import type { PendingMatch } from '@/app/admin/actions-calendar'
 
 interface Props {
   initialMatches: CalendarMatch[]
-  initialReservations?: CalendarReservation[]
+  initialReservations: CalendarReservation[]
   tournamentId: string
   initialYear: number
   initialMonth: number
+  matchId: string
+  currentReservation: CalendarReservation | null
   fetchAction: FetchMonthMatches
-  fetchReservationsAction?: FetchMonthReservations
-  searchAction: (tournamentId: string, query: string) => Promise<PendingMatch[]>
-  confirmAction: (matchId: string, date: string, time: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
-  confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
-  rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
+  fetchReservationsAction: FetchMonthReservations
+  createReservationAction: (matchId: string, date: string, time: string) => Promise<{ success: boolean; error?: string }>
+  cancelReservationAction: (matchId: string) => Promise<{ success: boolean; error?: string }>
 }
 
-export function AdminCalendar({
+export function PlayerCalendar({
   initialMatches,
-  initialReservations = [],
+  initialReservations,
   tournamentId,
   initialYear,
   initialMonth,
+  matchId,
+  currentReservation: initialCurrentReservation,
   fetchAction,
   fetchReservationsAction,
-  searchAction,
-  confirmAction,
-  confirmReservationAction,
-  rejectReservationAction,
+  createReservationAction,
+  cancelReservationAction,
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
@@ -48,6 +50,7 @@ export function AdminCalendar({
     () => new Date(initialYear, initialMonth - 1, 1)
   )
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [currentReservation, setCurrentReservation] = useState<CalendarReservation | null>(initialCurrentReservation)
   const [isPending, startTransition] = useTransition()
 
   const currentKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`
@@ -65,30 +68,21 @@ export function AdminCalendar({
     return counts
   }, [currentMatches, currentReservations])
 
-  // Track which days have reservations for badge color
-  const reservationDays = useMemo(() => {
-    const days = new Set<string>()
-    for (const r of currentReservations) days.add(r.dateUY)
-    return days
-  }, [currentReservations])
-
-  const fetchMonth = useCallback(async (y: number, m: number) => {
-    const [matches, reservations] = await Promise.all([
-      fetchAction(tournamentId, y, m),
-      fetchReservationsAction ? fetchReservationsAction(tournamentId, y, m) : Promise.resolve([]),
-    ])
-    return { matches, reservations }
-  }, [tournamentId, fetchAction, fetchReservationsAction])
-
-  const refreshCurrentMonth = useCallback(() => {
+  const refreshAll = useCallback(() => {
     const y = currentMonth.getFullYear()
     const m = currentMonth.getMonth() + 1
     startTransition(async () => {
-      const { matches, reservations } = await fetchMonth(y, m)
+      const [matches, reservations] = await Promise.all([
+        fetchAction(tournamentId, y, m),
+        fetchReservationsAction(tournamentId, y, m),
+      ])
       setMatchesByMonth((prev) => new Map(prev).set(currentKey, matches))
       setReservationsByMonth((prev) => new Map(prev).set(currentKey, reservations))
+      // Update current reservation from fresh data
+      const myReservation = reservations.find((r) => r.matchId === matchId) ?? null
+      setCurrentReservation(myReservation)
     })
-  }, [currentMonth, currentKey, fetchMonth])
+  }, [currentMonth, currentKey, tournamentId, matchId, fetchAction, fetchReservationsAction])
 
   const handleMonthChange = useCallback((month: Date) => {
     setCurrentMonth(month)
@@ -98,12 +92,15 @@ export function AdminCalendar({
     const key = `${y}-${m.toString().padStart(2, '0')}`
     if (!matchesByMonth.has(key)) {
       startTransition(async () => {
-        const { matches, reservations } = await fetchMonth(y, m)
+        const [matches, reservations] = await Promise.all([
+          fetchAction(tournamentId, y, m),
+          fetchReservationsAction(tournamentId, y, m),
+        ])
         setMatchesByMonth((prev) => new Map(prev).set(key, matches))
         setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
       })
     }
-  }, [matchesByMonth, fetchMonth])
+  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
 
   const handleDayClick = useCallback((day: Date) => {
     setSelectedDay((prev) =>
@@ -127,7 +124,6 @@ export function AdminCalendar({
     const dayDate = props.day.date
     const dayKey = `${dayDate.getFullYear()}-${(dayDate.getMonth() + 1).toString().padStart(2, '0')}-${dayDate.getDate().toString().padStart(2, '0')}`
     const count = matchCounts[dayKey] || 0
-    const hasReservation = reservationDays.has(dayKey)
     const isSelected = selectedDay && selectedDay.toDateString() === dayDate.toDateString()
 
     return (
@@ -143,11 +139,9 @@ export function AdminCalendar({
         {count > 0 ? (
           <span className={cn(
             'size-5.5 rounded-full text-xs font-bold leading-none flex items-center justify-center',
-            hasReservation
-              ? 'bg-blue-500 text-white'
-              : count >= 2
-                ? 'bg-red-500 text-white'
-                : 'bg-amber-400 text-amber-950',
+            count >= 2
+              ? 'bg-red-500 text-white'
+              : 'bg-amber-400 text-amber-950',
           )}>
             {count}
           </span>
@@ -160,7 +154,7 @@ export function AdminCalendar({
 
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30 px-2 py-3">
-      <h2 className="font-semibold mb-2 text-center">Confirmar partidos</h2>
+      <h2 className="font-semibold mb-2 text-center">Disponibilidad de canchas</h2>
       <div className={cn(isPending && 'opacity-50')}>
         <Calendar
           mode="single"
@@ -180,17 +174,53 @@ export function AdminCalendar({
         />
       </div>
 
+      {/* Reservation banner — always visible */}
+      {currentReservation && (
+        <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-3 flex items-start justify-between gap-2">
+          <div className="text-xs">
+            <p className="font-semibold text-blue-700 dark:text-blue-300">
+              <CalendarCheck className="inline h-3.5 w-3.5 mr-1" />
+              Tenés una reserva
+            </p>
+            <p className="text-muted-foreground mt-0.5">
+              {new Date(currentReservation.scheduledAt).toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short' })}
+              {' · '}{currentReservation.timeUY}
+              {' · Cancha '}{currentReservation.courtNumber}
+            </p>
+            <p className="text-muted-foreground">Pendiente de confirmación del admin</p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              startTransition(async () => {
+                const result = await cancelReservationAction(matchId)
+                if (result.success) {
+                  toast.success('Reserva cancelada')
+                  refreshAll()
+                } else {
+                  toast.error(result.error || 'Error al cancelar')
+                }
+              })
+            }}
+            disabled={isPending}
+            className="shrink-0 text-xs cursor-pointer"
+          >
+            Cancelar
+          </Button>
+        </div>
+      )}
+
       {selectedDay && (
-        <AdminDailySchedule
+        <PlayerDailySchedule
           matches={dayMatches}
           reservations={dayReservations}
           day={selectedDay}
-          searchAction={searchAction}
-          confirmAction={confirmAction}
-          confirmReservationAction={confirmReservationAction}
-          rejectReservationAction={rejectReservationAction}
-          tournamentId={tournamentId}
-          onConfirmed={refreshCurrentMonth}
+          matchId={matchId}
+          currentReservation={currentReservation}
+          createAction={createReservationAction}
+          cancelAction={cancelReservationAction}
+          onChanged={refreshAll}
         />
       )}
     </div>

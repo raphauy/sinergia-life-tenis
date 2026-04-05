@@ -14,7 +14,8 @@ import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { auth } from '@/lib/auth'
 import { toZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
-import { Sun, Sunset } from 'lucide-react'
+import { CalendarCheck, Sun, Sunset } from 'lucide-react'
+import { getReservationByMatch } from '@/services/reservation-service'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -66,6 +67,7 @@ export default async function PartidoPublicPage({ params }: Props) {
 
   const r = match.result
   const score = r ? formatMatchScore(r) : null
+  const reservation = match.status === 'PENDING' ? await getReservationByMatch(match.id) : null
 
   return (
     <div className="max-w-xl mx-auto">
@@ -159,6 +161,16 @@ export default async function PartidoPublicPage({ params }: Props) {
             </div>
           )
         })()}
+
+        {/* Reservation info */}
+        {reservation && (
+          <div className="pt-3 border-t mt-3 flex items-center justify-center gap-1.5 text-sm text-blue-600 dark:text-blue-400">
+            <CalendarCheck className="h-4 w-4 shrink-0" />
+            <span>
+              Reservado {formatDateUY(reservation.scheduledAt, 'dd/MM')} {formatTimeUY(reservation.scheduledAt)} hs — pendiente de confirmación
+            </span>
+          </div>
+        )}
 
         {/* Action link for participants */}
         {canAct && currentPlayerSlug && (

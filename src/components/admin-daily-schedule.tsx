@@ -7,23 +7,26 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Check, Loader2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
-import type { CalendarMatch } from './court-availability-calendar'
+import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
 import type { PendingMatch } from '@/app/admin/actions-calendar'
 
 interface Props {
   matches: CalendarMatch[]
+  reservations?: CalendarReservation[]
   day: Date
   searchAction: (tournamentId: string, query: string) => Promise<PendingMatch[]>
   confirmAction: (matchId: string, date: string, time: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
+  confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
+  rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   tournamentId: string
   onConfirmed?: () => void
 }
 
-function groupByTime(matches: CalendarMatch[]) {
-  const map = new Map<string, CalendarMatch[]>()
-  for (const m of matches) {
-    if (!map.has(m.timeUY)) map.set(m.timeUY, [])
-    map.get(m.timeUY)!.push(m)
+function groupByTime<T extends { timeUY: string }>(items: T[]) {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    if (!map.has(item.timeUY)) map.set(item.timeUY, [])
+    map.get(item.timeUY)!.push(item)
   }
   return map
 }
@@ -36,9 +39,10 @@ function hasClass(dayOfWeek: number, slot: string) {
   return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
-export function AdminDailySchedule({ matches, day, searchAction, confirmAction, tournamentId, onConfirmed }: Props) {
+export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const byTime = groupByTime(matches)
+  const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
 
@@ -109,6 +113,32 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
     })
   }, [selectedMatch, openSlot, day, courtNumber, confirmAction, onConfirmed])
 
+  const handleConfirmReservation = useCallback((reservationId: string) => {
+    if (!confirmReservationAction) return
+    startConfirm(async () => {
+      const result = await confirmReservationAction(reservationId)
+      if (result.success) {
+        toast.success('Reserva confirmada')
+        onConfirmed?.()
+      } else {
+        toast.error(result.error || 'Error al confirmar reserva')
+      }
+    })
+  }, [confirmReservationAction, onConfirmed])
+
+  const handleRejectReservation = useCallback((reservationId: string) => {
+    if (!rejectReservationAction) return
+    startConfirm(async () => {
+      const result = await rejectReservationAction(reservationId)
+      if (result.success) {
+        toast.success('Reserva rechazada')
+        onConfirmed?.()
+      } else {
+        toast.error(result.error || 'Error al rechazar reserva')
+      }
+    })
+  }, [rejectReservationAction, onConfirmed])
+
   let foundFirst = false
 
   return (
@@ -122,12 +152,15 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
       <div className="rounded-lg border overflow-hidden divide-y">
         {slots.map((slot) => {
           const slotMatches = byTime.get(slot) || []
+          const slotReservations = reservationsByTime.get(slot) || []
           const occupied = slotMatches.length
+          const reserved = slotReservations.length
+          const total = occupied + reserved
           const isClass = hasClass(dayOfWeek, slot)
-          const isFirst = (occupied > 0 || isClass) && !foundFirst
+          const isFirst = (total > 0 || isClass) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const isFree = occupied < 2 && !isClass
+          const isFree = total < 2 && !isClass
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
@@ -135,9 +168,10 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
               <div
                 className={cn(
                   'flex items-start gap-2 px-3 border-l-3',
-                  !isClass && occupied === 0 && 'py-2 border-l-muted-foreground/20',
-                  !isClass && occupied === 1 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
-                  !isClass && occupied >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                  !isClass && total === 0 && 'py-2 border-l-muted-foreground/20',
+                  !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
+                  !isClass && occupied > 0 && reserved === 0 && total < 2 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                  !isClass && total >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
                   isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
                   isFree && !isOpen && 'cursor-pointer hover:bg-muted/50 active:bg-muted select-none',
                   isOpen && 'bg-primary/5 border-l-primary',
@@ -146,18 +180,18 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
               >
                 <span className={cn(
                   'text-xs font-mono w-11 shrink-0 pt-0.5',
-                  !isClass && occupied === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
+                  !isClass && total === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
                 )}>
                   {slot}
                 </span>
                 {isClass ? (
                   <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
-                ) : occupied === 0 && !isOpen ? (
+                ) : total === 0 && !isOpen ? (
                   <span className="text-xs text-muted-foreground/40">libre</span>
                 ) : (
                   <div className="flex-1 min-w-0 space-y-1">
                     {slotMatches.map((m, i) => (
-                      <div key={i} className="text-xs leading-tight">
+                      <div key={`m-${i}`} className="text-xs leading-tight">
                         <span className="text-muted-foreground">
                           Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
                         </span>
@@ -167,12 +201,47 @@ export function AdminDailySchedule({ matches, day, searchAction, confirmAction, 
                         </span>
                       </div>
                     ))}
-                    {occupied >= 2 && (
+                    {slotReservations.map((r) => (
+                      <div key={`r-${r.id}`} className="text-xs leading-tight">
+                        <span className="text-blue-600 dark:text-blue-400 font-medium">Reserva pendiente</span>
+                        <span className="text-muted-foreground">
+                          {' '}| Cancha {r.courtNumber} | Cat {r.categoryName}{r.groupNumber != null ? ` | Grupo ${r.groupNumber}` : ''}
+                        </span>
+                        <br />
+                        <span className="font-medium">{r.player1Name} vs {r.player2Name}</span>
+                        {confirmReservationAction && rejectReservationAction && (
+                          <div className="mt-1.5 space-y-1.5">
+                            <p className="text-muted-foreground">Reservado por {r.reservedByName}</p>
+                          <div className="flex gap-1.5">
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs px-2 cursor-pointer"
+                              onClick={(e) => { e.stopPropagation(); handleConfirmReservation(r.id) }}
+                              disabled={isConfirming}
+                            >
+                              {isConfirming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                              Confirmar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2 cursor-pointer text-destructive"
+                              onClick={(e) => { e.stopPropagation(); handleRejectReservation(r.id) }}
+                              disabled={isConfirming}
+                            >
+                              Rechazar
+                            </Button>
+                          </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {total >= 2 && (
                       <p className="text-xs font-medium text-red-600 dark:text-red-400">
                         Sin canchas disponibles
                       </p>
                     )}
-                    {occupied === 1 && !isOpen && (
+                    {total === 1 && !isOpen && reserved === 0 && (
                       <p className="text-xs text-primary/60">+ Asignar cancha libre</p>
                     )}
                   </div>

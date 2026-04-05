@@ -1,5 +1,6 @@
 import { getActiveTournament } from '@/services/tournament-service'
 import { getMonthMatches } from '@/services/match-service'
+import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { TIMEZONE } from '@/lib/constants'
@@ -7,8 +8,11 @@ import { toZonedTime } from 'date-fns-tz'
 import { AdminCalendar } from '@/components/admin-calendar'
 import {
   fetchMonthMatchesAdminAction,
+  fetchMonthReservationsAdminAction,
   searchPendingMatchesAction,
   confirmMatchFromCalendarAction,
+  confirmReservationAction,
+  rejectReservationAction,
 } from './actions-calendar'
 
 export const metadata = {
@@ -23,7 +27,10 @@ export default async function AdminDashboardPage() {
     const nowUY = toZonedTime(new Date(), TIMEZONE)
     const year = nowUY.getFullYear()
     const month = nowUY.getMonth() + 1
-    const monthMatches = await getMonthMatches(tournament.id, year, month)
+    const [monthMatches, monthReservations] = await Promise.all([
+      getMonthMatches(tournament.id, year, month),
+      getReservationsByMonth(tournament.id, year, month),
+    ])
     calendarData = {
       year,
       month,
@@ -37,6 +44,7 @@ export default async function AdminDashboardPage() {
         categoryName: m.category.name,
         groupNumber: m.group?.number ?? null,
       })),
+      reservations: monthReservations.map(mapReservationToCalendar),
       tournamentId: tournament.id,
     }
   }
@@ -50,12 +58,16 @@ export default async function AdminDashboardPage() {
         <div className="max-w-lg">
           <AdminCalendar
             initialMatches={calendarData.matches}
+            initialReservations={calendarData.reservations}
             tournamentId={calendarData.tournamentId}
             initialYear={calendarData.year}
             initialMonth={calendarData.month}
             fetchAction={fetchMonthMatchesAdminAction}
+            fetchReservationsAction={fetchMonthReservationsAdminAction}
             searchAction={searchPendingMatchesAction}
             confirmAction={confirmMatchFromCalendarAction}
+            confirmReservationAction={confirmReservationAction}
+            rejectReservationAction={rejectReservationAction}
           />
         </div>
       ) : (

@@ -11,6 +11,7 @@ import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
+import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { fullName, initials } from '@/lib/format-name'
 
 export async function generateMetadata({
@@ -106,6 +107,10 @@ export default async function JugadorProfilePage({ params }: Props) {
   })
   const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.slug]))
 
+  const pendingIds = upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  const reservations = await getReservationsByMatchIds(pendingIds)
+  const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
+
   return (
     <div>
       {/* Profile header */}
@@ -151,6 +156,7 @@ export default async function JugadorProfilePage({ params }: Props) {
                 player2Slug={playerMap.get(m.player2Id)}
                 currentUserId={canAct ? userId ?? undefined : undefined}
                 currentPlayerSlug={canAct ? slug : undefined}
+                reservation={reservationMap.get(m.id)}
               />
             ))}
           </div>

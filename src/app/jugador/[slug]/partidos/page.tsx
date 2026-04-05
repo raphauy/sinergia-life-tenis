@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
-import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import { getMatchesByPlayer } from '@/services/match-service'
+import { getPlayerBySlug, getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { fullName } from '@/lib/format-name'
 
@@ -11,13 +12,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const player = await prisma.player.findUnique({
-    where: { slug },
-    include: {
-      user: { select: { firstName: true, lastName: true } },
-      tournament: { select: { name: true } },
-    },
-  })
+  const player = await getPlayerBySlug(slug)
   if (!player) return { title: 'Partidos' }
   const name = fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
   return {
@@ -28,10 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function JugadorPartidosPage({ params }: Props) {
   const { slug } = await params
-  const player = await prisma.player.findUnique({
-    where: { slug },
-    select: { userId: true },
-  })
+  const player = await getPlayerBySlug(slug)
   if (!player?.userId) notFound()
   const userId = player.userId
 
@@ -57,11 +49,12 @@ export default async function JugadorPartidosPage({ params }: Props) {
     allUserIds.add(m.player1Id)
     allUserIds.add(m.player2Id)
   }
-  const playerLinks = await prisma.player.findMany({
-    where: { userId: { in: [...allUserIds] }, isActive: true },
-    select: { slug: true, userId: true },
-  })
-  const playerMap = new Map(playerLinks.map((p) => [p.userId!, p.slug]))
+  const playerMap = await getPlayerSlugsByUserIds([...allUserIds])
+
+  // Fetch reservations for pending matches
+  const pendingMatchIds = upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  const reservations = await getReservationsByMatchIds(pendingMatchIds)
+  const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
   return (
     <div>
@@ -82,6 +75,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 player2Slug={playerMap.get(m.player2Id)}
                 currentUserId={userId}
                 currentPlayerSlug={slug}
+                reservation={reservationMap.get(m.id)}
               />
             ))}
           </div>

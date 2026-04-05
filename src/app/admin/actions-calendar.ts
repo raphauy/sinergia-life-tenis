@@ -7,8 +7,9 @@ import { formatDateUY, formatTimeUY, parseFromUY } from '@/lib/date-utils'
 import { sendMatchConfirmationEmail } from '@/services/email-service'
 import { COURTS } from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
-import type { CalendarMatch } from '@/components/court-availability-calendar'
+import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 import type { ActionResult } from '@/lib/action-types'
+import { getReservationsByMonth, getReservationById, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
 
 function isAdmin(role?: string) {
   return role === 'SUPERADMIN' || role === 'ADMIN'
@@ -117,6 +118,100 @@ export async function confirmMatchFromCalendarAction(
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al confirmar partido'
+    return { success: false, error: msg }
+  }
+}
+
+export async function fetchMonthReservationsAdminAction(
+  tournamentId: string,
+  year: number,
+  month: number
+): Promise<CalendarReservation[]> {
+  const session = await auth()
+  if (!session?.user || !isAdmin(session.user.role)) return []
+
+  const reservations = await getReservationsByMonth(tournamentId, year, month)
+  return reservations.map(mapReservationToCalendar)
+}
+
+export async function confirmReservationAction(
+  reservationId: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || !isAdmin(session.user.role)) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const reservation = await getReservationById(reservationId)
+    if (!reservation) return { success: false, error: 'Reserva no encontrada' }
+
+    // Confirm the match with reservation data
+    const match = await confirmMatch(reservation.matchId, {
+      scheduledAt: reservation.scheduledAt,
+      courtNumber: reservation.courtNumber,
+    })
+
+    // Delete reservation after confirming
+    await deleteReservation(reservationId)
+
+    // Send emails
+    const court = COURTS.find((c) => c.number === match.courtNumber)
+    const dateStr = formatDateUY(match.scheduledAt!)
+    const timeStr = formatTimeUY(match.scheduledAt!)
+
+    await Promise.allSettled([
+      sendMatchConfirmationEmail({
+        to: match.player1.email,
+        playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
+        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        tournamentName: match.tournament.name,
+        date: dateStr,
+        time: timeStr,
+        courtName: court?.name || `Cancha ${match.courtNumber}`,
+      }),
+      sendMatchConfirmationEmail({
+        to: match.player2.email,
+        playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
+        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        tournamentName: match.tournament.name,
+        date: dateStr,
+        time: timeStr,
+        courtName: court?.name || `Cancha ${match.courtNumber}`,
+      }),
+    ])
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/partidos')
+    revalidatePath('/jugador')
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al confirmar reserva'
+    return { success: false, error: msg }
+  }
+}
+
+export async function rejectReservationAction(
+  reservationId: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || !isAdmin(session.user.role)) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const reservation = await getReservationById(reservationId)
+    if (!reservation) return { success: false, error: 'Reserva no encontrada' }
+
+    await deleteReservation(reservationId)
+
+    revalidatePath('/admin')
+    revalidatePath('/jugador')
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al rechazar reserva'
     return { success: false, error: msg }
   }
 }

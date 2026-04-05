@@ -36,6 +36,26 @@ const SATURDAY_SLOTS = [
   '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
 ]
 
+// Días mínimos de adelanto para reservar (saltar 1 día hábil)
+// Retorna la fecha mínima a partir de la cual se puede reservar
+const MIN_RESERVATION_OFFSET: Record<number, number> = {
+  0: 2, // dom → mar (+2)
+  1: 2, // lun → mié (+2)
+  2: 2, // mar → jue (+2)
+  3: 2, // mié → vie (+2)
+  4: 2, // jue → sáb (+2)
+  5: 4, // vie → mar (+4, salta sáb/dom/lun)
+  6: 3, // sáb → mar (+3, salta dom/lun)
+}
+
+export function getMinReservationDate(today: Date): Date {
+  const offset = MIN_RESERVATION_OFFSET[today.getDay()] ?? 2
+  const min = new Date(today)
+  min.setDate(min.getDate() + offset)
+  min.setHours(0, 0, 0, 0)
+  return min
+}
+
 export function getSlotsForDay(dayOfWeek: number): string[] {
   if (dayOfWeek === 0) {
     return process.env.NODE_ENV === 'development' ? TIME_SLOTS : []

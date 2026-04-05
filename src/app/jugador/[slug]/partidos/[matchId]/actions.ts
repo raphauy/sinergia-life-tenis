@@ -10,7 +10,11 @@ import type { ActionResult } from '@/lib/action-types'
 import { getMonthMatches } from '@/services/match-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
-import type { CalendarMatch } from '@/components/court-availability-calendar'
+import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
+import { createReservation, getReservationsByMonth, getReservationByMatch, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
+import { parseFromUY } from '@/lib/date-utils'
+import { getMinReservationDate, TIMEZONE } from '@/lib/constants'
+import { toZonedTime } from 'date-fns-tz'
 
 export async function playerLoadResultAction(
   matchId: string,
@@ -95,4 +99,87 @@ export async function fetchMonthMatchesAction(
     categoryName: m.category.name,
     groupNumber: m.group?.number ?? null,
   }))
+}
+
+export async function fetchMonthReservationsAction(
+  tournamentId: string,
+  year: number,
+  month: number
+): Promise<CalendarReservation[]> {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  const reservations = await getReservationsByMonth(tournamentId, year, month)
+  return reservations.map(mapReservationToCalendar)
+}
+
+export async function createReservationAction(
+  matchId: string,
+  date: string,
+  time: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const match = await getMatchById(matchId)
+    if (!match) return { success: false, error: 'Partido no encontrado' }
+
+    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
+
+    const scheduledAt = parseFromUY(date, time)
+
+    // Validate minimum reservation date
+    const nowUY = toZonedTime(new Date(), TIMEZONE)
+    const minDate = getMinReservationDate(nowUY)
+    const reservationDate = new Date(date)
+    if (reservationDate < minDate) {
+      return { success: false, error: 'No se puede reservar con tan poca anticipación' }
+    }
+
+    await createReservation({
+      matchId,
+      scheduledAt,
+      courtNumber: 2,
+      reservedBy: session.user.id,
+    })
+
+    revalidatePath('/jugador')
+    revalidatePath('/admin')
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al reservar'
+    return { success: false, error: msg }
+  }
+}
+
+export async function cancelReservationAction(
+  matchId: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const match = await getMatchById(matchId)
+    if (!match) return { success: false, error: 'Partido no encontrado' }
+
+    // Both players can cancel
+    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
+
+    const reservation = await getReservationByMatch(matchId)
+    if (!reservation) return { success: false, error: 'No hay reserva activa' }
+
+    await deleteReservation(reservation.id)
+
+    revalidatePath('/jugador')
+    revalidatePath('/admin')
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al cancelar reserva'
+    return { success: false, error: msg }
+  }
 }

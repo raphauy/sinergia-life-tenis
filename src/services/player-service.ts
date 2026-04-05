@@ -147,6 +147,15 @@ export async function getActivePlayerSlugByUserId(userId: string): Promise<strin
   return player?.slug ?? null
 }
 
+export async function getPlayerSlugsByUserIds(userIds: string[]): Promise<Map<string, string>> {
+  if (userIds.length === 0) return new Map()
+  const players = await prisma.player.findMany({
+    where: { userId: { in: userIds }, isActive: true },
+    select: { slug: true, userId: true },
+  })
+  return new Map(players.map((p) => [p.userId!, p.slug]))
+}
+
 export async function getPlayerMapByCategory(categoryId: string): Promise<Map<string, string>> {
   const players = await prisma.player.findMany({
     where: { categoryId, userId: { not: null } },

@@ -60,6 +60,7 @@ model User {
   matchesWon           MatchResult[] @relation("MatchWinner")
   matchResultsReported MatchResult[] @relation("MatchReporter")
   invitationsSent      AdminInvitation[] @relation("InvitationSender")
+  slotReservations     SlotReservation[]
 
   @@index([email])
   @@index([role])
@@ -205,7 +206,8 @@ model Match {
   group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
   player1    User               @relation("MatchPlayer1", fields: [player1Id], references: [id])
   player2    User               @relation("MatchPlayer2", fields: [player2Id], references: [id])
-  result     MatchResult?
+  result      MatchResult?
+  reservation SlotReservation?
 
   @@index([tournamentId])
   @@index([categoryId])
@@ -262,4 +264,19 @@ model ImportedPlayer {
   @@index([tournamentId])
   @@index([status])
   @@index([tournamentId, status])
+}
+
+model SlotReservation {
+  id          String   @id @default(cuid())
+  matchId     String   @unique
+  scheduledAt DateTime
+  courtNumber Int      @default(2)
+  reservedBy  String
+  createdAt   DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [reservedBy], references: [id])
+
+  @@index([scheduledAt])
+  @@index([reservedBy])
 }

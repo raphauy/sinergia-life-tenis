@@ -4,6 +4,7 @@ import { getActiveTournament } from '@/services/tournament-service'
 import { getMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
 import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
+import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
@@ -64,6 +65,13 @@ export default async function FixturePage() {
 
   const defaultTab = categories[0]?.id
 
+  // Fetch reservations for pending matches
+  const allPendingIds = fixtureData.flatMap(({ upcoming }) =>
+    upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  )
+  const reservations = await getReservationsByMatchIds(allPendingIds)
+  const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
+
   return (
     <div>
       <div className="mb-6 flex items-start justify-between">
@@ -110,6 +118,7 @@ export default async function FixturePage() {
                           player2Slug={playerMap.get(m.player2Id)}
                           currentUserId={currentUserId}
                           currentPlayerSlug={currentPlayerSlug}
+                          reservation={reservationMap.get(m.id)}
                         />
                       ))}
                     </div>
@@ -147,6 +156,7 @@ export default async function FixturePage() {
                                 player2Slug={playerMap.get(m.player2Id)}
                                 currentUserId={currentUserId}
                                 currentPlayerSlug={currentPlayerSlug}
+                              reservation={reservationMap.get(m.id)}
                               />
                             ))}
                           </div>
@@ -180,6 +190,7 @@ export default async function FixturePage() {
                                     player2Slug={playerMap.get(m.player2Id)}
                                     currentUserId={currentUserId}
                                     currentPlayerSlug={currentPlayerSlug}
+                                    reservation={reservationMap.get(m.id)}
                                   />
                                 ))}
                               </div>
@@ -200,6 +211,7 @@ export default async function FixturePage() {
                                     player2Slug={playerMap.get(m.player2Id)}
                                     currentUserId={currentUserId}
                                     currentPlayerSlug={currentPlayerSlug}
+                                    reservation={reservationMap.get(m.id)}
                                   />
                                 ))}
                               </div>
@@ -227,6 +239,7 @@ export default async function FixturePage() {
                               player2Slug={playerMap.get(m.player2Id)}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
+                              reservation={reservationMap.get(m.id)}
                             />
                           ))}
                         </div>
@@ -248,6 +261,7 @@ export default async function FixturePage() {
                               player2Slug={playerMap.get(m.player2Id)}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
+                              reservation={reservationMap.get(m.id)}
                             />
                           ))}
                         </div>

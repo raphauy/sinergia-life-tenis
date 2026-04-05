@@ -19,28 +19,50 @@ export type CalendarMatch = {
   groupNumber: number | null
 }
 
+export type CalendarReservation = {
+  id: string
+  matchId: string
+  scheduledAt: string
+  timeUY: string
+  dateUY: string
+  courtNumber: number
+  player1Name: string
+  player2Name: string
+  categoryName: string
+  groupNumber: number | null
+  reservedByName: string
+}
+
 export type FetchMonthMatches = (tournamentId: string, year: number, month: number) => Promise<CalendarMatch[]>
+export type FetchMonthReservations = (tournamentId: string, year: number, month: number) => Promise<CalendarReservation[]>
 
 interface Props {
   initialMatches: CalendarMatch[]
+  initialReservations?: CalendarReservation[]
   tournamentId: string
   initialYear: number
   initialMonth: number // 1-based
   fetchAction: FetchMonthMatches
+  fetchReservationsAction?: FetchMonthReservations
   title?: string
 }
 
 export function CourtAvailabilityCalendar({
   initialMatches,
+  initialReservations = [],
   tournamentId,
   initialYear,
   initialMonth,
   fetchAction,
+  fetchReservationsAction,
   title = 'Disponibilidad de canchas',
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
     () => new Map([[initialKey, initialMatches]])
+  )
+  const [reservationsByMonth, setReservationsByMonth] = useState<Map<string, CalendarReservation[]>>(
+    () => new Map([[initialKey, initialReservations]])
   )
   const [currentMonth, setCurrentMonth] = useState(
     () => new Date(initialYear, initialMonth - 1, 1)
@@ -50,15 +72,19 @@ export function CourtAvailabilityCalendar({
 
   const currentKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`
   const currentMatches = matchesByMonth.get(currentKey) || []
+  const currentReservations = reservationsByMonth.get(currentKey) || []
 
-  // Count matches per day for badge display
+  // Count matches + reservations per day for badge display
   const matchCounts = useMemo(() => {
     const counts: Record<string, number> = {}
     for (const m of currentMatches) {
       counts[m.dateUY] = (counts[m.dateUY] || 0) + 1
     }
+    for (const r of currentReservations) {
+      counts[r.dateUY] = (counts[r.dateUY] || 0) + 1
+    }
     return counts
-  }, [currentMatches])
+  }, [currentMatches, currentReservations])
 
   const handleMonthChange = useCallback((month: Date) => {
     setCurrentMonth(month)
@@ -68,11 +94,15 @@ export function CourtAvailabilityCalendar({
     const key = `${y}-${m.toString().padStart(2, '0')}`
     if (!matchesByMonth.has(key)) {
       startTransition(async () => {
-        const matches = await fetchAction(tournamentId, y, m)
+        const [matches, reservations] = await Promise.all([
+          fetchAction(tournamentId, y, m),
+          fetchReservationsAction ? fetchReservationsAction(tournamentId, y, m) : Promise.resolve([]),
+        ])
         setMatchesByMonth((prev) => new Map(prev).set(key, matches))
+        setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
       })
     }
-  }, [tournamentId, matchesByMonth, fetchAction])
+  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
 
   const handleDayClick = useCallback((day: Date) => {
     setSelectedDay((prev) =>
@@ -80,12 +110,18 @@ export function CourtAvailabilityCalendar({
     )
   }, [])
 
-  // Matches for selected day
+  // Matches + reservations for selected day
   const dayMatches = useMemo(() => {
     if (!selectedDay) return []
     const dayKey = `${selectedDay.getFullYear()}-${(selectedDay.getMonth() + 1).toString().padStart(2, '0')}-${selectedDay.getDate().toString().padStart(2, '0')}`
     return currentMatches.filter((m) => m.dateUY === dayKey)
   }, [selectedDay, currentMatches])
+
+  const dayReservations = useMemo(() => {
+    if (!selectedDay) return []
+    const dayKey = `${selectedDay.getFullYear()}-${(selectedDay.getMonth() + 1).toString().padStart(2, '0')}-${selectedDay.getDate().toString().padStart(2, '0')}`
+    return currentReservations.filter((r) => r.dateUY === dayKey)
+  }, [selectedDay, currentReservations])
 
   // Custom DayButton with match count dot
   function CustomDayButton(props: DayButtonProps) {
@@ -143,7 +179,7 @@ export function CourtAvailabilityCalendar({
       </div>
 
       {selectedDay && (
-        <DailyScheduleView matches={dayMatches} day={selectedDay} />
+        <DailyScheduleView matches={dayMatches} reservations={dayReservations} day={selectedDay} />
       )}
     </div>
   )

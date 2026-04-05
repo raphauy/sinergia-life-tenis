@@ -16,6 +16,7 @@ import { Trophy, Calendar, FileText, ChevronRight, Clock } from 'lucide-react'
 import { PublicNav } from '@/components/public-nav'
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible'
 import { TodayMatchCard } from '@/components/today-match-card'
+import { getReservationsByMatchIds } from '@/services/reservation-service'
 
 export async function generateMetadata(): Promise<Metadata> {
   const tournament = await getActiveTournament()
@@ -158,6 +159,13 @@ async function TournamentContent({
 
   const defaultTab = categories[0].id
 
+  // Fetch reservations for all pending matches
+  const allPendingIds = data.flatMap(({ upcoming }) =>
+    upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  )
+  const reservations = await getReservationsByMatchIds(allPendingIds)
+  const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
+
   // Merge all player maps for today's matches
   const allPlayerSlugs = new Map<string, string>()
   for (const { playerMap } of data) {
@@ -281,6 +289,7 @@ async function TournamentContent({
                         player2Slug={playerMap.get(m.player2Id)}
                         currentUserId={currentUserId}
                         currentPlayerSlug={currentPlayerSlug}
+                        reservation={reservationMap.get(m.id)}
                       />
                     ))}
                   </div>
@@ -316,6 +325,7 @@ async function TournamentContent({
                               player2Slug={playerMap.get(m.player2Id)}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
+                              reservation={reservationMap.get(m.id)}
                             />
                           ))}
                         </div>
@@ -338,6 +348,7 @@ async function TournamentContent({
                             player2Slug={playerMap.get(m.player2Id)}
                             currentUserId={currentUserId}
                             currentPlayerSlug={currentPlayerSlug}
+                            reservation={reservationMap.get(m.id)}
                           />
                         ))}
                       </div>
@@ -357,6 +368,7 @@ async function TournamentContent({
                             player2Slug={playerMap.get(m.player2Id)}
                             currentUserId={currentUserId}
                             currentPlayerSlug={currentPlayerSlug}
+                            reservation={reservationMap.get(m.id)}
                           />
                         ))}
                       </div>

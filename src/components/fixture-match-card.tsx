@@ -9,7 +9,7 @@ import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
-import { Sun, Sunset } from 'lucide-react'
+import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface FixtureMatchCardProps {
@@ -47,6 +47,8 @@ interface FixtureMatchCardProps {
   currentUserId?: string
   /** Current logged-in user's player slug — needed to build action hrefs */
   currentPlayerSlug?: string
+  /** Reservation info if the match has a pending reservation */
+  reservation?: { scheduledAt: Date; courtNumber: number } | null
 }
 
 function PlayerName({
@@ -75,7 +77,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const p1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
@@ -195,6 +197,17 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
             )}
           </div>
           {statusBadge}
+        </div>
+      )}
+
+      {/* Reservation info */}
+      {reservation && match.status === 'PENDING' && (
+        <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
+          <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Reservado {showDate ? formatDateUY(reservation.scheduledAt, 'dd/MM') + ' ' : ''}
+            {formatTimeUY(reservation.scheduledAt)} hs — pendiente de confirmación
+          </span>
         </div>
       )}
 
