@@ -167,8 +167,7 @@ export default async function PartidoPublicPage({ params }: Props) {
           <div className="pt-3 border-t mt-3 flex items-center justify-center gap-1.5 text-sm text-blue-600 dark:text-blue-400">
             <CalendarCheck className="h-4 w-4 shrink-0" />
             <span>
-              Reservado {friendlyDateTimeUY(reservation.scheduledAt)} — pendiente confirmación
-            </span>
+              Reservado {friendlyDateTimeUY(reservation.scheduledAt)}            </span>
           </div>
         )}
 
@@ -176,14 +175,14 @@ export default async function PartidoPublicPage({ params }: Props) {
         {canAct && currentPlayerSlug && (
           <>
             {match.status === 'PENDING' && (
-              <div className="pt-3 border-t mt-3">
+              <div className="pt-3 border-t mt-3 text-center">
                 <Link href={`/jugador/${currentPlayerSlug}/partidos/${match.id}`} className="text-sm font-medium text-primary hover:underline">
                   Coordinar con tu rival →
                 </Link>
               </div>
             )}
             {match.status === 'CONFIRMED' && !match.result && (
-              <div className="pt-3 border-t mt-3">
+              <div className="pt-3 border-t mt-3 text-center">
                 <Link href={`/jugador/${currentPlayerSlug}/partidos/${match.id}`} className="text-sm font-medium text-primary hover:underline">
                   Cargar resultado →
                 </Link>
