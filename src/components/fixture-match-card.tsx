@@ -192,7 +192,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
           <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
           <span>
-            Reservado {showDate ? friendlyDateTimeUY(reservation.scheduledAt) : `${formatTimeUY(reservation.scheduledAt)} hs`} — pendiente de confirmación
+            Reservado {showDate ? friendlyDateTimeUY(reservation.scheduledAt) : `${formatTimeUY(reservation.scheduledAt)} hs`} — pendiente confirmación
           </span>
         </div>
       )}
