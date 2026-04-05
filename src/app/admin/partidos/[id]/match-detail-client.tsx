@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { COURTS } from '@/lib/constants'
+import { COURTS, TIME_SLOTS } from '@/lib/constants'
 import { MatchResultForm } from '@/components/match-result-form'
 import { confirmMatchAction, rescheduleMatchAction, cancelMatchAction, adminLoadResultAction } from '../actions'
 import type { MatchFormat, MatchStatus } from '@prisma/client'
@@ -75,12 +75,7 @@ export function MatchDetailClient({
     courtNumber?.toString() ?? '2'
   )
 
-  const timeSlots = Array.from({ length: 28 }, (_, i) => {
-    const h = Math.floor(i / 2) + 7
-    const m = i % 2 === 0 ? '00' : '30'
-    return `${h.toString().padStart(2, '0')}:${m}`
-  })
-  const timeItems = timeSlots.map((t) => ({ value: t, label: t }))
+  const timeItems = TIME_SLOTS.map((t) => ({ value: t, label: t }))
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -161,7 +156,7 @@ export function MatchDetailClient({
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    {timeSlots.map((t) => (
+                    {TIME_SLOTS.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
@@ -214,7 +209,7 @@ export function MatchDetailClient({
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    {timeSlots.map((t) => (
+                    {TIME_SLOTS.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>

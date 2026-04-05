@@ -5,14 +5,16 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { getMatchById } from '@/services/match-service'
+import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatDateTimeUY } from '@/lib/date-utils'
-import { COURTS } from '@/lib/constants'
+import { formatDateTimeUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
+import { CourtAvailabilityCalendar } from '@/components/court-availability-calendar'
+import { toZonedTime } from 'date-fns-tz'
 
 interface Props {
   params: Promise<{ slug: string; matchId: string }>
@@ -58,6 +60,27 @@ export default async function MatchDetailPage({ params }: Props) {
   const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
   const canLoadResult =
     match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin)
+
+  // Fetch court availability for pending matches
+  let calendarMatches: { scheduledAt: string; timeUY: string; dateUY: string; courtNumber: number | null; player1Name: string; player2Name: string; categoryName: string; groupNumber: number | null }[] | null = null
+  let calendarYear = 0
+  let calendarMonth = 0
+  if (match.status === 'PENDING' && isOwner) {
+    const nowUY = toZonedTime(new Date(), TIMEZONE)
+    calendarYear = nowUY.getFullYear()
+    calendarMonth = nowUY.getMonth() + 1
+    const monthMatches = await getMonthMatches(match.tournamentId, calendarYear, calendarMonth)
+    calendarMatches = monthMatches.map((m) => ({
+      scheduledAt: m.scheduledAt!.toISOString(),
+      timeUY: formatTimeUY(m.scheduledAt!),
+      dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
+      courtNumber: m.courtNumber,
+      player1Name: fullName(m.player1.firstName, m.player1.lastName),
+      player2Name: fullName(m.player2.firstName, m.player2.lastName),
+      categoryName: m.category.name,
+      groupNumber: m.group?.number ?? null,
+    }))
+  }
 
   return (
     <div className="max-w-xl">
@@ -107,7 +130,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <h2 className="font-semibold mb-2">Coordiná tu partido</h2>
           <p className="text-sm text-muted-foreground mb-3">
             Coordiná con <span className="font-medium text-foreground">{rival.firstName || rivalName}</span> la fecha y hora en que puedan jugar y avisale a Mati para que les confirme la cancha.
-            Propongan al menos 2 opciones de día y hora para facilitar la coordinación.
+            Más abajo podés ver los horarios que ya tienen partidos confirmados.
           </p>
 
           <div className="space-y-2">
@@ -136,6 +159,18 @@ export default async function MatchDetailPage({ params }: Props) {
               <p className="text-sm text-muted-foreground">No hay datos de contacto disponibles. Consultá con el organizador.</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Court availability calendar for pending matches */}
+      {match.status === 'PENDING' && isOwner && calendarMatches && (
+        <div className="mb-6">
+          <CourtAvailabilityCalendar
+            initialMatches={calendarMatches}
+            tournamentId={match.tournamentId}
+            initialYear={calendarYear}
+            initialMonth={calendarMonth}
+          />
         </div>
       )}
 

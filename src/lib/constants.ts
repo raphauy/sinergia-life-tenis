@@ -14,3 +14,9 @@ export const COURTS = [
 ] as const
 
 export const DEFAULT_CATEGORIES = ['A', 'B', 'C'] as const
+
+// Mañana: hora justa (7:00–12:00), Tarde: hora y media (12:30–20:30)
+export const TIME_SLOTS = [
+  '07:00', '08:00', '09:00', '10:00', '11:00',
+  '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30', '19:30', '20:30',
+]

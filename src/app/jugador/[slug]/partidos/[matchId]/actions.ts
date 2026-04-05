@@ -7,6 +7,10 @@ import { notifyMatchResult } from '@/services/match-result-notification'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
+import { getMonthMatches } from '@/services/match-service'
+import { fullName } from '@/lib/format-name'
+import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import type { CalendarMatch } from '@/components/court-availability-calendar'
 
 export async function playerLoadResultAction(
   matchId: string,
@@ -70,4 +74,25 @@ export async function playerLoadResultAction(
     const msg = error instanceof Error ? error.message : 'Error al cargar resultado'
     return { success: false, error: msg }
   }
+}
+
+export async function fetchMonthMatchesAction(
+  tournamentId: string,
+  year: number,
+  month: number
+): Promise<CalendarMatch[]> {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  const matches = await getMonthMatches(tournamentId, year, month)
+  return matches.map((m) => ({
+    scheduledAt: m.scheduledAt!.toISOString(),
+    timeUY: formatTimeUY(m.scheduledAt!),
+    dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
+    courtNumber: m.courtNumber,
+    player1Name: fullName(m.player1.firstName, m.player1.lastName),
+    player2Name: fullName(m.player2.firstName, m.player2.lastName),
+    categoryName: m.category.name,
+    groupNumber: m.group?.number ?? null,
+  }))
 }

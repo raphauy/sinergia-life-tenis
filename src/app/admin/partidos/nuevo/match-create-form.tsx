@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { COURTS } from '@/lib/constants'
+import { COURTS, TIME_SLOTS } from '@/lib/constants'
 import { createMatchAction, getPlayersByCategoryAction } from '../actions'
 
 interface Tournament {
@@ -31,12 +31,7 @@ interface Player {
   userId: string
 }
 
-const timeSlots = Array.from({ length: 28 }, (_, i) => {
-  const h = Math.floor(i / 2) + 7
-  const m = i % 2 === 0 ? '00' : '30'
-  return `${h.toString().padStart(2, '0')}:${m}`
-})
-const timeItems = timeSlots.map((t) => ({ value: t, label: t }))
+const timeItems = TIME_SLOTS.map((t) => ({ value: t, label: t }))
 const courtItems = COURTS.map((c) => ({ value: c.number.toString(), label: c.name }))
 
 export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) {
@@ -199,7 +194,7 @@ export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) 
                 <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
-                {timeSlots.map((t) => (
+                {TIME_SLOTS.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>

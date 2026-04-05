@@ -141,6 +141,36 @@ export async function getMatchesByPlayer(userId: string) {
   })
 }
 
+export async function getMonthMatches(tournamentId: string, year: number, month: number) {
+  const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
+  const { startOfMonth, endOfMonth } = await import('date-fns')
+  const { TIMEZONE } = await import('@/lib/constants')
+
+  // Build UY month boundaries, convert to UTC
+  const refDate = new Date(year, month - 1, 1) // local ref, just to build zoned
+  const zonedStart = startOfMonth(refDate)
+  const zonedEnd = endOfMonth(refDate)
+  const startUTC = fromZonedTime(zonedStart, TIMEZONE)
+  const endUTC = fromZonedTime(zonedEnd, TIMEZONE)
+
+  return prisma.match.findMany({
+    where: {
+      tournamentId,
+      scheduledAt: { gte: startUTC, lte: endUTC },
+      status: { in: ['CONFIRMED', 'PLAYED'] },
+    },
+    select: {
+      scheduledAt: true,
+      courtNumber: true,
+      player1: { select: { firstName: true, lastName: true } },
+      player2: { select: { firstName: true, lastName: true } },
+      category: { select: { name: true } },
+      group: { select: { number: true } },
+    },
+    orderBy: { scheduledAt: 'asc' },
+  })
+}
+
 export async function getUpcomingMatches(userId: string) {
   return prisma.match.findMany({
     where: {
