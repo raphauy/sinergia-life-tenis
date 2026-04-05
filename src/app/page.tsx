@@ -190,27 +190,6 @@ async function TournamentContent({
       </section>
     )}
 
-    {/* Reglamento */}
-    <Collapsible className="mb-8 rounded-lg border border-input">
-      <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-2.5 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
-        <FileText className="h-4 w-4 text-primary shrink-0" />
-        <span className="text-sm font-semibold flex-1">Reglamento</span>
-        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[open]:rotate-90" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="px-4 pb-4">
-        {tournament.rules ? (
-          <div
-            className="tiptap-content text-sm"
-            dangerouslySetInnerHTML={{ __html: tournament.rules }}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground italic">
-            El reglamento estará disponible en breve.
-          </p>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
-
     <Tabs defaultValue={defaultTab}>
       <TabsList className="mb-6 w-full h-11 bg-orange-100 dark:bg-orange-950">
         {categories.map((cat) => (
@@ -394,6 +373,27 @@ async function TournamentContent({
         </TabsContent>
       ))}
     </Tabs>
+
+    {/* Reglamento */}
+    <Collapsible className="mt-8 rounded-lg border border-input">
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-4 py-2.5 text-left cursor-pointer hover:bg-muted/50 transition-colors group">
+        <FileText className="h-4 w-4 text-primary shrink-0" />
+        <span className="text-sm font-semibold flex-1">Reglamento</span>
+        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[open]:rotate-90" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-4">
+        {tournament.rules ? (
+          <div
+            className="tiptap-content text-sm"
+            dangerouslySetInnerHTML={{ __html: tournament.rules }}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground italic">
+            El reglamento estará disponible en breve.
+          </p>
+        )}
+      </CollapsibleContent>
+    </Collapsible>
     </>
   )
 }

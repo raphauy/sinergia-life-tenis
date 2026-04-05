@@ -27,7 +27,7 @@ function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; l
       className="flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
     >
       {icon}
-      <span className="text-[10px] leading-none font-medium">{label}</span>
+      <span className="text-[10px] leading-none font-medium whitespace-nowrap">{label}</span>
     </Link>
   )
 }

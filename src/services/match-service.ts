@@ -171,6 +171,23 @@ export async function getMonthMatches(tournamentId: string, year: number, month:
   })
 }
 
+export async function getPendingMatches(tournamentId: string) {
+  return prisma.match.findMany({
+    where: {
+      tournamentId,
+      status: 'PENDING',
+    },
+    select: {
+      id: true,
+      player1: { select: { firstName: true, lastName: true } },
+      player2: { select: { firstName: true, lastName: true } },
+      category: { select: { name: true } },
+      group: { select: { number: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+}
+
 export async function getUpcomingMatches(userId: string) {
   return prisma.match.findMany({
     where: {
