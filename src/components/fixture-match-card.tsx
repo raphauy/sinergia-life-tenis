@@ -180,9 +180,9 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
 
       {/* Row 4: Score + Winner + badge (only if played) */}
       {isPlayed && score && (
-        <div className="mt-1 flex items-center justify-between text-sm text-muted-foreground">
+        <div className="mt-0.5 flex items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-foreground">{score}</span>
+            <span className="font-bold text-foreground">{score}</span>
             {match.result && (
               <span>Ganador: {winnerIs1 ? p1Name : p2Name}</span>
             )}
