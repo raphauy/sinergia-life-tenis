@@ -48,6 +48,7 @@ model User {
   lastName  String?
   image     String?
   phone     String?
+  cedula    String?
   role      Role
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

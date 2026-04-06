@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
 import { CLASS_SCHEDULE, getSlotsForDay, COURTS, getMinReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { CalendarCheck, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
@@ -14,7 +15,7 @@ interface Props {
   day: Date
   matchId: string
   currentReservation: CalendarReservation | null // reserva activa de este partido
-  createAction: (matchId: string, date: string, time: string) => Promise<{ success: boolean; error?: string }>
+  createAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
   cancelAction: (matchId: string) => Promise<{ success: boolean; error?: string }>
   onChanged?: () => void
 }
@@ -49,6 +50,9 @@ export function PlayerDailySchedule({
   const dayTooSoon = day < minDate
 
   const [openSlot, setOpenSlot] = useState<string | null>(null)
+  const [cedulaRequired, setCedulaRequired] = useState(false)
+  const [cedulaValue, setCedulaValue] = useState('')
+  const [pendingSlot, setPendingSlot] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -64,19 +68,30 @@ export function PlayerDailySchedule({
     setOpenSlot((prev) => prev === slot ? null : slot)
   }, [currentReservation])
 
-  const handleReserve = useCallback((slot: string) => {
+  const handleReserve = useCallback((slot: string, cedula?: string) => {
     const dateKey = formatDateKey(day)
     startTransition(async () => {
-      const result = await createAction(matchId, dateKey, slot)
+      const result = await createAction(matchId, dateKey, slot, cedula)
       if (result.success) {
         toast.success('Horario reservado')
         setOpenSlot(null)
+        setCedulaRequired(false)
+        setCedulaValue('')
+        setPendingSlot(null)
         onChanged?.()
+      } else if (result.error === 'CEDULA_REQUIRED') {
+        setCedulaRequired(true)
+        setPendingSlot(slot)
       } else {
         toast.error(result.error || 'Error al reservar')
       }
     })
   }, [day, matchId, createAction, onChanged])
+
+  const handleCedulaSubmit = useCallback(() => {
+    if (!cedulaValue.trim() || !pendingSlot) return
+    handleReserve(pendingSlot, cedulaValue.trim())
+  }, [cedulaValue, pendingSlot, handleReserve])
 
   const handleCancel = useCallback(() => {
     startTransition(async () => {
@@ -204,11 +219,24 @@ export function PlayerDailySchedule({
                       </div>
                       <p className="text-muted-foreground">Mati confirmará tu reserva y te llegará un email</p>
                     </div>
+                    {cedulaRequired && openSlot === slot && (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium">Necesitamos tu cédula para completar la reserva</p>
+                        <Input
+                          value={cedulaValue}
+                          onChange={(e) => setCedulaValue(e.target.value)}
+                          placeholder="Ej: 1.234.567-8"
+                          className="h-8 text-sm"
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCedulaSubmit() } }}
+                        />
+                        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Sinergia Life</p>
+                      </div>
+                    )}
                     <Button
                       size="sm"
                       className="w-full cursor-pointer"
-                      onClick={() => handleReserve(slot)}
-                      disabled={isPending}
+                      onClick={() => cedulaRequired && openSlot === slot ? handleCedulaSubmit() : handleReserve(slot)}
+                      disabled={isPending || (cedulaRequired && openSlot === slot && !cedulaValue.trim())}
                     >
                       {isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

@@ -22,6 +22,7 @@ interface ProfileFormProps {
     email: string
     image: string | null
     phone: string | null
+    cedula: string
   }
 }
 
@@ -30,6 +31,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const { update: updateSession } = useSession()
   const [firstName, setFirstName] = useState(user.firstName)
   const [lastName, setLastName] = useState(user.lastName)
+  const [cedula, setCedula] = useState(user.cedula)
   const [displayImage, setDisplayImage] = useState(user.image)
   const [instagramHandle, setInstagramHandle] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -108,7 +110,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
     setSubmitted(true)
     if (!firstName.trim()) return
     startTransition(async () => {
-      const result = await updateProfileAction({ firstName, lastName })
+      const result = await updateProfileAction({ firstName, lastName, cedula })
       if (result.success && result.data) {
         await updateSession({ firstName: result.data.firstName, lastName: result.data.lastName, image: result.data.image })
         toast.success('Perfil actualizado')
@@ -213,6 +215,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
             onChange={(e) => setLastName(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Cédula */}
+      <div className="space-y-2">
+        <Label htmlFor="cedula">Cédula de identidad</Label>
+        <Input
+          id="cedula"
+          value={cedula}
+          onChange={(e) => setCedula(e.target.value)}
+          placeholder="Ej: 1.234.567-8"
+        />
+        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Sinergia Life</p>
       </div>
 
       {/* Email (readonly) */}

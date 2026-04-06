@@ -75,8 +75,8 @@ export async function getReservationsByMonth(tournamentId: string, year: number,
       user: { select: { firstName: true } },
       match: {
         select: {
-          player1: { select: { firstName: true, lastName: true } },
-          player2: { select: { firstName: true, lastName: true } },
+          player1: { select: { firstName: true, lastName: true, cedula: true } },
+          player2: { select: { firstName: true, lastName: true, cedula: true } },
           category: { select: { name: true } },
           group: { select: { number: true } },
         },
@@ -121,6 +121,8 @@ export function mapReservationToCalendar(r: Awaited<ReturnType<typeof getReserva
     categoryName: r.match.category.name,
     groupNumber: r.match.group?.number ?? null,
     reservedByName: r.user.firstName || 'Jugador',
+    player1Cedula: r.match.player1.cedula ?? null,
+    player2Cedula: r.match.player2.cedula ?? null,
   }
 }
 

@@ -31,6 +31,8 @@ export type CalendarReservation = {
   categoryName: string
   groupNumber: number | null
   reservedByName: string
+  player1Cedula?: string | null
+  player2Cedula?: string | null
 }
 
 export type FetchMonthMatches = (tournamentId: string, year: number, month: number) => Promise<CalendarMatch[]>

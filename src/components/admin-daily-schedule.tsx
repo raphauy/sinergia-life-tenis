@@ -212,6 +212,12 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         {confirmReservationAction && rejectReservationAction && (
                           <div className="mt-1.5 space-y-1.5">
                             <p className="text-muted-foreground">Reservado por {r.reservedByName}</p>
+                            {r.player1Cedula && (
+                              <p className="text-muted-foreground">CI {r.player1Name}: {r.player1Cedula}</p>
+                            )}
+                            {r.player2Cedula && (
+                              <p className="text-muted-foreground">CI {r.player2Name}: {r.player2Cedula}</p>
+                            )}
                           <div className="flex gap-1.5">
                             <Button
                               size="sm"

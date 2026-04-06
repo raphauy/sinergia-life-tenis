@@ -12,6 +12,7 @@ import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 import { createReservation, getReservationsByMonth, getReservationByMatch, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
+import { getUserById, updateUser } from '@/services/user-service'
 import { parseFromUY } from '@/lib/date-utils'
 import { getMinReservationDate, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
@@ -116,7 +117,8 @@ export async function fetchMonthReservationsAction(
 export async function createReservationAction(
   matchId: string,
   date: string,
-  time: string
+  time: string,
+  cedula?: string
 ): Promise<ActionResult> {
   try {
     const session = await auth()
@@ -127,6 +129,16 @@ export async function createReservationAction(
 
     const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
     if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
+
+    // Check/save cédula
+    const user = await getUserById(session.user.id)
+    if (!user) return { success: false, error: 'Usuario no encontrado' }
+    if (!user.cedula && !cedula) {
+      return { success: false, error: 'CEDULA_REQUIRED' }
+    }
+    if (cedula && !user.cedula) {
+      await updateUser(session.user.id, { cedula })
+    }
 
     const scheduledAt = parseFromUY(date, time)
 

@@ -35,6 +35,7 @@ export async function updateProfileAction(
     const updated = await updateUser(session.user.id, {
       firstName: validated.data.firstName,
       lastName: validated.data.lastName,
+      cedula: validated.data.cedula || null,
       ...(validated.data.image !== undefined ? { image: validated.data.image } : {}),
     })
 

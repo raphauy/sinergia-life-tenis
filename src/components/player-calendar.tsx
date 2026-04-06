@@ -23,7 +23,7 @@ interface Props {
   currentReservation: CalendarReservation | null
   fetchAction: FetchMonthMatches
   fetchReservationsAction: FetchMonthReservations
-  createReservationAction: (matchId: string, date: string, time: string) => Promise<{ success: boolean; error?: string }>
+  createReservationAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
   cancelReservationAction: (matchId: string) => Promise<{ success: boolean; error?: string }>
 }
 

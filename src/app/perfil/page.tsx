@@ -32,6 +32,7 @@ export default async function ProfilePage() {
               email: user.email,
               image: blobUrl(user.image) || null,
               phone: user.phone,
+              cedula: user.cedula || '',
             }}
           />
         </div>
