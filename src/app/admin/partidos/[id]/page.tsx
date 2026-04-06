@@ -7,6 +7,7 @@ import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { MatchDetailClient } from './match-detail-client'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
+import { blobUrl } from '@/lib/blob-url'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -52,6 +53,13 @@ export default async function MatchDetailPage({ params }: Props) {
               ? fullName(match.player1.firstName, match.player1.lastName)
               : fullName(match.player2.firstName, match.player2.lastName)}
           </p>
+          {match.result.photoUrl && (
+            <img
+              src={blobUrl(match.result.photoUrl)}
+              alt="Foto del partido"
+              className="mt-3 w-full rounded-lg object-cover"
+            />
+          )}
         </div>
       )}
 

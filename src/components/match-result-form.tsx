@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Camera, X } from 'lucide-react'
 import type { MatchFormat } from '@prisma/client'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -54,6 +55,9 @@ export function MatchResultForm({
   const [tb2P2, setTb2P2] = useState(defaultValues?.tb2Player2?.toString() ?? '')
   const [stbP1, setStbP1] = useState(defaultValues?.superTbPlayer1?.toString() ?? '')
   const [stbP2, setStbP2] = useState(defaultValues?.superTbPlayer2?.toString() ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
 
   const isTwoSets = matchFormat === 'TWO_SETS_SUPERTB'
@@ -64,6 +68,20 @@ export function MatchResultForm({
 
   const showTb1 = (set1P1 === '7' && set1P2 === '6') || (set1P1 === '6' && set1P2 === '7')
   const showTb2 = isTwoSets && ((set2P1 === '7' && set2P2 === '6') || (set2P1 === '6' && set2P2 === '7'))
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
+
+  function clearPhoto() {
+    setPhotoFile(null)
+    if (photoPreview) URL.revokeObjectURL(photoPreview)
+    setPhotoPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -101,6 +119,8 @@ export function MatchResultForm({
         data.superTbPlayer2 = stbP2
       }
     }
+
+    if (photoFile) data.photoFile = photoFile
 
     const result = await onSubmit(data)
     if (!result.success) {
@@ -223,6 +243,44 @@ export function MatchResultForm({
           </div>
         </div>
       )}
+
+      {/* Photo upload */}
+      <div className="space-y-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoSelect}
+        />
+        {photoPreview ? (
+          <div className="relative inline-block">
+            <img
+              src={photoPreview}
+              alt="Preview"
+              className="h-32 w-auto rounded-lg object-cover"
+            />
+            <button
+              type="button"
+              onClick={clearPhoto}
+              className="absolute -top-2 -right-2 rounded-full bg-destructive p-1 text-destructive-foreground shadow-sm"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Camera className="h-4 w-4 mr-1.5" />
+            Agregar foto
+          </Button>
+        )}
+      </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 

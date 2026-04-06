@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { MatchResultForm } from '@/components/match-result-form'
 import { playerLoadResultAction } from './actions'
+import { uploadImage } from '@/services/upload-service'
+import { resizeImage } from '@/lib/resize-image'
 import type { MatchFormat } from '@prisma/client'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -32,7 +34,25 @@ export function PlayerLoadResult({
   async function handleSubmit(data: Record<string, unknown>): Promise<ActionResult> {
     return new Promise<ActionResult>((resolve) => {
       startTransition(async () => {
-        const result = await playerLoadResultAction(matchId, data)
+        let photoUrl: string | undefined
+        const photoFile = data.photoFile as File | undefined
+        delete data.photoFile
+
+        if (photoFile) {
+          try {
+            const resized = await resizeImage(photoFile)
+            const formData = new FormData()
+            formData.append('file', new File([resized], 'match-photo.jpg', { type: 'image/jpeg' }))
+            const uploadResult = await uploadImage(formData)
+            if (uploadResult.success) {
+              photoUrl = uploadResult.url
+            }
+          } catch {
+            // Photo upload failed, continue without photo
+          }
+        }
+
+        const result = await playerLoadResultAction(matchId, { ...data, photoUrl })
         if (result.success) {
           toast.success('Resultado cargado')
           router.refresh()

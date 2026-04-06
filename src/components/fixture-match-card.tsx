@@ -9,6 +9,7 @@ import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
+import { blobUrl } from '@/lib/blob-url'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface FixtureMatchCardProps {
@@ -36,6 +37,7 @@ interface FixtureMatchCardProps {
       superTbPlayer1: number | null
       superTbPlayer2: number | null
       winnerId: string
+      photoUrl: string | null
     } | null
   }
   player1Slug?: string
@@ -147,11 +149,13 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
           <span className="text-muted-foreground mx-1.5 text-xs">vs</span>
           <PlayerName name={p2Name} slug={player2Slug} isWinner={winnerIs2} isPlayed={isPlayed} />
         </div>
-        {hasDateTime && (
-          toZonedTime(match.scheduledAt!, TIMEZONE).getHours() < 12
-            ? <Sun className="h-4 w-4 text-yellow-500 shrink-0" />
-            : <Sunset className="h-4 w-4 text-indigo-400 shrink-0" />
-        )}
+        {match.result?.photoUrl
+          ? <img src={blobUrl(match.result.photoUrl)} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+          : hasDateTime && (
+            toZonedTime(match.scheduledAt!, TIMEZONE).getHours() < 12
+              ? <Sun className="h-4 w-4 text-yellow-500 shrink-0" />
+              : <Sunset className="h-4 w-4 text-indigo-400 shrink-0" />
+          )}
       </div>
 
       {/* Row 2: Category - Group (+ badge if no date/time) */}

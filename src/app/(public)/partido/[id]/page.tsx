@@ -11,11 +11,13 @@ import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { BackButton } from '@/components/back-button'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
+import { blobUrl } from '@/lib/blob-url'
 import { auth } from '@/lib/auth'
 import { toZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { getReservationByMatch } from '@/services/reservation-service'
+import { MatchPhoto } from '@/app/jugador/[slug]/partidos/[matchId]/match-photo'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -119,6 +121,22 @@ export default async function PartidoPublicPage({ params }: Props) {
         {match.result && (
           <div className="pt-3 border-t text-sm">
             Ganador: <span className="font-medium">{winnerIs1 ? p1Name : p2Name}</span>
+          </div>
+        )}
+
+        {/* Match photo */}
+        {match.result?.photoUrl && (
+          <div className="pt-3">
+            <img
+              src={blobUrl(match.result.photoUrl)}
+              alt="Foto del partido"
+              className="w-full rounded-lg object-cover"
+            />
+          </div>
+        )}
+        {isParticipant && match.result && (
+          <div className="pt-2">
+            <MatchPhoto matchId={match.id} hasPhoto={!!match.result.photoUrl} />
           </div>
         )}
 

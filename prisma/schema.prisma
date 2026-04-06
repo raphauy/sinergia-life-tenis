@@ -237,6 +237,7 @@ model MatchResult {
   set3Player2    Int?
   walkover       Boolean  @default(false)
   winnerId       String
+  photoUrl       String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -2,7 +2,8 @@
 
 import { auth } from '@/lib/auth'
 import { getMatchById } from '@/services/match-service'
-import { createMatchResult } from '@/services/match-result-service'
+import { createMatchResult, updateMatchResultPhoto } from '@/services/match-result-service'
+import { uploadImage, deleteImage } from '@/services/upload-service'
 import { notifyMatchResult } from '@/services/match-result-notification'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { revalidatePath } from 'next/cache'
@@ -64,6 +65,7 @@ export async function playerLoadResultAction(
       matchId,
       reportedById: session.user.id,
       ...validated.data,
+      photoUrl: typeof data.photoUrl === 'string' ? data.photoUrl : undefined,
     })
 
     // Notify group players + admins (fire-and-forget)
@@ -163,6 +165,66 @@ export async function createReservationAction(
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al reservar'
+    return { success: false, error: msg }
+  }
+}
+
+export async function uploadMatchPhotoAction(
+  matchId: string,
+  formData: FormData
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const match = await getMatchById(matchId)
+    if (!match) return { success: false, error: 'Partido no encontrado' }
+
+    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    if (!isInMatch) return { success: false, error: 'No autorizado' }
+    if (!match.result) return { success: false, error: 'El partido no tiene resultado' }
+
+    // Delete previous photo if exists
+    if (match.result.photoUrl) {
+      await deleteImage(match.result.photoUrl)
+    }
+
+    const uploadResult = await uploadImage(formData)
+    if (!uploadResult.success) return { success: false, error: uploadResult.error }
+
+    await updateMatchResultPhoto(matchId, uploadResult.url)
+
+    revalidatePath(`/jugador`)
+    revalidatePath(`/admin/partidos`)
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al subir foto'
+    return { success: false, error: msg }
+  }
+}
+
+export async function deleteMatchPhotoAction(
+  matchId: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const match = await getMatchById(matchId)
+    if (!match) return { success: false, error: 'Partido no encontrado' }
+
+    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    if (!isInMatch) return { success: false, error: 'No autorizado' }
+    if (!match.result?.photoUrl) return { success: false, error: 'No hay foto' }
+
+    await deleteImage(match.result.photoUrl)
+    await updateMatchResultPhoto(matchId, null)
+
+    revalidatePath(`/jugador`)
+    revalidatePath(`/admin/partidos`)
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al eliminar foto'
     return { success: false, error: msg }
   }
 }

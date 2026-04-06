@@ -15,6 +15,7 @@ export async function createMatchResult(data: {
   superTbPlayer1?: number | null
   superTbPlayer2?: number | null
   winnerId: string
+  photoUrl?: string | null
 }) {
   const match = await prisma.match.findUnique({
     where: { id: data.matchId },
@@ -41,6 +42,7 @@ export async function createMatchResult(data: {
         superTbPlayer1: data.superTbPlayer1,
         superTbPlayer2: data.superTbPlayer2,
         winnerId: data.winnerId,
+        photoUrl: data.photoUrl ?? null,
       },
     })
 
@@ -93,5 +95,12 @@ export async function updateMatchResult(
       superTbPlayer2: data.superTbPlayer2,
       winnerId: data.winnerId,
     },
+  })
+}
+
+export async function updateMatchResultPhoto(matchId: string, photoUrl: string | null) {
+  return prisma.matchResult.update({
+    where: { matchId },
+    data: { photoUrl },
   })
 }

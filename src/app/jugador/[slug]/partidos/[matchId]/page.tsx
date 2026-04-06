@@ -13,6 +13,8 @@ import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
+import { MatchPhoto } from './match-photo'
+import { blobUrl } from '@/lib/blob-url'
 import { PlayerCalendar } from '@/components/player-calendar'
 import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservationAction, cancelReservationAction } from './actions'
 import { getReservationsByMonth, getReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
@@ -141,6 +143,21 @@ export default async function MatchDetailPage({ params }: Props) {
               ? fullName(match.player1.firstName, match.player1.lastName)
               : fullName(match.player2.firstName, match.player2.lastName)}
           </p>
+          {match.result.photoUrl && (
+            <img
+              src={blobUrl(match.result.photoUrl)}
+              alt="Foto del partido"
+              className="mt-3 w-full rounded-lg object-cover"
+            />
+          )}
+          {isOwner && (
+            <div className="mt-3">
+              <MatchPhoto
+                matchId={matchId}
+                hasPhoto={!!match.result.photoUrl}
+              />
+            </div>
+          )}
         </div>
       )}
 
