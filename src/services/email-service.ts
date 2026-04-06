@@ -4,6 +4,7 @@ import PlayerInvitationEmail from '@/components/emails/player-invitation-email'
 import AdminInvitationEmail from '@/components/emails/admin-invitation-email'
 import MatchConfirmationEmail from '@/components/emails/match-confirmation-email'
 import MatchRescheduledEmail from '@/components/emails/match-rescheduled-email'
+import MatchCancelledEmail from '@/components/emails/match-cancelled-email'
 import MatchResultEmail from '@/components/emails/match-result-email'
 import MatchResultEditedEmail from '@/components/emails/match-result-edited-email'
 
@@ -125,6 +126,39 @@ export async function sendMatchRescheduledEmail(input: {
       date: input.date,
       time: input.time,
       courtName: input.courtName,
+    }),
+  })
+}
+
+// ===================== Match Cancelled =====================
+
+export async function sendMatchCancelledEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  tournamentName: string
+  date: string
+  time: string
+  courtName: string
+  reason: string
+  cancelledByName: string
+}) {
+  console.log(`[EMAIL] Match cancelled to ${input.to} - ${input.playerName} vs ${input.rivalName} - reason: ${input.reason}`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Partido cancelado - ${input.tournamentName} - Life Tenis`,
+    react: MatchCancelledEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      tournamentName: input.tournamentName,
+      date: input.date,
+      time: input.time,
+      courtName: input.courtName,
+      reason: input.reason,
+      cancelledByName: input.cancelledByName,
     }),
   })
 }

@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
 
 export type CalendarMatch = {
+  id?: string
   scheduledAt: string // ISO string
   timeUY: string // "HH:mm" in UY timezone
   dateUY: string // "yyyy-MM-dd" in UY timezone

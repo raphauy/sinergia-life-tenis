@@ -106,6 +106,24 @@ export async function cancelMatch(id: string) {
   return prisma.match.update({
     where: { id },
     data: { status: 'CANCELLED' },
+    include: matchIncludes,
+  })
+}
+
+export async function revertMatchToPending(id: string) {
+  const match = await prisma.match.findUnique({ where: { id } })
+  if (!match) throw new Error('Partido no encontrado')
+  if (match.status !== 'CONFIRMED') throw new Error('Solo se pueden revertir partidos confirmados')
+
+  return prisma.match.update({
+    where: { id },
+    data: {
+      status: 'PENDING',
+      scheduledAt: null,
+      courtNumber: null,
+      confirmedAt: null,
+    },
+    include: matchIncludes,
   })
 }
 
@@ -160,6 +178,7 @@ export async function getMonthMatches(tournamentId: string, year: number, month:
       status: { in: ['CONFIRMED', 'PLAYED'] },
     },
     select: {
+      id: true,
       scheduledAt: true,
       courtNumber: true,
       player1: { select: { firstName: true, lastName: true } },

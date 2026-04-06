@@ -18,6 +18,7 @@ interface Props {
   confirmAction: (matchId: string, date: string, time: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
   confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
+  cancelMatchAction?: (matchId: string, reason: string) => Promise<{ success: boolean; error?: string }>
   tournamentId: string
   onConfirmed?: () => void
 }
@@ -39,7 +40,7 @@ function hasClass(dayOfWeek: number, slot: string) {
   return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
-export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, tournamentId, onConfirmed }: Props) {
+export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const byTime = groupByTime(matches)
   const reservationsByTime = groupByTime(reservations)
@@ -53,6 +54,8 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
   const [selectedMatch, setSelectedMatch] = useState<PendingMatch | null>(null)
   const [isSearching, startSearch] = useTransition()
   const [isConfirming, startConfirm] = useTransition()
+  const [cancellingMatchId, setCancellingMatchId] = useState<string | null>(null)
+  const [cancelReason, setCancelReason] = useState('Cancelado por lluvia')
   const debounceRef = useRef<NodeJS.Timeout>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -139,6 +142,21 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
     })
   }, [rejectReservationAction, onConfirmed])
 
+  const handleCancelMatch = useCallback((matchId: string) => {
+    if (!cancelMatchAction) return
+    startConfirm(async () => {
+      const result = await cancelMatchAction(matchId, cancelReason)
+      if (result.success) {
+        toast.success('Partido revertido a pendiente. Emails enviados.')
+        setCancellingMatchId(null)
+        setCancelReason('Cancelado por lluvia')
+        onConfirmed?.()
+      } else {
+        toast.error(result.error || 'Error al cancelar partido')
+      }
+    })
+  }, [cancelMatchAction, cancelReason, onConfirmed])
+
   let foundFirst = false
 
   return (
@@ -195,10 +213,54 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         <span className="text-muted-foreground">
                           Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
                         </span>
-                        <br />
-                        <span className="font-medium">
-                          {m.player1Name} vs {m.player2Name}
-                        </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium">
+                            {m.player1Name} vs {m.player2Name}
+                          </span>
+                          {cancelMatchAction && m.id && cancellingMatchId !== m.id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="shrink-0 h-5 text-[10px] px-1.5 cursor-pointer text-destructive"
+                              onClick={(e) => { e.stopPropagation(); setCancellingMatchId(m.id!) }}
+                            >
+                              <X className="h-3 w-3" />
+                              Cancelar
+                            </Button>
+                          )}
+                        </div>
+                        {cancelMatchAction && m.id && cancellingMatchId === m.id && (
+                          <div className="mt-1.5 space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                            <Input
+                              value={cancelReason}
+                              onChange={(e) => setCancelReason(e.target.value)}
+                              placeholder="Motivo de cancelación"
+                              className="h-7 text-xs"
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCancelMatch(m.id!) } }}
+                            />
+                            <div className="flex gap-1.5">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 text-xs px-2 cursor-pointer"
+                                onClick={() => handleCancelMatch(m.id!)}
+                                disabled={isConfirming || !cancelReason.trim()}
+                              >
+                                {isConfirming ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                                Confirmar cancelación
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs px-2 cursor-pointer"
+                                onClick={() => { setCancellingMatchId(null); setCancelReason('Cancelado por lluvia') }}
+                                disabled={isConfirming}
+                              >
+                                No
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {slotReservations.map((r) => (

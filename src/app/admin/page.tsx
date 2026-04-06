@@ -14,6 +14,7 @@ import {
   confirmReservationAction,
   rejectReservationAction,
 } from './actions-calendar'
+import { cancelMatchAction } from './partidos/actions'
 
 export const metadata = {
   title: 'Dashboard',
@@ -35,6 +36,7 @@ export default async function AdminDashboardPage() {
       year,
       month,
       matches: monthMatches.map((m) => ({
+        id: m.id,
         scheduledAt: m.scheduledAt!.toISOString(),
         timeUY: formatTimeUY(m.scheduledAt!),
         dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
@@ -68,6 +70,7 @@ export default async function AdminDashboardPage() {
             confirmAction={confirmMatchFromCalendarAction}
             confirmReservationAction={confirmReservationAction}
             rejectReservationAction={rejectReservationAction}
+            cancelMatchAction={cancelMatchAction}
           />
         </div>
       ) : (

@@ -25,6 +25,7 @@ export async function fetchMonthMatchesAdminAction(
 
   const matches = await getMonthMatches(tournamentId, year, month)
   return matches.map((m) => ({
+    id: m.id,
     scheduledAt: m.scheduledAt!.toISOString(),
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),

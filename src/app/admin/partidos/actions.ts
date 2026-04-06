@@ -1,10 +1,10 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { createMatch, confirmMatch, rescheduleMatch, cancelMatch, getMatchById } from '@/services/match-service'
+import { createMatch, confirmMatch, rescheduleMatch, revertMatchToPending, getMatchById } from '@/services/match-service'
 import { createMatchResult, updateMatchResult } from '@/services/match-result-service'
 import { notifyMatchResult, notifyMatchResultEdited } from '@/services/match-result-notification'
-import { sendMatchConfirmationEmail, sendMatchRescheduledEmail } from '@/services/email-service'
+import { sendMatchConfirmationEmail, sendMatchRescheduledEmail, sendMatchCancelledEmail } from '@/services/email-service'
 import { createMatchSchema, confirmMatchSchema } from '@/lib/validations/match'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { fullName } from '@/lib/format-name'
@@ -159,16 +159,60 @@ export async function rescheduleMatchAction(
   }
 }
 
-export async function cancelMatchAction(matchId: string): Promise<ActionResult> {
+export async function cancelMatchAction(matchId: string, reason: string): Promise<ActionResult> {
   try {
     const session = await auth()
     if (!session?.user || !isAdmin(session.user.role)) {
       return { success: false, error: 'No autorizado' }
     }
+    if (!reason.trim()) {
+      return { success: false, error: 'Motivo requerido' }
+    }
 
-    await cancelMatch(matchId)
+    // Get match data before reverting (scheduledAt will be cleared)
+    const matchBefore = await getMatchById(matchId)
+    if (!matchBefore) return { success: false, error: 'Partido no encontrado' }
+
+    await revertMatchToPending(matchId)
+    const adminName = fullName(session.user.firstName, session.user.lastName) || 'Admin'
+
+    // Send cancellation emails with the original schedule data
+    if (matchBefore.scheduledAt) {
+      const court = COURTS.find((c) => c.number === matchBefore.courtNumber)
+      const dateStr = formatDateUY(matchBefore.scheduledAt)
+      const timeStr = formatTimeUY(matchBefore.scheduledAt)
+
+      await Promise.allSettled([
+        sendMatchCancelledEmail({
+          to: matchBefore.player1.email,
+          playerName: fullName(matchBefore.player1.firstName, matchBefore.player1.lastName) || 'Jugador',
+          rivalName: fullName(matchBefore.player2.firstName, matchBefore.player2.lastName) || 'Rival',
+          tournamentName: matchBefore.tournament.name,
+          date: dateStr,
+          time: timeStr,
+          courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
+          reason,
+          cancelledByName: adminName,
+        }),
+        sendMatchCancelledEmail({
+          to: matchBefore.player2.email,
+          playerName: fullName(matchBefore.player2.firstName, matchBefore.player2.lastName) || 'Jugador',
+          rivalName: fullName(matchBefore.player1.firstName, matchBefore.player1.lastName) || 'Rival',
+          tournamentName: matchBefore.tournament.name,
+          date: dateStr,
+          time: timeStr,
+          courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
+          reason,
+          cancelledByName: adminName,
+        }),
+      ])
+    }
+
+    revalidatePath('/admin')
     revalidatePath('/admin/partidos')
     revalidatePath(`/admin/partidos/${matchId}`)
+    revalidatePath('/jugador')
+    revalidatePath('/calendario')
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al cancelar partido'

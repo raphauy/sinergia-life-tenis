@@ -6,6 +6,7 @@ import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { TIMEZONE } from '@/lib/constants'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 import {
@@ -74,6 +75,8 @@ export function MatchDetailClient({
   const [rescheduleCourt, setRescheduleCourt] = useState(
     courtNumber?.toString() ?? '2'
   )
+  const [showCancelForm, setShowCancelForm] = useState(false)
+  const [cancelReason, setCancelReason] = useState('Cancelado por lluvia')
 
   const timeItems = TIME_SLOTS.map((t) => ({ value: t, label: t }))
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
@@ -98,10 +101,16 @@ export function MatchDetailClient({
   }
 
   function handleCancel() {
+    if (!showCancelForm) {
+      setShowCancelForm(true)
+      return
+    }
+    if (!cancelReason.trim()) return
     startTransition(async () => {
-      const res = await cancelMatchAction(matchId)
+      const res = await cancelMatchAction(matchId, cancelReason)
       if (res.success) {
-        toast.success('Partido cancelado')
+        toast.success('Partido revertido a pendiente. Emails enviados.')
+        setShowCancelForm(false)
         router.refresh()
       } else {
         toast.error(res.error)
@@ -184,9 +193,6 @@ export function MatchDetailClient({
               <Button type="submit" disabled={isPending}>
                 {isPending ? 'Confirmando...' : 'Confirmar'}
               </Button>
-              <Button type="button" variant="destructive" onClick={handleCancel} disabled={isPending}>
-                Cancelar partido
-              </Button>
             </div>
           </form>
         </div>
@@ -241,6 +247,25 @@ export function MatchDetailClient({
                 Cancelar partido
               </Button>
             </div>
+            {showCancelForm && (
+              <div className="space-y-2 pt-2 border-t">
+                <Label>Motivo de cancelación</Label>
+                <Input
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Motivo"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCancel() } }}
+                />
+                <div className="flex gap-2">
+                  <Button type="button" variant="destructive" size="sm" onClick={handleCancel} disabled={isPending || !cancelReason.trim()}>
+                    {isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowCancelForm(false)} disabled={isPending}>
+                    No
+                  </Button>
+                </div>
+              </div>
+            )}
           </form>
         </div>
       )}
