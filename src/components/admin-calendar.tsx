@@ -23,6 +23,7 @@ interface Props {
   confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   cancelMatchAction?: (matchId: string, reason: string) => Promise<{ success: boolean; error?: string }>
+  changeCourtAction?: (matchId: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
 }
 
 export function AdminCalendar({
@@ -38,6 +39,7 @@ export function AdminCalendar({
   confirmReservationAction,
   rejectReservationAction,
   cancelMatchAction,
+  changeCourtAction,
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
@@ -192,6 +194,7 @@ export function AdminCalendar({
           confirmReservationAction={confirmReservationAction}
           rejectReservationAction={rejectReservationAction}
           cancelMatchAction={cancelMatchAction}
+          changeCourtAction={changeCourtAction}
           tournamentId={tournamentId}
           onConfirmed={refreshCurrentMonth}
         />

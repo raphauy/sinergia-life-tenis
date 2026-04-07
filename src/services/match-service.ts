@@ -98,6 +98,18 @@ export async function rescheduleMatch(
   })
 }
 
+export async function updateMatchCourt(id: string, courtNumber: number) {
+  const match = await prisma.match.findUnique({ where: { id } })
+  if (!match) throw new Error('Partido no encontrado')
+  if (match.status !== 'CONFIRMED') throw new Error('Solo se puede cambiar cancha de partidos confirmados')
+
+  return prisma.match.update({
+    where: { id },
+    data: { courtNumber },
+    include: matchIncludes,
+  })
+}
+
 export async function cancelMatch(id: string) {
   const match = await prisma.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')

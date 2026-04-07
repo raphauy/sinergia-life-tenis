@@ -11,6 +11,7 @@ import {
   fetchMonthReservationsAdminAction,
   searchPendingMatchesAction,
   confirmMatchFromCalendarAction,
+  changeCourtFromCalendarAction,
   confirmReservationAction,
   rejectReservationAction,
 } from './actions-calendar'
@@ -71,6 +72,7 @@ export default async function AdminDashboardPage() {
             confirmReservationAction={confirmReservationAction}
             rejectReservationAction={rejectReservationAction}
             cancelMatchAction={cancelMatchAction}
+            changeCourtAction={changeCourtFromCalendarAction}
           />
         </div>
       ) : (

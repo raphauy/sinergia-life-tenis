@@ -19,6 +19,7 @@ interface Props {
   confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
   cancelMatchAction?: (matchId: string, reason: string) => Promise<{ success: boolean; error?: string }>
+  changeCourtAction?: (matchId: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
   tournamentId: string
   onConfirmed?: () => void
 }
@@ -40,7 +41,7 @@ function hasClass(dayOfWeek: number, slot: string) {
   return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
-export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, tournamentId, onConfirmed }: Props) {
+export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, changeCourtAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const byTime = groupByTime(matches)
   const reservationsByTime = groupByTime(reservations)
@@ -56,6 +57,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
   const [isConfirming, startConfirm] = useTransition()
   const [cancellingMatchId, setCancellingMatchId] = useState<string | null>(null)
   const [cancelReason, setCancelReason] = useState('Cancelado por lluvia')
+  const [editingCourtMatchId, setEditingCourtMatchId] = useState<string | null>(null)
   const debounceRef = useRef<NodeJS.Timeout>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -65,6 +67,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
     setSelectedMatch(null)
     setQuery('')
     setResults([])
+    setEditingCourtMatchId(null)
   }, [day])
 
   // Auto-scroll to first occupied
@@ -84,19 +87,25 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, tournamentId, searchAction])
 
-  const handleSlotClick = useCallback((slot: string) => {
-    if (openSlot === slot) {
+  const handleSlotClick = useCallback((slot: string, existingMatch?: CalendarMatch) => {
+    if (openSlot === slot && !existingMatch) {
       setOpenSlot(null)
       setSelectedMatch(null)
       setQuery('')
+      setEditingCourtMatchId(null)
       return
     }
     setOpenSlot(slot)
     setSelectedMatch(null)
     setQuery('')
-    setCourtNumber(2)
-    // Focus input after render
-    setTimeout(() => inputRef.current?.focus(), 100)
+    if (existingMatch?.id) {
+      setEditingCourtMatchId(existingMatch.id)
+      setCourtNumber(existingMatch.courtNumber ?? 1)
+    } else {
+      setEditingCourtMatchId(null)
+      setCourtNumber(2)
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
   }, [openSlot])
 
   const handleConfirm = useCallback(() => {
@@ -141,6 +150,22 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
       }
     })
   }, [rejectReservationAction, onConfirmed])
+
+  const handleChangeCourt = useCallback((matchId: string, newCourt: number) => {
+    if (!changeCourtAction) return
+    setCourtNumber(newCourt)
+    startConfirm(async () => {
+      const result = await changeCourtAction(matchId, newCourt)
+      if (result.success) {
+        toast.success('Cancha actualizada')
+        setOpenSlot(null)
+        setEditingCourtMatchId(null)
+        onConfirmed?.()
+      } else {
+        toast.error(result.error || 'Error al cambiar cancha')
+      }
+    })
+  }, [changeCourtAction, onConfirmed])
 
   const handleCancelMatch = useCallback((matchId: string) => {
     if (!cancelMatchAction) return
@@ -209,7 +234,11 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                 ) : (
                   <div className="flex-1 min-w-0 space-y-1">
                     {slotMatches.map((m, i) => (
-                      <div key={`m-${i}`} className="text-xs leading-tight">
+                      <div
+                        key={`m-${i}`}
+                        className={cn('text-xs leading-tight', changeCourtAction && m.id && 'cursor-pointer')}
+                        onClick={(e) => { if (changeCourtAction && m.id) { e.stopPropagation(); handleSlotClick(slot, m) } }}
+                      >
                         <span className="text-muted-foreground">
                           Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
                         </span>
@@ -321,7 +350,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                 )}
               </div>
 
-              {/* Expanded slot: search + confirm */}
+              {/* Expanded slot: edit court or search + confirm */}
               {isOpen && (
                 <div className="px-3 py-3 bg-primary/5 border-l-3 border-l-primary space-y-3">
                   {/* Court toggle */}
@@ -331,7 +360,8 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                       {COURTS.map((c) => (
                         <button
                           key={c.number}
-                          onClick={() => setCourtNumber(c.number)}
+                          onClick={() => editingCourtMatchId ? handleChangeCourt(editingCourtMatchId, c.number) : setCourtNumber(c.number)}
+                          disabled={editingCourtMatchId ? isConfirming : false}
                           className={cn(
                             'px-2.5 py-1 text-xs rounded-md font-medium transition-colors cursor-pointer',
                             courtNumber === c.number
@@ -343,9 +373,14 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         </button>
                       ))}
                     </div>
+                    {editingCourtMatchId && isConfirming && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
                   </div>
 
-                  {/* Search */}
+                  {/* Search — only in assign mode */}
+                  {!editingCourtMatchId && (
+                    <>
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
@@ -428,6 +463,8 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         </Button>
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               )}

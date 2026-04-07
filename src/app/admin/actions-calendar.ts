@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { getMonthMatches, confirmMatch, getPendingMatches } from '@/services/match-service'
+import { getMonthMatches, confirmMatch, getPendingMatches, updateMatchCourt } from '@/services/match-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY, parseFromUY } from '@/lib/date-utils'
 import { sendMatchConfirmationEmail } from '@/services/email-service'
@@ -119,6 +119,28 @@ export async function confirmMatchFromCalendarAction(
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al confirmar partido'
+    return { success: false, error: msg }
+  }
+}
+
+export async function changeCourtFromCalendarAction(
+  matchId: string,
+  courtNumber: number
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || !isAdmin(session.user.role)) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await updateMatchCourt(matchId, courtNumber)
+
+    revalidatePath('/admin')
+    revalidatePath('/admin/partidos')
+    revalidatePath(`/admin/partidos/${matchId}`)
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al cambiar cancha'
     return { success: false, error: msg }
   }
 }
