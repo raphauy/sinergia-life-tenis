@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers } from '@/services/player-service'
+import { updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers, withdrawPlayer, reinstatePlayer } from '@/services/player-service'
 import { invitePlayer, forceAcceptPlayer } from '@/services/player-invitation-service'
 import { createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
 import { generateBracket, regenerateBracket, deleteBracket, previewBracket } from '@/services/bracket-service'
@@ -359,6 +359,54 @@ export async function deleteBracketAction(
     return { success: true, data: { count } }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al eliminar bracket'
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// WITHDRAWAL ACTIONS
+// ============================================================================
+
+export async function withdrawPlayerAction(
+  tournamentSlug: string,
+  playerId: string,
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await withdrawPlayer(playerId, session.user.id)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath('/admin/partidos')
+    revalidatePath('/')
+    revalidatePath('/fixture')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al retirar jugador'
+    return { success: false, error: message }
+  }
+}
+
+export async function reinstatePlayerAction(
+  tournamentSlug: string,
+  playerId: string,
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await reinstatePlayer(playerId)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath('/admin/partidos')
+    revalidatePath('/')
+    revalidatePath('/fixture')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al reingresar jugador'
     return { success: false, error: message }
   }
 }

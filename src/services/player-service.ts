@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { generateSlug } from '@/lib/utils'
+import { getGroupQualifiers, refreshBracketSlotsFromGroup } from './bracket-service'
 
 export async function generateUniquePlayerSlug(firstName: string, lastName: string, excludeId?: string): Promise<string> {
   const baseSlug = generateSlug(`${firstName} ${lastName}`) || 'jugador'
@@ -162,4 +163,148 @@ export async function getPlayerMapByCategory(categoryId: string): Promise<Map<st
     select: { slug: true, userId: true },
   })
   return new Map(players.map((p) => [p.userId!, p.slug]))
+}
+
+/**
+ * Retires a player from the tournament:
+ * - Marks withdrawnAt.
+ * - Pending/Confirmed group matches are closed with walkover (6-0) in favor of the rival.
+ * - Bracket slots that reference the withdrawn player are released so the next
+ *   qualifier takes their place.
+ *
+ * Blocks if the player has a bracket match (QF/SF/F) already CONFIRMED or PLAYED —
+ * in that case the admin must regenerate the bracket manually.
+ */
+export async function withdrawPlayer(playerId: string, reportedById: string) {
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+    include: { user: { select: { firstName: true, lastName: true } } },
+  })
+  if (!player) throw new Error('Jugador no encontrado')
+  if (player.withdrawnAt) throw new Error('Este jugador ya está retirado')
+  if (!player.userId) throw new Error('El jugador no tiene cuenta vinculada y no participa en partidos')
+
+  const userId = player.userId
+  const groupId = player.groupId
+
+  // 1. Block withdrawal if the player has advanced bracket matches
+  const conflictBracketMatches = await prisma.match.findMany({
+    where: {
+      stage: { not: 'GROUP' },
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+      status: { in: ['CONFIRMED', 'PLAYED'] },
+    },
+    select: { id: true, stage: true, bracketPosition: true, status: true },
+  })
+  if (conflictBracketMatches.length > 0) {
+    const labels = conflictBracketMatches.map((m) => {
+      const stageLbl = m.stage === 'QUARTERFINAL' ? 'Cuartos' : m.stage === 'SEMIFINAL' ? 'Semifinal' : 'Final'
+      return `${stageLbl}${m.bracketPosition != null && m.stage !== 'FINAL' ? ' ' + m.bracketPosition : ''} (${m.status.toLowerCase()})`
+    }).join(', ')
+    throw new Error(
+      `No se puede retirar: el jugador tiene partidos de bracket en curso (${labels}). Regenerá el bracket primero.`,
+    )
+  }
+
+  // 2. Capture current qualifier position in the group (if any), BEFORE marking withdrawn
+  let sourcePosition: 1 | 2 | null = null
+  if (groupId) {
+    const q = await getGroupQualifiers(groupId)
+    if (q.first === userId) sourcePosition = 1
+    else if (q.second === userId) sourcePosition = 2
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // 3. Mark withdrawn
+    await tx.player.update({
+      where: { id: playerId },
+      data: { withdrawnAt: new Date() },
+    })
+
+    // 4. Walkover pending/confirmed group matches
+    const pendingGroupMatches = await tx.match.findMany({
+      where: {
+        groupId: groupId ?? undefined,
+        stage: 'GROUP',
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        OR: [{ player1Id: userId }, { player2Id: userId }],
+      },
+      select: { id: true, player1Id: true, player2Id: true },
+    })
+    for (const m of pendingGroupMatches) {
+      const rivalId = m.player1Id === userId ? m.player2Id : m.player1Id
+      if (!rivalId) continue
+      const player1IsRival = m.player1Id === rivalId
+      await tx.matchResult.create({
+        data: {
+          matchId: m.id,
+          reportedById,
+          walkover: true,
+          set1Player1: player1IsRival ? 6 : 0,
+          set1Player2: player1IsRival ? 0 : 6,
+          winnerId: rivalId,
+        },
+      })
+      await tx.match.update({
+        where: { id: m.id },
+        data: { status: 'PLAYED', playedAt: new Date() },
+      })
+    }
+
+    // 5. Release any bracket slot that had the withdrawn player directly assigned.
+    //    Restore the source (groupId + position) so refreshBracketSlotsFromGroup
+    //    can re-assign the replacement qualifier.
+    if (groupId && sourcePosition) {
+      await tx.match.updateMany({
+        where: {
+          stage: { not: 'GROUP' },
+          categoryId: player.categoryId,
+          player1Id: userId,
+        },
+        data: {
+          player1Id: null,
+          player1SourceGroupId: groupId,
+          player1SourcePosition: sourcePosition,
+        },
+      })
+      await tx.match.updateMany({
+        where: {
+          stage: { not: 'GROUP' },
+          categoryId: player.categoryId,
+          player2Id: userId,
+        },
+        data: {
+          player2Id: null,
+          player2SourceGroupId: groupId,
+          player2SourcePosition: sourcePosition,
+        },
+      })
+    }
+
+    // 6. Recompute qualifiers and propagate to bracket slots with source
+    if (groupId) {
+      await refreshBracketSlotsFromGroup(groupId, tx)
+    }
+  })
+}
+
+/**
+ * Reinstates a previously withdrawn player. Clears withdrawnAt and refreshes
+ * bracket slots. Walkover match results created at withdrawal time are NOT
+ * automatically reverted — admin must delete those results by hand if desired.
+ */
+export async function reinstatePlayer(playerId: string) {
+  const player = await prisma.player.findUnique({ where: { id: playerId } })
+  if (!player) throw new Error('Jugador no encontrado')
+  if (!player.withdrawnAt) throw new Error('Este jugador no está retirado')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({
+      where: { id: playerId },
+      data: { withdrawnAt: null },
+    })
+    if (player.groupId) {
+      await refreshBracketSlotsFromGroup(player.groupId, tx)
+    }
+  })
 }

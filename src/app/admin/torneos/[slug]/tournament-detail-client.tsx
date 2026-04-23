@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { fullName } from '@/lib/format-name'
-import { Mail, Save, X, Trash2, Search, MoreHorizontal, UserCheck } from 'lucide-react'
+import { Mail, Save, X, Trash2, Search, MoreHorizontal, UserCheck, UserX, UserPlus } from 'lucide-react'
 import {
   updatePlayerNameAction,
   updatePlayerEmailAction,
@@ -43,6 +43,8 @@ import {
   forceAcceptPlayerAction,
   deletePlayerAction,
   deleteManyPlayersAction,
+  withdrawPlayerAction,
+  reinstatePlayerAction,
 } from './actions'
 
 interface Player {
@@ -53,6 +55,7 @@ interface Player {
   whatsappNumber: string | null
   invitedAt: Date | null
   acceptedAt: Date | null
+  withdrawnAt: Date | null
   category: { id: string; name: string }
   user: { firstName: string | null; lastName: string | null } | null
 }
@@ -73,6 +76,7 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
   const [editingField, setEditingField] = useState<'name' | 'email' | 'whatsapp' | null>(null)
   const [editValue, setEditValue] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Player | null>(null)
+  const [withdrawTarget, setWithdrawTarget] = useState<Player | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showBulkDelete, setShowBulkDelete] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -193,6 +197,30 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
     })
   }
 
+  function handleWithdraw() {
+    if (!withdrawTarget) return
+    startTransition(async () => {
+      const result = await withdrawPlayerAction(tournamentSlug, withdrawTarget.id)
+      if (result.success) {
+        toast.success('Jugador retirado del torneo')
+      } else {
+        toast.error(result.error)
+      }
+      setWithdrawTarget(null)
+    })
+  }
+
+  function handleReinstate(playerId: string) {
+    startTransition(async () => {
+      const result = await reinstatePlayerAction(tournamentSlug, playerId)
+      if (result.success) {
+        toast.success('Jugador reingresado. Revisá el bracket y los partidos walkover creados al retirarlo.')
+      } else {
+        toast.error(result.error)
+      }
+    })
+  }
+
   function handleBulkDelete() {
     startTransition(async () => {
       const result = await deleteManyPlayersAction(tournamentSlug, selectedIds)
@@ -207,6 +235,7 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
   }
 
   function getStatus(player: Player) {
+    if (player.withdrawnAt) return <Badge variant="destructive">Retirado</Badge>
     if (player.acceptedAt) return <Badge variant="default">Aceptado</Badge>
     if (player.invitedAt) return <Badge variant="secondary">Invitado</Badge>
     if (player.email) return <Badge variant="outline">Con email</Badge>
@@ -457,6 +486,20 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
+                        {p.withdrawnAt ? (
+                          <DropdownMenuItem onClick={() => handleReinstate(p.id)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Reingresar al torneo
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() => setWithdrawTarget(p)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <UserX className="h-4 w-4 mr-2" />
+                            Retirar del torneo
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           onClick={() => setDeleteTarget(p)}
                           className="text-destructive focus:text-destructive"
@@ -493,6 +536,34 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Withdraw dialog */}
+      <AlertDialog
+        open={!!withdrawTarget}
+        onOpenChange={(open) => !open && setWithdrawTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirar del torneo</AlertDialogTitle>
+            <AlertDialogDescription>
+              {withdrawTarget && (
+                <>
+                  &quot;{fullName(withdrawTarget.user?.firstName ?? withdrawTarget.firstName, withdrawTarget.user?.lastName ?? withdrawTarget.lastName)}&quot; quedará marcado como retirado. Sus partidos de grupo pendientes o confirmados se cerrarán como walkover 6-0 a favor del rival, y el siguiente clasificado de su grupo lo reemplazará en el bracket. Los partidos ya jugados se mantienen.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleWithdraw}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Retirar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

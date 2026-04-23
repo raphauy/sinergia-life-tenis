@@ -40,22 +40,22 @@ function groupQFsBySemi(qfs: BracketViewMatch[]): BracketViewMatch[][] {
 function PairConnector({ label, size }: { label: string; size: 'pair' | 'single' }) {
   if (size === 'single') {
     return (
-      <div className="relative w-14 shrink-0 flex items-center">
-        <div className="w-3 h-px bg-primary/40" />
-        <span className="ml-1 text-[10px] font-bold uppercase text-primary/70 whitespace-nowrap">
+      <div className="relative w-10 sm:w-14 shrink-0 flex items-center">
+        <div className="w-2 sm:w-3 h-px bg-primary/40" />
+        <span className="ml-0.5 sm:ml-1 text-[9px] sm:text-[10px] font-bold uppercase text-primary/70 whitespace-nowrap">
           {label}
         </span>
       </div>
     )
   }
   return (
-    <div className="relative w-14 shrink-0 flex items-center py-1">
+    <div className="relative w-10 sm:w-14 shrink-0 flex items-center py-1">
       {/* Right-side bracket "}" using borders */}
-      <div className="h-[calc(100%-24px)] w-2 border-r-2 border-t-2 border-b-2 border-primary/40 rounded-r-md" />
+      <div className="h-[calc(100%-24px)] w-1.5 sm:w-2 border-r-2 border-t-2 border-b-2 border-primary/40 rounded-r-md" />
       {/* Stem going right */}
-      <div className="w-3 h-px bg-primary/40" />
+      <div className="w-2 sm:w-3 h-px bg-primary/40" />
       {/* Label floats on the stem */}
-      <span className="ml-1 text-[10px] font-bold uppercase text-primary/70 whitespace-nowrap">
+      <span className="ml-0.5 sm:ml-1 text-[9px] sm:text-[10px] font-bold uppercase text-primary/70 whitespace-nowrap">
         {label}
       </span>
     </div>
@@ -126,7 +126,7 @@ export function BracketView({
         <h2 className="text-lg font-semibold">Fase eliminatoria</h2>
       </div>
 
-      <div className="rounded-lg border bg-muted/20 p-3 sm:p-4">
+      <div className="rounded-lg border bg-muted/20 p-2 sm:p-4">
         {/* Quarterfinals */}
         {quarterfinals.length > 0 && (
           <div>
@@ -151,7 +151,7 @@ export function BracketView({
 
         {/* Semifinals */}
         {semifinals.length > 0 && (
-          <div className="mt-5">
+          <div className="mt-7 sm:mt-8">
             <h3 className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2">
               Semifinales
             </h3>
@@ -169,7 +169,7 @@ export function BracketView({
 
         {/* Final */}
         {final && (
-          <div className="mt-5">
+          <div className="mt-7 sm:mt-8">
             <h3 className="text-[11px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider mb-2 flex items-center gap-1.5">
               <Trophy className="h-3.5 w-3.5" />
               Final

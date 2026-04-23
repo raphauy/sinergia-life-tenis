@@ -123,11 +123,14 @@ export default async function JugadorProfilePage({ params }: Props) {
         </Avatar>
         <div>
           <h1 className="text-2xl font-bold">{displayName}</h1>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
             <CategoryBadge name={player.category.name} />
             {player.group && (
               <Badge variant="outline" className="rounded-md">Grupo {player.group.number}</Badge>
+            )}
+            {player.withdrawnAt && (
+              <Badge variant="destructive" className="rounded-md">Retirado</Badge>
             )}
           </div>
         </div>

@@ -121,7 +121,7 @@ function computeRanking(
 export async function getRankingByCategory(categoryId: string, tx?: Tx): Promise<RankingEntry[]> {
   const client = tx ?? prisma
   const players = await client.player.findMany({
-    where: { categoryId, isActive: true, userId: { not: null } },
+    where: { categoryId, isActive: true, withdrawnAt: null, userId: { not: null } },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },
@@ -154,7 +154,7 @@ export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<Ranki
   })
 
   const players = await client.player.findMany({
-    where: { groupId, isActive: true, userId: { not: null } },
+    where: { groupId, isActive: true, withdrawnAt: null, userId: { not: null } },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },

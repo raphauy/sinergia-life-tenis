@@ -179,6 +179,7 @@ model Player {
   invitationToken String?   @unique
   invitedAt       DateTime?
   acceptedAt      DateTime?
+  withdrawnAt     DateTime?
   isActive        Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -190,6 +191,7 @@ model Player {
 
   @@unique([tournamentId, email])
   @@index([tournamentId])
+  @@index([withdrawnAt])
   @@index([categoryId])
   @@index([userId])
   @@index([groupId])
