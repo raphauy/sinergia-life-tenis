@@ -131,7 +131,7 @@ export function BracketMatchCard({
   const hasDateTime = !!match.scheduledAt
   const showFallbackDate = !hasDateTime && !!fallbackDate && (match.stage === 'SEMIFINAL' || match.stage === 'FINAL')
 
-  const statusBadgeClass = 'text-[10px] px-1.5 py-0 min-w-[64px] text-center justify-center font-bold'
+  const statusBadgeClass = 'text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 min-w-[54px] sm:min-w-[64px] text-center justify-center font-bold'
   const statusBadge = isPlayed
     ? <Badge variant="success" className={statusBadgeClass}>Jugado</Badge>
     : match.status === 'CONFIRMED'
@@ -165,13 +165,13 @@ export function BracketMatchCard({
       tabIndex={0}
       onClick={() => router.push(`/partido/${match.id}`)}
       onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/partido/${match.id}`) }}
-      className={`rounded-md border ${accentClass} p-2 cursor-pointer hover:bg-muted/50 transition-colors`}
+      className={`rounded-md border ${accentClass} p-1.5 sm:p-2 cursor-pointer hover:bg-muted/50 transition-colors`}
     >
       {/* Row 1: names + status */}
-      <div className="flex items-center justify-between gap-2 text-sm">
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 text-[13px] sm:text-sm">
         <div className="flex-1 min-w-0 truncate">
           <PlayerName name={p1Name} slug={player1Slug} isWinner={winnerIs1} isPlayed={isPlayed} defined={p1Defined} />
-          <span className="text-muted-foreground mx-1 text-xs">vs</span>
+          <span className="text-muted-foreground mx-0.5 sm:mx-1 text-[11px] sm:text-xs">vs</span>
           <PlayerName name={p2Name} slug={player2Slug} isWinner={winnerIs2} isPlayed={isPlayed} defined={p2Defined} />
         </div>
         {accent === 'final' && !isPlayed && <Trophy className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
