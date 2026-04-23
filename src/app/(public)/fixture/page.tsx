@@ -3,9 +3,11 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
+import { getBracketByCategory } from '@/services/bracket-service'
 import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
+import { BracketView } from '@/components/bracket-view'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import Link from 'next/link'
 import { CalendarDays } from 'lucide-react'
@@ -43,11 +45,15 @@ export default async function FixturePage() {
 
   const fixtureData = await Promise.all(
     categories.map(async (cat) => {
-      const [matches, playerMap, groups] = await Promise.all([
+      const [allMatches, playerMap, groups, bracket] = await Promise.all([
         getMatches({ categoryId: cat.id }),
         getPlayerMapByCategory(cat.id),
         getGroupsByCategory(cat.id),
+        getBracketByCategory(cat.id),
       ])
+
+      // Only group-stage matches in the grupos section
+      const matches = allMatches.filter((m) => m.stage === 'GROUP')
 
       const upcoming = matches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
       const played = matches.filter((m) => m.status === 'PLAYED')
@@ -59,16 +65,19 @@ export default async function FixturePage() {
           return a.scheduledAt.getTime() - b.scheduledAt.getTime()
         })
 
-      return { cat, upcoming, played, confirmed, playerMap, groups }
+      return { cat, upcoming, played, confirmed, playerMap, groups, bracket }
     })
   )
 
   const defaultTab = categories[0]?.id
 
-  // Fetch reservations for pending matches
-  const allPendingIds = fixtureData.flatMap(({ upcoming }) =>
-    upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
-  )
+  // Fetch reservations for pending matches (groups + every bracket round)
+  const allPendingIds = fixtureData.flatMap(({ upcoming, bracket }) => [
+    ...upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...bracket.quarterfinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...bracket.semifinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...(bracket.final && bracket.final.status === 'PENDING' ? [bracket.final.id] : []),
+  ])
   const reservations = await getReservationsByMatchIds(allPendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
@@ -100,9 +109,22 @@ export default async function FixturePage() {
             ))}
           </TabsList>
 
-          {fixtureData.map(({ cat, upcoming, played, confirmed, playerMap, groups }) => (
+          {fixtureData.map(({ cat, upcoming, played, confirmed, playerMap, groups, bracket }) => (
             <TabsContent key={cat.id} value={cat.id}>
               <div className="space-y-10">
+                {(bracket.quarterfinals.length > 0 || bracket.semifinals.length > 0 || bracket.final) && (
+                  <BracketView
+                    quarterfinals={bracket.quarterfinals}
+                    semifinals={bracket.semifinals}
+                    final={bracket.final}
+                    finalsDate={tournament.finalsDate}
+                    playerSlugs={playerMap}
+                    currentUserId={currentUserId}
+                    currentPlayerSlug={currentPlayerSlug}
+                    reservationMap={reservationMap}
+                  />
+                )}
+
                 {confirmed.length > 0 && (
                   <section>
                     <h2 className="text-base font-bold mb-3">
@@ -114,8 +136,8 @@ export default async function FixturePage() {
                           key={m.id}
                           match={m}
                           showDate
-                          player1Slug={playerMap.get(m.player1Id)}
-                          player2Slug={playerMap.get(m.player2Id)}
+                          player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                          player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                           currentUserId={currentUserId}
                           currentPlayerSlug={currentPlayerSlug}
                           reservation={reservationMap.get(m.id)}
@@ -152,8 +174,8 @@ export default async function FixturePage() {
                                 key={m.id}
                                 match={m}
                                 showDate
-                                player1Slug={playerMap.get(m.player1Id)}
-                                player2Slug={playerMap.get(m.player2Id)}
+                                player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                                player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                                 currentUserId={currentUserId}
                                 currentPlayerSlug={currentPlayerSlug}
                               reservation={reservationMap.get(m.id)}
@@ -186,8 +208,8 @@ export default async function FixturePage() {
                                     key={m.id}
                                     match={m}
                                     showDate
-                                    player1Slug={playerMap.get(m.player1Id)}
-                                    player2Slug={playerMap.get(m.player2Id)}
+                                    player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                                    player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                                     currentUserId={currentUserId}
                                     currentPlayerSlug={currentPlayerSlug}
                                     reservation={reservationMap.get(m.id)}
@@ -207,8 +229,8 @@ export default async function FixturePage() {
                                     key={m.id}
                                     match={m}
                                     showDate
-                                    player1Slug={playerMap.get(m.player1Id)}
-                                    player2Slug={playerMap.get(m.player2Id)}
+                                    player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                                    player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                                     currentUserId={currentUserId}
                                     currentPlayerSlug={currentPlayerSlug}
                                     reservation={reservationMap.get(m.id)}
@@ -235,8 +257,8 @@ export default async function FixturePage() {
                               key={m.id}
                               match={m}
                               showDate
-                              player1Slug={playerMap.get(m.player1Id)}
-                              player2Slug={playerMap.get(m.player2Id)}
+                              player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                              player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
                               reservation={reservationMap.get(m.id)}
@@ -257,8 +279,8 @@ export default async function FixturePage() {
                               key={m.id}
                               match={m}
                               showDate
-                              player1Slug={playerMap.get(m.player1Id)}
-                              player2Slug={playerMap.get(m.player2Id)}
+                              player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                              player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
                               reservation={reservationMap.get(m.id)}

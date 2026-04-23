@@ -30,8 +30,8 @@ export default async function PartidosPage({ searchParams }: Props) {
   const q = params.q?.toLowerCase().trim()
   const matches = q
     ? allMatches.filter((m) => {
-        const p1 = fullName(m.player1.firstName, m.player1.lastName).toLowerCase()
-        const p2 = fullName(m.player2.firstName, m.player2.lastName).toLowerCase()
+        const p1 = fullName(m.player1?.firstName, m.player1?.lastName).toLowerCase()
+        const p2 = fullName(m.player2?.firstName, m.player2?.lastName).toLowerCase()
         return p1.includes(q) || p2.includes(q)
       })
     : allMatches
@@ -70,7 +70,7 @@ export default async function PartidosPage({ searchParams }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">
-                    {fullName(m.player1.firstName, m.player1.lastName)} vs {fullName(m.player2.firstName, m.player2.lastName)}
+                    {fullName(m.player1?.firstName, m.player1?.lastName) || 'Por definir'} vs {fullName(m.player2?.firstName, m.player2?.lastName) || 'Por definir'}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {m.tournament.name} — {m.category.name}

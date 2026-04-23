@@ -3,14 +3,15 @@ import Link from 'next/link'
 import { getTournamentBySlug } from '@/services/tournament-service'
 import { getPlayersByTournament } from '@/services/player-service'
 import { getGroupsByCategory } from '@/services/group-service'
+import { getBracketByCategory } from '@/services/bracket-service'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
 import { formatDateUY } from '@/lib/date-utils'
-import { fullName } from '@/lib/format-name'
 import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
 import { GroupsSection } from './groups-section'
+import { BracketSection } from './bracket-section'
 import { DeleteTournamentButton } from './delete-tournament-button'
 import { RulesEditorSection } from './rules-editor-section'
 
@@ -29,6 +30,33 @@ export default async function TournamentDetailPage({ params }: Props) {
     tournament.categories.map((c) => getGroupsByCategory(c.id))
   )
   const groups = allGroups.flat()
+
+  const bracketsByCategory = await Promise.all(
+    tournament.categories.map((c) => getBracketByCategory(c.id))
+  )
+  const bracketSectionData = tournament.categories.map((cat, i) => {
+    const b = bracketsByCategory[i]
+    const allMatches = [...b.quarterfinals, ...b.semifinals, ...(b.final ? [b.final] : [])]
+    return {
+      id: cat.id,
+      name: cat.name,
+      bracket: allMatches.map((m) => ({
+        id: m.id,
+        stage: m.stage,
+        bracketPosition: m.bracketPosition,
+        status: m.status,
+        player1: m.player1 ? { id: m.player1.id, firstName: m.player1.firstName, lastName: m.player1.lastName } : null,
+        player2: m.player2 ? { id: m.player2.id, firstName: m.player2.firstName, lastName: m.player2.lastName } : null,
+        player1SourceGroup: m.player1SourceGroup,
+        player2SourceGroup: m.player2SourceGroup,
+        player1SourcePosition: m.player1SourcePosition,
+        player2SourcePosition: m.player2SourcePosition,
+        scheduledAt: m.scheduledAt,
+        courtNumber: m.courtNumber,
+        hasResult: !!m.result,
+      })),
+    }
+  })
 
   return (
     <div>
@@ -93,6 +121,9 @@ export default async function TournamentDetailPage({ params }: Props) {
           groupId: p.groupId,
         }))}
       />
+
+      {/* Bracket (elimination stage) */}
+      <BracketSection tournamentSlug={slug} categories={bracketSectionData} />
     </div>
   )
 }

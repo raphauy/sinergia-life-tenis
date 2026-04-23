@@ -46,6 +46,10 @@ export async function playerLoadResultAction(
       return { success: false, error: 'Este partido ya tiene resultado' }
     }
 
+    if (!match.player1Id || !match.player2Id) {
+      return { success: false, error: 'El partido aún no tiene ambos jugadores asignados' }
+    }
+
     const isWalkover = data.walkover === true || data.walkover === 'true'
     const schema = createMatchResultSchema(
       match.tournament.matchFormat,
@@ -97,8 +101,8 @@ export async function fetchMonthMatchesAction(
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1.firstName, m.player1.lastName),
-    player2Name: fullName(m.player2.firstName, m.player2.lastName),
+    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
+    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
     categoryName: m.category.name,
     groupNumber: m.group?.number ?? null,
   }))

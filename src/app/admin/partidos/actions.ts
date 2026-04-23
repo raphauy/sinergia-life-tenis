@@ -8,6 +8,7 @@ import { sendMatchConfirmationEmail, sendMatchRescheduledEmail, sendMatchCancell
 import { createMatchSchema, confirmMatchSchema } from '@/lib/validations/match'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
 import { fullName } from '@/lib/format-name'
+import { stageLabel } from '@/lib/match-status'
 import { parseFromUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { prisma } from '@/lib/prisma'
@@ -71,26 +72,32 @@ export async function confirmMatchAction(
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
-    const emailPromises = [
-      sendMatchConfirmationEmail({
+    const label = stageLabel(match.stage)
+    const emailPromises = []
+    if (match.player1?.email) {
+      emailPromises.push(sendMatchConfirmationEmail({
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
-        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-      sendMatchConfirmationEmail({
+        stageLabel: label,
+      }))
+    }
+    if (match.player2?.email) {
+      emailPromises.push(sendMatchConfirmationEmail({
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
-        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-    ]
+        stageLabel: label,
+      }))
+    }
     await Promise.allSettled(emailPromises)
 
     revalidatePath('/admin/partidos')
@@ -128,26 +135,29 @@ export async function rescheduleMatchAction(
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
-    const emailPromises = [
-      sendMatchRescheduledEmail({
+    const emailPromises = []
+    if (match.player1?.email) {
+      emailPromises.push(sendMatchRescheduledEmail({
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
-        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-      sendMatchRescheduledEmail({
+      }))
+    }
+    if (match.player2?.email) {
+      emailPromises.push(sendMatchRescheduledEmail({
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
-        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-    ]
+      }))
+    }
     await Promise.allSettled(emailPromises)
 
     revalidatePath('/admin/partidos')
@@ -182,30 +192,34 @@ export async function cancelMatchAction(matchId: string, reason: string): Promis
       const dateStr = formatDateUY(matchBefore.scheduledAt)
       const timeStr = formatTimeUY(matchBefore.scheduledAt)
 
-      await Promise.allSettled([
-        sendMatchCancelledEmail({
+      const cancelEmails = []
+      if (matchBefore.player1?.email) {
+        cancelEmails.push(sendMatchCancelledEmail({
           to: matchBefore.player1.email,
           playerName: fullName(matchBefore.player1.firstName, matchBefore.player1.lastName) || 'Jugador',
-          rivalName: fullName(matchBefore.player2.firstName, matchBefore.player2.lastName) || 'Rival',
+          rivalName: fullName(matchBefore.player2?.firstName, matchBefore.player2?.lastName) || 'Rival',
           tournamentName: matchBefore.tournament.name,
           date: dateStr,
           time: timeStr,
           courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
           reason,
           cancelledByName: adminName,
-        }),
-        sendMatchCancelledEmail({
+        }))
+      }
+      if (matchBefore.player2?.email) {
+        cancelEmails.push(sendMatchCancelledEmail({
           to: matchBefore.player2.email,
           playerName: fullName(matchBefore.player2.firstName, matchBefore.player2.lastName) || 'Jugador',
-          rivalName: fullName(matchBefore.player1.firstName, matchBefore.player1.lastName) || 'Rival',
+          rivalName: fullName(matchBefore.player1?.firstName, matchBefore.player1?.lastName) || 'Rival',
           tournamentName: matchBefore.tournament.name,
           date: dateStr,
           time: timeStr,
           courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
           reason,
           cancelledByName: adminName,
-        }),
-      ])
+        }))
+      }
+      await Promise.allSettled(cancelEmails)
     }
 
     revalidatePath('/admin')
@@ -232,6 +246,9 @@ export async function adminLoadResultAction(
 
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
+    if (!match.player1Id || !match.player2Id) {
+      return { success: false, error: 'El partido aún no tiene ambos jugadores asignados' }
+    }
 
     const isWalkover = data.walkover === true || data.walkover === 'true'
     const schema = createMatchResultSchema(

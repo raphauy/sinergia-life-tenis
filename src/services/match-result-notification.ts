@@ -6,10 +6,10 @@ import { fullName } from '@/lib/format-name'
 
 type MatchForNotification = {
   groupId: string | null
-  player1: { firstName: string | null; lastName: string | null }
-  player2: { firstName: string | null; lastName: string | null }
-  player1Id: string
-  player2Id: string
+  player1: { firstName: string | null; lastName: string | null } | null
+  player2: { firstName: string | null; lastName: string | null } | null
+  player1Id: string | null
+  player2Id: string | null
   tournament: { name: string }
   group: { id: string; number: number } | null
   result: {
@@ -79,8 +79,8 @@ async function gatherNotificationData(match: MatchForNotification) {
     .map((a) => a.email)
     .filter((e): e is string => !!e)
 
-  const player1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-  const player2Name = fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+  const player1Name = match.player1 ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1' : 'Jugador 1'
+  const player2Name = match.player2 ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2' : 'Jugador 2'
   const winnerName = match.result.winnerId === match.player1Id ? player1Name : player2Name
   const score = formatMatchScore(match.result)
 

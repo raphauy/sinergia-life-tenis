@@ -28,8 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { matchId } = await params
   const match = await getMatchById(matchId)
   if (!match) return { title: 'Partido' }
-  const p1 = fullName(match.player1.firstName, match.player1.lastName)
-  const p2 = fullName(match.player2.firstName, match.player2.lastName)
+  const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
+  const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
   return {
     title: `${p1} vs ${p2} - ${match.tournament.name}`,
     description: `${p1} vs ${p2} - Categoría ${match.category.name} - ${match.tournament.name}`,
@@ -55,7 +55,7 @@ export default async function MatchDetailPage({ params }: Props) {
 
   const isPlayer1 = match.player1Id === player.userId
   const rival = isPlayer1 ? match.player2 : match.player1
-  const rivalName = fullName(rival.firstName, rival.lastName)
+  const rivalName = fullName(rival?.firstName, rival?.lastName)
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Can load result: match is CONFIRMED, no result, and user is this player (or admin)
@@ -92,8 +92,8 @@ export default async function MatchDetailPage({ params }: Props) {
         timeUY: formatTimeUY(m.scheduledAt!),
         dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
         courtNumber: m.courtNumber,
-        player1Name: fullName(m.player1.firstName, m.player1.lastName),
-        player2Name: fullName(m.player2.firstName, m.player2.lastName),
+        player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
+        player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
         categoryName: m.category.name,
         groupNumber: m.group?.number ?? null,
       })),
@@ -112,7 +112,7 @@ export default async function MatchDetailPage({ params }: Props) {
       </Button>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          {fullName(match.player1.firstName, match.player1.lastName)} vs {fullName(match.player2.firstName, match.player2.lastName)}
+          {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
         </h1>
         <p className="text-sm text-muted-foreground">
           {match.tournament.name} — Categoría {match.category.name}
@@ -140,8 +140,8 @@ export default async function MatchDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground mt-1">
             Ganador:{' '}
             {match.result.winnerId === match.player1Id
-              ? fullName(match.player1.firstName, match.player1.lastName)
-              : fullName(match.player2.firstName, match.player2.lastName)}
+              ? fullName(match.player1?.firstName, match.player1?.lastName)
+              : fullName(match.player2?.firstName, match.player2?.lastName)}
           </p>
           {match.result.photoUrl && (
             <img
@@ -162,7 +162,7 @@ export default async function MatchDetailPage({ params }: Props) {
       )}
 
       {/* Coordination message for pending matches */}
-      {match.status === 'PENDING' && isOwner && (
+      {match.status === 'PENDING' && isOwner && rival && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 p-4 mb-6">
           <h2 className="font-semibold mb-2">Coordiná tu partido</h2>
           <p className="text-sm text-muted-foreground mb-2">
@@ -229,7 +229,7 @@ export default async function MatchDetailPage({ params }: Props) {
       )}
 
       {/* Load result form */}
-      {canLoadResult && (
+      {canLoadResult && match.player1Id && match.player2Id && (
         <div className="rounded-lg border p-4">
           <h2 className="font-semibold mb-3">Cargar resultado</h2>
           <PlayerLoadResult
@@ -238,8 +238,8 @@ export default async function MatchDetailPage({ params }: Props) {
             matchFormat={match.tournament.matchFormat}
             player1Id={match.player1Id}
             player2Id={match.player2Id}
-            player1Name={fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'}
-            player2Name={fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'}
+            player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}
+            player2Name={fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'}
           />
         </div>
       )}

@@ -6,9 +6,11 @@ import { getActiveTournament } from '@/services/tournament-service'
 import { getRankingByCategory, getRankingByGroup } from '@/services/ranking-service'
 import { getMatches, getTodayMatches } from '@/services/match-service'
 import { getGroupsByCategory } from '@/services/group-service'
+import { getBracketByCategory } from '@/services/bracket-service'
 import { getActivePlayerSlugByUserId, getPlayerMapByCategory } from '@/services/player-service'
 import { RankingTable } from '@/components/ranking-table'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
+import { BracketView } from '@/components/bracket-view'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -124,12 +126,16 @@ async function TournamentContent({
   const [todayMatches, ...data] = await Promise.all([
     getTodayMatches(tournament.id),
     ...categories.map(async (cat) => {
-      const [ranking, matches, playerMap, groups] = await Promise.all([
+      const [ranking, allMatches, playerMap, groups, bracket] = await Promise.all([
         getRankingByCategory(cat.id),
         getMatches({ categoryId: cat.id }),
         getPlayerMapByCategory(cat.id),
         getGroupsByCategory(cat.id),
+        getBracketByCategory(cat.id),
       ])
+
+      // Only group-stage matches appear in the grupos section
+      const matches = allMatches.filter((m) => m.stage === 'GROUP')
 
       const groupRankings = await Promise.all(
         groups.map(async (g) => ({
@@ -153,16 +159,19 @@ async function TournamentContent({
       const playedCount = played.length
       const totalCount = pendingCount + confirmedCount + playedCount
 
-      return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, pendingCount, confirmedCount, playedCount, totalCount }
+      return { cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, bracket, pendingCount, confirmedCount, playedCount, totalCount }
     }),
   ])
 
   const defaultTab = categories[0].id
 
-  // Fetch reservations for all pending matches
-  const allPendingIds = data.flatMap(({ upcoming }) =>
-    upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
-  )
+  // Fetch reservations for all pending matches (groups + every bracket round)
+  const allPendingIds = data.flatMap(({ upcoming, bracket }) => [
+    ...upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...bracket.quarterfinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...bracket.semifinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
+    ...(bracket.final && bracket.final.status === 'PENDING' ? [bracket.final.id] : []),
+  ])
   const reservations = await getReservationsByMatchIds(allPendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
@@ -188,8 +197,8 @@ async function TournamentContent({
             <TodayMatchCard
               key={m.id}
               match={m}
-              player1Slug={allPlayerSlugs.get(m.player1Id)}
-              player2Slug={allPlayerSlugs.get(m.player2Id)}
+              player1Slug={m.player1Id ? allPlayerSlugs.get(m.player1Id) : undefined}
+              player2Slug={m.player2Id ? allPlayerSlugs.get(m.player2Id) : undefined}
               currentUserId={currentUserId}
               currentPlayerSlug={currentPlayerSlug}
             />
@@ -207,8 +216,24 @@ async function TournamentContent({
         ))}
       </TabsList>
 
-      {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, pendingCount, confirmedCount, playedCount, totalCount }) => (
+      {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, bracket, pendingCount, confirmedCount, playedCount, totalCount }) => (
         <TabsContent key={cat.id} value={cat.id}>
+          {/* Bracket (elimination stage) — above groups */}
+          {(bracket.quarterfinals.length > 0 || bracket.semifinals.length > 0 || bracket.final) && (
+            <section className="mb-10">
+              <BracketView
+                quarterfinals={bracket.quarterfinals}
+                semifinals={bracket.semifinals}
+                final={bracket.final}
+                finalsDate={tournament.finalsDate}
+                playerSlugs={playerMap}
+                currentUserId={currentUserId}
+                currentPlayerSlug={currentPlayerSlug}
+                reservationMap={reservationMap}
+              />
+            </section>
+          )}
+
           {/* Resumen de partidos */}
           {totalCount > 0 && (
             <div className="mb-6 rounded-lg border bg-muted/30 px-3 py-2">
@@ -285,8 +310,8 @@ async function TournamentContent({
                         key={m.id}
                         match={m}
                         showDate
-                        player1Slug={playerMap.get(m.player1Id)}
-                        player2Slug={playerMap.get(m.player2Id)}
+                        player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                        player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                         currentUserId={currentUserId}
                         currentPlayerSlug={currentPlayerSlug}
                         reservation={reservationMap.get(m.id)}
@@ -321,8 +346,8 @@ async function TournamentContent({
                               key={m.id}
                               match={m}
                               showDate
-                              player1Slug={playerMap.get(m.player1Id)}
-                              player2Slug={playerMap.get(m.player2Id)}
+                              player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                              player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                               currentUserId={currentUserId}
                               currentPlayerSlug={currentPlayerSlug}
                               reservation={reservationMap.get(m.id)}
@@ -344,8 +369,8 @@ async function TournamentContent({
                             key={m.id}
                             match={m}
                             showDate
-                            player1Slug={playerMap.get(m.player1Id)}
-                            player2Slug={playerMap.get(m.player2Id)}
+                            player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                            player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                             currentUserId={currentUserId}
                             currentPlayerSlug={currentPlayerSlug}
                             reservation={reservationMap.get(m.id)}
@@ -364,8 +389,8 @@ async function TournamentContent({
                             key={m.id}
                             match={m}
                             showDate
-                            player1Slug={playerMap.get(m.player1Id)}
-                            player2Slug={playerMap.get(m.player2Id)}
+                            player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                            player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                             currentUserId={currentUserId}
                             currentPlayerSlug={currentPlayerSlug}
                             reservation={reservationMap.get(m.id)}

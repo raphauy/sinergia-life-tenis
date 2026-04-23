@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers } from '@/services/player-service'
 import { invitePlayer, forceAcceptPlayer } from '@/services/player-invitation-service'
 import { createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
+import { generateBracket, regenerateBracket, deleteBracket, previewBracket } from '@/services/bracket-service'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -264,6 +265,100 @@ export async function deletePendingMatchesAction(
     return { success: true, data: { count } }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al eliminar partidos'
+    return { success: false, error: message }
+  }
+}
+
+// ============================================================================
+// BRACKET ACTIONS
+// ============================================================================
+
+export async function previewBracketAction(
+  categoryId: string,
+): Promise<ActionResult<{ format: '4-groups' | '3-groups'; pendingGroupNumbers: number[] }>> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const preview = await previewBracket(categoryId)
+    return {
+      success: true,
+      data: {
+        format: preview.format,
+        pendingGroupNumbers: preview.pendingGroups.map((g) => g.groupNumber),
+      },
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al analizar bracket'
+    return { success: false, error: message }
+  }
+}
+
+export async function generateBracketAction(
+  tournamentSlug: string,
+  categoryId: string,
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await generateBracket(categoryId)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath('/admin/partidos')
+    revalidatePath('/')
+    revalidatePath('/fixture')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al generar bracket'
+    return { success: false, error: message }
+  }
+}
+
+export async function regenerateBracketAction(
+  tournamentSlug: string,
+  categoryId: string,
+  force: boolean,
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    await regenerateBracket(categoryId, { force })
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath('/admin/partidos')
+    revalidatePath('/')
+    revalidatePath('/fixture')
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al regenerar bracket'
+    return { success: false, error: message }
+  }
+}
+
+export async function deleteBracketAction(
+  tournamentSlug: string,
+  categoryId: string,
+): Promise<ActionResult<{ count: number }>> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const count = await deleteBracket(categoryId)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    revalidatePath('/admin/partidos')
+    revalidatePath('/')
+    revalidatePath('/fixture')
+    return { success: true, data: { count } }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al eliminar bracket'
     return { success: false, error: message }
   }
 }

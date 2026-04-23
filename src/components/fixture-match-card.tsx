@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils'
+import { formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
@@ -16,12 +16,18 @@ interface FixtureMatchCardProps {
   match: {
     id: string
     status: string
+    stage?: string
     scheduledAt: Date | null
     courtNumber: number | null
-    player1: { firstName: string | null; lastName: string | null }
-    player2: { firstName: string | null; lastName: string | null }
-    player1Id: string
-    player2Id: string
+    player1: { firstName: string | null; lastName: string | null } | null
+    player2: { firstName: string | null; lastName: string | null } | null
+    player1Id: string | null
+    player2Id: string | null
+    player1SourceGroup?: { number: number } | null
+    player2SourceGroup?: { number: number } | null
+    player1SourcePosition?: number | null
+    player2SourcePosition?: number | null
+    bracketPosition?: number | null
     category: { name: string }
     group?: { id: string; number: number } | null
     result: {
@@ -50,6 +56,23 @@ interface FixtureMatchCardProps {
   currentPlayerSlug?: string
   /** Reservation info if the match has a pending reservation */
   reservation?: { scheduledAt: Date; courtNumber: number } | null
+  /** Fallback date when no scheduledAt (e.g. finalsDate for semis/final) */
+  fallbackDate?: Date | null
+}
+
+function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2'): string {
+  if (sourceGroupNumber != null && position != null) {
+    return `${position}° Grupo ${sourceGroupNumber}`
+  }
+  if (stage === 'SEMIFINAL' && bracketPosition != null) {
+    // SF1 recibe QF1 (player1) y QF2 (player2). SF2 recibe QF3 y QF4.
+    const qfNum = (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
+    return `Ganador QF${qfNum}`
+  }
+  if (stage === 'FINAL') {
+    return side === 'player1' ? 'Ganador Semifinal 1' : 'Ganador Semifinal 2'
+  }
+  return 'Por definir'
 }
 
 function PlayerName({
@@ -78,17 +101,30 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
-  const p1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-  const p2Name = fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+  const p1Name = match.player1
+    ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
+    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1')
+  const p2Name = match.player2
+    ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2')
+  const p1Defined = match.player1 != null
+  const p2Defined = match.player2 != null
 
   const isPlayed = match.status === 'PLAYED'
   const score = match.result ? formatMatchScore(match.result) : null
-  const winnerIs1 = match.result?.winnerId === match.player1Id
-  const winnerIs2 = match.result?.winnerId === match.player2Id
+  const winnerIs1 = match.result?.winnerId != null && match.result.winnerId === match.player1Id
+  const winnerIs2 = match.result?.winnerId != null && match.result.winnerId === match.player2Id
   const hasDateTime = !!match.scheduledAt
+  const showFallbackDate = !hasDateTime && !!fallbackDate && (match.stage === 'SEMIFINAL' || match.stage === 'FINAL')
+
+  const stageLabel = match.stage && match.stage !== 'GROUP'
+    ? (match.stage === 'QUARTERFINAL' ? 'Cuartos de final'
+      : match.stage === 'SEMIFINAL' ? `Semifinal${match.bracketPosition ? ' ' + match.bracketPosition : ''}`
+      : 'Final')
+    : null
 
   const badgeClass = "text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold"
   const statusBadge = match.status === 'PLAYED'
@@ -145,9 +181,9 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       {/* Row 1: Player1 vs Player2 + morning/afternoon icon */}
       <div className="flex items-center justify-between text-sm">
         <div>
-          <PlayerName name={p1Name} slug={player1Slug} isWinner={winnerIs1} isPlayed={isPlayed} />
+          <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
           <span className="text-muted-foreground mx-1.5 text-xs">vs</span>
-          <PlayerName name={p2Name} slug={player2Slug} isWinner={winnerIs2} isPlayed={isPlayed} />
+          <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
         </div>
         {match.result?.photoUrl
           ? <img src={blobUrl(match.result.photoUrl)} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
@@ -158,13 +194,13 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
           )}
       </div>
 
-      {/* Row 2: Category - Group (+ badge if no date/time) */}
+      {/* Row 2: Category - Group/Stage (+ badge if no date/time) */}
       <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>
           Categoría {match.category.name}
-          {match.group && ` - Grupo ${match.group.number}`}
+          {stageLabel ? ` - ${stageLabel}` : match.group && ` - Grupo ${match.group.number}`}
         </span>
-        {!hasDateTime && statusBadge}
+        {!hasDateTime && !showFallbackDate && statusBadge}
       </div>
 
       {/* Row 3: Date/Time - Court + badge (only if has date/time) */}
@@ -175,6 +211,16 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
             {court && ` - ${court.name}`}
           </span>
           {!isPlayed && statusBadge}
+        </div>
+      )}
+
+      {/* Row 3 (fallback): only date (e.g. finalsDate for SF/F without time) */}
+      {!hasDateTime && showFallbackDate && fallbackDate && (
+        <div className="mt-0.5 flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            <span className="font-bold text-foreground">{longDateUY(fallbackDate)}</span>
+          </span>
+          {statusBadge}
         </div>
       )}
 

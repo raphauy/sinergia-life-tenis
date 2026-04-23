@@ -98,8 +98,8 @@ export default async function JugadorProfilePage({ params }: Props) {
   // Build userId -> playerSlug map for linking
   const allUserIds = new Set<string>()
   for (const m of [...upcoming, ...recentPlayed]) {
-    allUserIds.add(m.player1Id)
-    allUserIds.add(m.player2Id)
+    if (m.player1Id) allUserIds.add(m.player1Id)
+    if (m.player2Id) allUserIds.add(m.player2Id)
   }
   const playerLinks = await prisma.player.findMany({
     where: { userId: { in: [...allUserIds] }, isActive: true },
@@ -152,8 +152,8 @@ export default async function JugadorProfilePage({ params }: Props) {
                 key={m.id}
                 match={m}
                 showDate
-                player1Slug={playerMap.get(m.player1Id)}
-                player2Slug={playerMap.get(m.player2Id)}
+                player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                 currentUserId={canAct ? userId ?? undefined : undefined}
                 currentPlayerSlug={canAct ? slug : undefined}
                 reservation={reservationMap.get(m.id)}
@@ -175,8 +175,8 @@ export default async function JugadorProfilePage({ params }: Props) {
                 key={m.id}
                 match={m}
                 showDate
-                player1Slug={playerMap.get(m.player1Id)}
-                player2Slug={playerMap.get(m.player2Id)}
+                player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
               />
             ))}
           </div>

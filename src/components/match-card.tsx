@@ -15,10 +15,10 @@ interface MatchCardProps {
     status: string
     scheduledAt: Date | null
     courtNumber: number | null
-    player1: { firstName: string | null; lastName: string | null }
-    player2: { firstName: string | null; lastName: string | null }
-    player1Id: string
-    player2Id: string
+    player1: { firstName: string | null; lastName: string | null } | null
+    player2: { firstName: string | null; lastName: string | null } | null
+    player1Id: string | null
+    player2Id: string | null
     group?: { id: string; number: number } | null
     result: {
       walkover: boolean
@@ -47,8 +47,12 @@ interface MatchCardProps {
 export function MatchCard({ match, player1LinkId, player2LinkId, coordinateHref, resultHref, currentUserId }: MatchCardProps) {
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
-  const p1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-  const p2Name = fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+  const p1Name = match.player1
+    ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
+    : 'Por definir'
+  const p2Name = match.player2
+    ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+    : 'Por definir'
 
   function getScore() {
     if (!match.result) return null

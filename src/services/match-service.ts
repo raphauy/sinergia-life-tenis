@@ -1,12 +1,14 @@
 import { prisma } from '@/lib/prisma'
-import type { MatchStatus } from '@prisma/client'
+import type { MatchStage, MatchStatus } from '@prisma/client'
 
 const matchIncludes = {
   player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   player2: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
-  tournament: { select: { id: true, name: true, matchFormat: true } },
+  tournament: { select: { id: true, name: true, matchFormat: true, finalsDate: true } },
   category: { select: { id: true, name: true } },
   group: { select: { id: true, number: true } },
+  player1SourceGroup: { select: { id: true, number: true } },
+  player2SourceGroup: { select: { id: true, number: true } },
   result: { include: { reportedBy: { select: { firstName: true, lastName: true } } } },
 } as const
 
@@ -40,6 +42,7 @@ export async function getMatches(filters?: {
   categoryId?: string
   groupId?: string
   status?: MatchStatus
+  stage?: MatchStage
 }) {
   return prisma.match.findMany({
     where: {
@@ -47,6 +50,7 @@ export async function getMatches(filters?: {
       ...(filters?.categoryId ? { categoryId: filters.categoryId } : {}),
       ...(filters?.groupId ? { groupId: filters.groupId } : {}),
       ...(filters?.status ? { status: filters.status } : {}),
+      ...(filters?.stage ? { stage: filters.stage } : {}),
     },
     include: matchIncludes,
     orderBy: { createdAt: 'desc' },
@@ -67,6 +71,9 @@ export async function confirmMatch(
   const match = await prisma.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'PENDING') throw new Error('Solo se pueden confirmar partidos pendientes')
+  if (!match.player1Id || !match.player2Id) {
+    throw new Error('El partido aún no tiene ambos jugadores definidos')
+  }
 
   return prisma.match.update({
     where: { id },
@@ -207,6 +214,9 @@ export async function getPendingMatches(tournamentId: string) {
     where: {
       tournamentId,
       status: 'PENDING',
+      // Exclude bracket slots that don't have both players assigned yet
+      player1Id: { not: null },
+      player2Id: { not: null },
     },
     select: {
       id: true,
@@ -214,6 +224,7 @@ export async function getPendingMatches(tournamentId: string) {
       player2: { select: { firstName: true, lastName: true } },
       category: { select: { name: true } },
       group: { select: { number: true } },
+      stage: true,
     },
     orderBy: { createdAt: 'desc' },
   })

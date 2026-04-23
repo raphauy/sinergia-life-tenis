@@ -31,6 +31,13 @@ enum MatchFormat {
   BEST_OF_THREE
 }
 
+enum MatchStage {
+  GROUP
+  QUARTERFINAL
+  SEMIFINAL
+  FINAL
+}
+
 enum ImportedPlayerStatus {
   PENDING
   PROCESSED
@@ -110,6 +117,7 @@ model Tournament {
   matchFormat MatchFormat  @default(SINGLE_SET)
   startDate   DateTime
   endDate     DateTime
+  finalsDate  DateTime?
   isActive    Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -150,6 +158,8 @@ model Group {
   category TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   players  Player[]
   matches  Match[]
+  bracketPlayer1Sources Match[] @relation("MatchPlayer1SourceGroup")
+  bracketPlayer2Sources Match[] @relation("MatchPlayer2SourceGroup")
 
   @@unique([categoryId, number])
   @@index([categoryId])
@@ -192,8 +202,14 @@ model Match {
   tournamentId String
   categoryId   String
   groupId      String?
-  player1Id    String
-  player2Id    String
+  stage        MatchStage  @default(GROUP)
+  bracketPosition Int?
+  player1Id    String?
+  player2Id    String?
+  player1SourceGroupId  String?
+  player1SourcePosition Int?
+  player2SourceGroupId  String?
+  player2SourcePosition Int?
   courtNumber  Int?
   scheduledAt  DateTime?
   status       MatchStatus @default(PENDING)
@@ -205,8 +221,10 @@ model Match {
   tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  player1    User               @relation("MatchPlayer1", fields: [player1Id], references: [id])
-  player2    User               @relation("MatchPlayer2", fields: [player2Id], references: [id])
+  player1    User?              @relation("MatchPlayer1", fields: [player1Id], references: [id])
+  player2    User?              @relation("MatchPlayer2", fields: [player2Id], references: [id])
+  player1SourceGroup Group?     @relation("MatchPlayer1SourceGroup", fields: [player1SourceGroupId], references: [id], onDelete: SetNull)
+  player2SourceGroup Group?     @relation("MatchPlayer2SourceGroup", fields: [player2SourceGroupId], references: [id], onDelete: SetNull)
   result      MatchResult?
   reservation SlotReservation?
 
@@ -216,6 +234,10 @@ model Match {
   @@index([player1Id])
   @@index([player2Id])
   @@index([status])
+  @@index([stage])
+  @@index([categoryId, stage])
+  @@index([player1SourceGroupId])
+  @@index([player2SourceGroupId])
   @@index([scheduledAt])
 }
 

@@ -9,14 +9,17 @@ export async function createReservation(data: {
   courtNumber: number
   reservedBy: string
 }) {
-  // Validate match is PENDING
+  // Validate match is PENDING and has both players assigned
   const match = await prisma.match.findUnique({
     where: { id: data.matchId },
-    select: { status: true, reservation: true },
+    select: { status: true, reservation: true, player1Id: true, player2Id: true },
   })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'PENDING') throw new Error('Solo se pueden reservar partidos pendientes')
   if (match.reservation) throw new Error('Este partido ya tiene una reserva activa')
+  if (!match.player1Id || !match.player2Id) {
+    throw new Error('El partido aún no tiene ambos jugadores definidos')
+  }
 
   // Check slot availability: no confirmed matches + no other reservations at same time
   const [matchCount, reservationCount] = await Promise.all([
@@ -116,13 +119,13 @@ export function mapReservationToCalendar(r: Awaited<ReturnType<typeof getReserva
     timeUY: formatTimeUY(r.scheduledAt),
     dateUY: formatDateUY(r.scheduledAt, 'yyyy-MM-dd'),
     courtNumber: r.courtNumber,
-    player1Name: fullName(r.match.player1.firstName, r.match.player1.lastName),
-    player2Name: fullName(r.match.player2.firstName, r.match.player2.lastName),
+    player1Name: r.match.player1 ? fullName(r.match.player1.firstName, r.match.player1.lastName) : '',
+    player2Name: r.match.player2 ? fullName(r.match.player2.firstName, r.match.player2.lastName) : '',
     categoryName: r.match.category.name,
     groupNumber: r.match.group?.number ?? null,
     reservedByName: r.user.firstName || 'Jugador',
-    player1Cedula: r.match.player1.cedula ?? null,
-    player2Cedula: r.match.player2.cedula ?? null,
+    player1Cedula: r.match.player1?.cedula ?? null,
+    player2Cedula: r.match.player2?.cedula ?? null,
   }
 }
 

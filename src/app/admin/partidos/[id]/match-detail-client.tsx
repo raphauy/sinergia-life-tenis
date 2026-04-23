@@ -20,19 +20,21 @@ import { toast } from 'sonner'
 import { COURTS, TIME_SLOTS } from '@/lib/constants'
 import { MatchResultForm } from '@/components/match-result-form'
 import { confirmMatchAction, rescheduleMatchAction, cancelMatchAction, adminLoadResultAction } from '../actions'
-import type { MatchFormat, MatchStatus } from '@prisma/client'
+import type { MatchFormat, MatchStage, MatchStatus } from '@prisma/client'
 
 interface Props {
   matchId: string
   status: MatchStatus
+  stage?: MatchStage
   matchFormat: MatchFormat
-  player1Id: string
-  player2Id: string
+  player1Id: string | null
+  player2Id: string | null
   player1Name: string
   player2Name: string
   hasResult: boolean
   scheduledAt?: string | null
   courtNumber?: number | null
+  finalsDate?: string | null
   result?: {
     walkover?: boolean
     set1Player1: number
@@ -52,6 +54,7 @@ interface Props {
 export function MatchDetailClient({
   matchId,
   status,
+  stage,
   matchFormat,
   player1Id,
   player2Id,
@@ -60,11 +63,14 @@ export function MatchDetailClient({
   hasResult,
   scheduledAt,
   courtNumber,
+  finalsDate,
   result,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [confirmDate, setConfirmDate] = useState<Date | undefined>()
+  const isFinalsStage = stage === 'SEMIFINAL' || stage === 'FINAL'
+  const initialConfirmDate = isFinalsStage && finalsDate ? new Date(finalsDate) : undefined
+  const [confirmDate, setConfirmDate] = useState<Date | undefined>(initialConfirmDate)
   const [confirmCourt, setConfirmCourt] = useState('2')
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(
     scheduledAt ? new Date(scheduledAt) : undefined
@@ -271,7 +277,7 @@ export function MatchDetailClient({
       )}
 
       {/* Result form */}
-      {(status === 'CONFIRMED' || status === 'PLAYED') && (
+      {(status === 'CONFIRMED' || status === 'PLAYED') && player1Id && player2Id && (
         <div className="rounded-lg border p-4">
           <h2 className="font-semibold mb-3">
             {hasResult ? 'Editar resultado' : 'Cargar resultado'}

@@ -17,6 +17,7 @@ interface MatchConfirmationEmailProps {
   date: string
   time: string
   courtName: string
+  stageLabel?: string
 }
 
 export default function MatchConfirmationEmail({
@@ -26,6 +27,7 @@ export default function MatchConfirmationEmail({
   date,
   time,
   courtName,
+  stageLabel,
 }: MatchConfirmationEmailProps) {
   return (
     <Html>
@@ -40,7 +42,15 @@ export default function MatchConfirmationEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Tu partido contra <strong>{rivalName}</strong> en el torneo <strong>{tournamentName}</strong> ha sido confirmado:
+            {stageLabel ? (
+              <>
+                Tu partido de <strong>{stageLabel}</strong> contra <strong>{rivalName}</strong> en el torneo <strong>{tournamentName}</strong> ha sido confirmado:
+              </>
+            ) : (
+              <>
+                Tu partido contra <strong>{rivalName}</strong> en el torneo <strong>{tournamentName}</strong> ha sido confirmado:
+              </>
+            )}
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>

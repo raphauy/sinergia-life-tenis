@@ -32,6 +32,14 @@ export function friendlyDateTimeUY(date: Date): string {
   return `${format(dateUY, 'dd/MM')} ${time}`
 }
 
+/** Formatea fecha en español como "Sábado 9 de mayo" (sin año) */
+export function longDateUY(date: Date): string {
+  const dateUY = toZonedTime(date, TIMEZONE)
+  const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+  return `${days[dateUY.getDay()]} ${dateUY.getDate()} de ${months[dateUY.getMonth()]}`
+}
+
 /** Convertir input UY → UTC para guardar en BD */
 export function parseFromUY(dateStr: string, timeStr: string): Date {
   const dateTimeStr = `${dateStr}T${timeStr}:00`

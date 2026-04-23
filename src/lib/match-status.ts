@@ -11,3 +11,15 @@ export const MATCH_STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'ou
   PLAYED: 'success',
   CANCELLED: 'destructive',
 }
+
+export const MATCH_STAGE_LABELS: Record<string, string> = {
+  GROUP: 'Fase de grupos',
+  QUARTERFINAL: 'Cuartos de final',
+  SEMIFINAL: 'Semifinal',
+  FINAL: 'Final',
+}
+
+export function stageLabel(stage: string | null | undefined): string | undefined {
+  if (!stage || stage === 'GROUP') return undefined
+  return MATCH_STAGE_LABELS[stage]
+}

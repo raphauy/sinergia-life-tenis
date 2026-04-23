@@ -82,14 +82,15 @@ export async function sendMatchConfirmationEmail(input: {
   date: string
   time: string
   courtName: string
+  stageLabel?: string
 }) {
-  console.log(`[EMAIL] Match confirmation to ${input.to} - ${input.playerName} vs ${input.rivalName} - ${input.date} ${input.time}`)
+  console.log(`[EMAIL] Match confirmation to ${input.to} - ${input.playerName} vs ${input.rivalName} - ${input.date} ${input.time}${input.stageLabel ? ` (${input.stageLabel})` : ''}`)
   if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: `Partido confirmado - ${input.tournamentName} - Life Tenis`,
+    subject: `${input.stageLabel ? `${input.stageLabel} confirmada` : 'Partido confirmado'} - ${input.tournamentName} - Life Tenis`,
     react: MatchConfirmationEmail({
       playerName: input.playerName,
       rivalName: input.rivalName,
@@ -97,6 +98,7 @@ export async function sendMatchConfirmationEmail(input: {
       date: input.date,
       time: input.time,
       courtName: input.courtName,
+      stageLabel: input.stageLabel,
     }),
   })
 }

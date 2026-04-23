@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth'
 import { getMonthMatches, confirmMatch, getPendingMatches, updateMatchCourt } from '@/services/match-service'
 import { fullName } from '@/lib/format-name'
+import { stageLabel } from '@/lib/match-status'
 import { formatDateUY, formatTimeUY, parseFromUY } from '@/lib/date-utils'
 import { sendMatchConfirmationEmail } from '@/services/email-service'
 import { COURTS } from '@/lib/constants'
@@ -30,8 +31,8 @@ export async function fetchMonthMatchesAdminAction(
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1.firstName, m.player1.lastName),
-    player2Name: fullName(m.player2.firstName, m.player2.lastName),
+    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
+    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
     categoryName: m.category.name,
     groupNumber: m.group?.number ?? null,
   }))
@@ -57,16 +58,16 @@ export async function searchPendingMatchesAction(
   const q = query.toLowerCase().trim()
   const filtered = q
     ? matches.filter((m) => {
-        const p1 = fullName(m.player1.firstName, m.player1.lastName).toLowerCase()
-        const p2 = fullName(m.player2.firstName, m.player2.lastName).toLowerCase()
+        const p1 = fullName(m.player1?.firstName, m.player1?.lastName).toLowerCase()
+        const p2 = fullName(m.player2?.firstName, m.player2?.lastName).toLowerCase()
         return p1.includes(q) || p2.includes(q)
       })
     : matches
 
   return filtered.slice(0, 10).map((m) => ({
     id: m.id,
-    player1Name: fullName(m.player1.firstName, m.player1.lastName),
-    player2Name: fullName(m.player2.firstName, m.player2.lastName),
+    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
+    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
     categoryName: m.category.name,
     groupNumber: m.group?.number ?? null,
   }))
@@ -91,26 +92,32 @@ export async function confirmMatchFromCalendarAction(
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
-    const emailPromises = [
-      sendMatchConfirmationEmail({
+    const label = stageLabel(match.stage)
+    const emailPromises = []
+    if (match.player1?.email) {
+      emailPromises.push(sendMatchConfirmationEmail({
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
-        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-      sendMatchConfirmationEmail({
+        stageLabel: label,
+      }))
+    }
+    if (match.player2?.email) {
+      emailPromises.push(sendMatchConfirmationEmail({
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
-        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-    ]
+        stageLabel: label,
+      }))
+    }
     await Promise.allSettled(emailPromises)
 
     revalidatePath('/admin')
@@ -183,26 +190,33 @@ export async function confirmReservationAction(
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
-    await Promise.allSettled([
-      sendMatchConfirmationEmail({
+    const confirmLabel = stageLabel(match.stage)
+    const confirmEmails = []
+    if (match.player1?.email) {
+      confirmEmails.push(sendMatchConfirmationEmail({
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
-        rivalName: fullName(match.player2.firstName, match.player2.lastName) || 'Rival',
+        rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-      sendMatchConfirmationEmail({
+        stageLabel: confirmLabel,
+      }))
+    }
+    if (match.player2?.email) {
+      confirmEmails.push(sendMatchConfirmationEmail({
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
-        rivalName: fullName(match.player1.firstName, match.player1.lastName) || 'Rival',
+        rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
         tournamentName: match.tournament.name,
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
-      }),
-    ])
+        stageLabel: confirmLabel,
+      }))
+    }
+    await Promise.allSettled(confirmEmails)
 
     revalidatePath('/admin')
     revalidatePath('/admin/partidos')

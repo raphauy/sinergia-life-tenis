@@ -10,7 +10,7 @@ import { COURTS, TIMEZONE } from '@/lib/constants'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { BackButton } from '@/components/back-button'
-import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
+import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS, stageLabel } from '@/lib/match-status'
 import { blobUrl } from '@/lib/blob-url'
 import { auth } from '@/lib/auth'
 import { toZonedTime } from 'date-fns-tz'
@@ -28,8 +28,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const match = await getMatchById(id)
   if (!match) return { title: 'Partido no encontrado' }
 
-  const p1 = fullName(match.player1.firstName, match.player1.lastName)
-  const p2 = fullName(match.player2.firstName, match.player2.lastName)
+  const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
+  const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
   const title = `${p1} vs ${p2} - ${match.tournament.name}`
   const description = `${p1} vs ${p2} - Categoría ${match.category.name} - ${match.tournament.name}`
 
@@ -42,18 +42,19 @@ export default async function PartidoPublicPage({ params }: Props) {
   const match = await getMatchById(id)
   if (!match) notFound()
 
-  const p1Name = fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-  const p2Name = fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+  const p1Name = fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'
+  const p2Name = fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Get player slugs for linking
+  const userIdsForLookup = [match.player1Id, match.player2Id].filter((id): id is string => !!id)
   const playerSlugs = await prisma.player.findMany({
-    where: { userId: { in: [match.player1Id, match.player2Id] }, isActive: true },
+    where: { userId: { in: userIdsForLookup }, isActive: true },
     select: { slug: true, userId: true },
   })
   const slugMap = new Map(playerSlugs.map((p) => [p.userId, p.slug]))
-  const p1Slug = slugMap.get(match.player1Id)
-  const p2Slug = slugMap.get(match.player2Id)
+  const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
+  const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
 
   // Check if logged-in user is a participant
   const session = await auth()
@@ -86,9 +87,11 @@ export default async function PartidoPublicPage({ params }: Props) {
           </div>
           <div className="flex items-center gap-1.5 mt-1">
             <CategoryBadge name={match.category.name} />
-            {match.group && (
+            {stageLabel(match.stage) ? (
+              <Badge variant="secondary-outline">{stageLabel(match.stage)}</Badge>
+            ) : match.group ? (
               <Badge variant="secondary-outline">Grupo {match.group.number}</Badge>
-            )}
+            ) : null}
           </div>
         </div>
 

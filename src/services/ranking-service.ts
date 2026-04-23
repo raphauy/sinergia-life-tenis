@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
 import { fullName } from '@/lib/format-name'
-import type { Match, MatchResult } from '@prisma/client'
+import type { Match, MatchResult, Prisma } from '@prisma/client'
+
+type Tx = Prisma.TransactionClient
 
 export interface RankingEntry {
   position: number
@@ -11,6 +13,7 @@ export interface RankingEntry {
     name: string
     image: string | null
   }
+  userId: string
   pj: number // partidos jugados
   pg: number // partidos ganados
   gamesFor: number
@@ -20,6 +23,17 @@ export interface RankingEntry {
 }
 
 type MatchWithResult = Match & { result: MatchResult | null }
+
+function headToHeadWinner(a: string, b: string, matches: MatchWithResult[]): string | null {
+  for (const m of matches) {
+    if (!m.result) continue
+    const pair = [m.player1Id, m.player2Id]
+    if (pair.includes(a) && pair.includes(b)) {
+      return m.result.winnerId
+    }
+  }
+  return null
+}
 
 function computeRanking(
   players: { id: string; slug: string; userId: string; displayName: string; image: string | null }[],
@@ -73,6 +87,7 @@ function computeRanking(
         name: p.displayName,
         image: blobUrl(p.image) || null,
       },
+      userId,
       pj: playerMatches.filter((m) => m.result).length,
       pg,
       gamesFor,
@@ -82,11 +97,16 @@ function computeRanking(
     }
   })
 
-  // Sort by points desc, then pg desc, then games diff desc, then name asc
+  // Sort by points desc, then pg desc, then games diff desc, then head-to-head, then name asc
   entries.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points
     if (b.pg !== a.pg) return b.pg - a.pg
     if (b.gamesDiff !== a.gamesDiff) return b.gamesDiff - a.gamesDiff
+
+    const h2h = headToHeadWinner(a.userId, b.userId, matches)
+    if (h2h === a.userId) return -1
+    if (h2h === b.userId) return 1
+
     return a.player.name.localeCompare(b.player.name)
   })
 
@@ -98,16 +118,17 @@ function computeRanking(
   return entries
 }
 
-export async function getRankingByCategory(categoryId: string): Promise<RankingEntry[]> {
-  const players = await prisma.player.findMany({
+export async function getRankingByCategory(categoryId: string, tx?: Tx): Promise<RankingEntry[]> {
+  const client = tx ?? prisma
+  const players = await client.player.findMany({
     where: { categoryId, isActive: true, userId: { not: null } },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },
   })
 
-  const matches = await prisma.match.findMany({
-    where: { categoryId, status: 'PLAYED' },
+  const matches = await client.match.findMany({
+    where: { categoryId, status: 'PLAYED', stage: 'GROUP' },
     include: { result: true },
   })
 
@@ -125,21 +146,22 @@ export async function getRankingByCategory(categoryId: string): Promise<RankingE
   )
 }
 
-export async function getRankingByGroup(groupId: string): Promise<RankingEntry[]> {
-  const group = await prisma.group.findUniqueOrThrow({
+export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<RankingEntry[]> {
+  const client = tx ?? prisma
+  const group = await client.group.findUniqueOrThrow({
     where: { id: groupId },
     select: { categoryId: true },
   })
 
-  const players = await prisma.player.findMany({
+  const players = await client.player.findMany({
     where: { groupId, isActive: true, userId: { not: null } },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
     },
   })
 
-  const matches = await prisma.match.findMany({
-    where: { groupId, categoryId: group.categoryId, status: 'PLAYED' },
+  const matches = await client.match.findMany({
+    where: { groupId, categoryId: group.categoryId, status: 'PLAYED', stage: 'GROUP' },
     include: { result: true },
   })
 
