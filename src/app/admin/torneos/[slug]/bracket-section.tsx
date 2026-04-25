@@ -68,13 +68,18 @@ function playerLabel(
   stage: string,
   bracketPosition: number | null,
   side: 'player1' | 'player2',
+  qfCount: number,
 ): string {
   if (player) return fullName(player.firstName, player.lastName) || 'Jugador'
   if (sourceGroup && sourcePosition) {
     return `${sourcePosition}° Grupo ${sourceGroup.number}`
   }
   if (stage === 'SEMIFINAL' && bracketPosition != null) {
-    const qfNum = (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
+    // Formato 4 QFs: QF1+QF2→SF1, QF3+QF4→SF2. Formato 2 QFs (3 grupos): QF1→SF1, QF2→SF2.
+    const qfNum =
+      qfCount === 2
+        ? bracketPosition
+        : (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
     return `Ganador QF${qfNum}`
   }
   if (stage === 'FINAL') {
@@ -95,9 +100,11 @@ function StageRoundHeader({ stage, matches }: { stage: string; matches: BracketM
 function BracketMatchRow({
   match,
   tournamentSlug,
+  qfCount,
 }: {
   match: BracketMatchView
   tournamentSlug: string
+  qfCount: number
 }) {
   const p1 = playerLabel(
     match.player1,
@@ -106,6 +113,7 @@ function BracketMatchRow({
     match.stage,
     match.bracketPosition,
     'player1',
+    qfCount,
   )
   const p2 = playerLabel(
     match.player2,
@@ -114,6 +122,7 @@ function BracketMatchRow({
     match.stage,
     match.bracketPosition,
     'player2',
+    qfCount,
   )
   const posLabel = match.bracketPosition != null
     ? match.stage === 'QUARTERFINAL' ? `QF${match.bracketPosition}` : match.stage === 'SEMIFINAL' ? `SF${match.bracketPosition}` : 'F'
@@ -288,7 +297,7 @@ function CategoryBracketCard({
                 <StageRoundHeader stage="QUARTERFINAL" matches={qfs} />
                 <div className="space-y-1">
                   {qfs.map((m) => (
-                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} />
+                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
                   ))}
                 </div>
               </div>
@@ -298,7 +307,7 @@ function CategoryBracketCard({
                 <StageRoundHeader stage="SEMIFINAL" matches={sfs} />
                 <div className="space-y-1">
                   {sfs.map((m) => (
-                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} />
+                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
                   ))}
                 </div>
               </div>
@@ -307,7 +316,7 @@ function CategoryBracketCard({
               <div>
                 <StageRoundHeader stage="FINAL" matches={[final]} />
                 <div className="space-y-1">
-                  <BracketMatchRow match={final} tournamentSlug={tournamentSlug} />
+                  <BracketMatchRow match={final} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
                 </div>
               </div>
             )}

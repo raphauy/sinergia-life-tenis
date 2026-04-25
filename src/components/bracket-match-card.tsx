@@ -50,6 +50,7 @@ interface Props {
   reservation?: { scheduledAt: Date; courtNumber: number } | null
   fallbackDate?: Date | null
   accent?: 'default' | 'final'
+  qfCount?: number
 }
 
 function placeholderSlot(
@@ -58,12 +59,17 @@ function placeholderSlot(
   stage: string,
   bracketPosition: number | null,
   side: 'player1' | 'player2',
+  qfCount: number,
 ): string {
   if (sourceGroupNumber != null && position != null) {
     return `${position}° Grupo ${sourceGroupNumber}`
   }
   if (stage === 'SEMIFINAL' && bracketPosition != null) {
-    const qfNum = (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
+    // 4-QF format: SF1←QF1+QF2, SF2←QF3+QF4. 2-QF format (3 grupos): SF1←QF1, SF2←QF2.
+    const qfNum =
+      qfCount === 2
+        ? bracketPosition
+        : (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
     return `Ganador QF${qfNum}`
   }
   if (stage === 'FINAL') {
@@ -111,6 +117,7 @@ export function BracketMatchCard({
   reservation,
   fallbackDate,
   accent = 'default',
+  qfCount = 4,
 }: Props) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
@@ -119,10 +126,10 @@ export function BracketMatchCard({
   const p2Defined = match.player2 != null
   const p1Name = p1Defined
     ? fullName(match.player1!.firstName, match.player1!.lastName) || 'Jugador 1'
-    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1')
+    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1', qfCount)
   const p2Name = p2Defined
     ? fullName(match.player2!.firstName, match.player2!.lastName) || 'Jugador 2'
-    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2')
+    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2', qfCount)
 
   const isPlayed = match.status === 'PLAYED'
   const score = match.result ? formatMatchScore(match.result) : null

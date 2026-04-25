@@ -71,6 +71,7 @@ function MatchPair({
   reservationMap,
   fallbackDate,
   accent,
+  qfCount,
 }: {
   matches: BracketViewMatch[]
   label: string
@@ -80,6 +81,7 @@ function MatchPair({
   reservationMap?: Map<string, { scheduledAt: Date; courtNumber: number }>
   fallbackDate?: Date | null
   accent?: 'default' | 'final'
+  qfCount: number
 }) {
   return (
     <div className="flex items-stretch">
@@ -95,6 +97,7 @@ function MatchPair({
             reservation={reservationMap?.get(m.id)}
             fallbackDate={fallbackDate}
             accent={accent}
+            qfCount={qfCount}
           />
         ))}
       </div>
@@ -118,6 +121,7 @@ export function BracketView({
 
   const qfGroups = groupQFsBySemi(quarterfinals)
   const sortedSemis = [...semifinals].sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0))
+  const qfCount = quarterfinals.length
 
   return (
     <section className="space-y-3">
@@ -143,6 +147,7 @@ export function BracketView({
                   currentUserId={currentUserId}
                   currentPlayerSlug={currentPlayerSlug}
                   reservationMap={reservationMap}
+                  qfCount={qfCount}
                 />
               ))}
             </div>
@@ -163,6 +168,7 @@ export function BracketView({
               currentPlayerSlug={currentPlayerSlug}
               reservationMap={reservationMap}
               fallbackDate={finalsDate}
+              qfCount={qfCount}
             />
           </div>
         )}

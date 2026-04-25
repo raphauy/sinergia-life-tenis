@@ -5,7 +5,13 @@ const matchIncludes = {
   player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   player2: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   tournament: { select: { id: true, name: true, matchFormat: true, finalsDate: true } },
-  category: { select: { id: true, name: true } },
+  category: {
+    select: {
+      id: true,
+      name: true,
+      _count: { select: { matches: { where: { stage: 'QUARTERFINAL' } } } },
+    },
+  },
   group: { select: { id: true, number: true } },
   player1SourceGroup: { select: { id: true, number: true } },
   player2SourceGroup: { select: { id: true, number: true } },

@@ -28,7 +28,7 @@ interface FixtureMatchCardProps {
     player1SourcePosition?: number | null
     player2SourcePosition?: number | null
     bracketPosition?: number | null
-    category: { name: string }
+    category: { name: string; _count?: { matches: number } }
     group?: { id: string; number: number } | null
     result: {
       walkover: boolean
@@ -60,13 +60,16 @@ interface FixtureMatchCardProps {
   fallbackDate?: Date | null
 }
 
-function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2'): string {
+function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number): string {
   if (sourceGroupNumber != null && position != null) {
     return `${position}° Grupo ${sourceGroupNumber}`
   }
   if (stage === 'SEMIFINAL' && bracketPosition != null) {
-    // SF1 recibe QF1 (player1) y QF2 (player2). SF2 recibe QF3 y QF4.
-    const qfNum = (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
+    // 4 QFs: QF1+QF2→SF1, QF3+QF4→SF2. 2 QFs (3 grupos): QF1→SF1, QF2→SF2.
+    const qfNum =
+      qfCount === 2
+        ? bracketPosition
+        : (bracketPosition - 1) * 2 + (side === 'player1' ? 1 : 2)
     return `Ganador QF${qfNum}`
   }
   if (stage === 'FINAL') {
@@ -104,12 +107,13 @@ function PlayerName({
 export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
+  const qfCount = match.category._count?.matches ?? 4
   const p1Name = match.player1
     ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1')
+    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1', qfCount)
   const p2Name = match.player2
     ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
-    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2')
+    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2', qfCount)
   const p1Defined = match.player1 != null
   const p2Defined = match.player2 != null
 

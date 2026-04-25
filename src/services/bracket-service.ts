@@ -368,15 +368,19 @@ async function insertQFsAndSFs3Groups(
   // seconds: [best, 2nd best, worst]
   //
   // Mejores 1ºs directos a semis: firsts[0], firsts[1]
-  // QF1 (débil): 3º mejor 1º vs peor 2º        (firsts[2] vs seconds[2])
-  // QF2 (fuerte): 2º mejor 2º vs mejor 2º      (seconds[1] vs seconds[0])
-  //   (estos son los otros dos segundos)
+  // QF1 (débil — todos 2ºs): mejor 2º vs 2º mejor 2º    (seconds[0] vs seconds[1])
+  // QF2 (fuerte — mixta): 3º mejor 1º vs peor 2º         (firsts[2] vs seconds[2])
+  //
+  // Razón: el ganador esperado de QF2 es el 1º de grupo (firsts[2]); el de QF1
+  // es siempre un 2º. Por equidad, el mejor 1º (firsts[0], que tiene bye) cruza
+  // con la QF de menor jerarquía esperada (la de dos 2ºs). El 2º mejor 1º
+  // (firsts[1]) cruza con la QF que probablemente le mande otro 1º.
   //
   // SF1: firsts[0] (directo, player1) vs ganador QF1 (player2, se llena por propagateWinner)
   // SF2: firsts[1] (directo, player1) vs ganador QF2 (player2)
   // Final: ganador SF1 (player1) vs ganador SF2 (player2)
 
-  // QF1: débil
+  // QF1: débil (dos 2ºs)
   await tx.match.create({
     data: {
       tournamentId,
@@ -384,12 +388,12 @@ async function insertQFsAndSFs3Groups(
       stage: 'QUARTERFINAL',
       bracketPosition: 1,
       status: 'PENDING',
-      ...slotAsMatchSide(firsts[2], 'player1'),
-      ...slotAsMatchSide(seconds[2], 'player2'),
+      ...slotAsMatchSide(seconds[0], 'player1'),
+      ...slotAsMatchSide(seconds[1], 'player2'),
     },
   })
 
-  // QF2: fuerte
+  // QF2: fuerte (mixta: 1º vs 2º)
   await tx.match.create({
     data: {
       tournamentId,
@@ -397,8 +401,8 @@ async function insertQFsAndSFs3Groups(
       stage: 'QUARTERFINAL',
       bracketPosition: 2,
       status: 'PENDING',
-      ...slotAsMatchSide(seconds[1], 'player1'),
-      ...slotAsMatchSide(seconds[0], 'player2'),
+      ...slotAsMatchSide(firsts[2], 'player1'),
+      ...slotAsMatchSide(seconds[2], 'player2'),
     },
   })
 
