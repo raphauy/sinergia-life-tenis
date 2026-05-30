@@ -8,7 +8,7 @@ Liga permanente de desafíos sobre un ranking ELO único. Diseño completo en [`
 
 ## Fase 1 — Fundación + escalera visible
 
-**Estado:** pendiente
+**Estado:** ✅ terminada
 
 **Objetivo:** Dejar la escalera única viva y visible (read-only), con los ~41 del primer torneo sembrados, y la migración polimórfica de `Match` ya absorbida por el código existente. De-riesga lo más caro (la migración) antes de construir lógica encima.
 
