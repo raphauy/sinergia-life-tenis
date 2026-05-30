@@ -91,5 +91,44 @@ _Código_: `SlotReservation` (1–1 con `Match`).
 ### Ranking
 
 **Ranking**:
-Tabla pública de posiciones por **Categoría** del torneo activo. El cálculo de puntos del MVP está pendiente de definición con Mati. La futura feature **La Escalera** introduce un ranking permanente tipo ELO (ver `docs/new-features/la-escalera-propuesta.md`); sus términos se cierran en `grill-me` cuando se diseñe el PRP.
+Tabla pública de posiciones por **Categoría** del torneo activo. El cálculo de puntos del MVP está pendiente de definición con Mati. La feature **La Escalera** introduce un ranking permanente tipo ELO (ver sección **La Escalera** abajo).
 _Código_: `ranking-service.ts`.
+
+## La Escalera (liga permanente)
+
+> Feature post-MVP. Diseño en `docs/PRPs/la-escalera-prp.md`. Decisión de fondo (cerrada): **una sola escalera** + **ELO suma-cero (K=24)** + **penalización mensual por inactividad**.
+
+**La Escalera**:
+Liga permanente de desafíos: **no es un Torneo** (no tiene fin ni campeón). Una **única** lista ordenada por **Rating** (las **Categorías** A/B/C del primer torneo dejan de usarse como agrupación competitiva; solo sirven para el seed inicial). Premia compromiso + habilidad. Pasa a ser el módulo principal de la app.
+_Código_: `Ladder` (una sola fila por ahora; entidad propia para soportar config/futuro).
+_Evitar_: "torneo" para La Escalera — es un modelo aparte. "liga"/"ranking vivo"/"desafíos" como sinónimos sueltos: usar **La Escalera**.
+
+**Miembro**:
+Inscripción permanente de un **Usuario** a **La Escalera**, con un **Rating**. Requiere `User` (cuenta): no se puede retar/jugar sin cuenta. Cardinalidad: uno por (escalera, usuario). Lo agrega un admin (sin auto-registro público). Puede quedar inactivo sin perder su Rating.
+_Código_: `LadderMember`.
+_UI_: al usuario se le dice **«jugador»** ("jugador de La Escalera"). La distinción Miembro/Jugador se mantiene solo en **código** (`LadderMember` vs `Player`); el contexto desambigua para el usuario final.
+_Evitar_: en código, confundir `LadderMember` con `Player` (inscripción a un **Torneo**). Un Miembro es de La Escalera; un Player es de un Torneo.
+
+**Reto**:
+Desafío de un **Miembro** (retador) a otro (retado) dentro de **La Escalera**. Se puede retar a cualquiera. Estados: `PROPUESTO` → `ACEPTADO` | `RECHAZADO` | `EXPIRADO` (no respondió en la ventana) | `CANCELADO` (retirado por el retador antes de respuesta). Rechazar es libre (no penaliza). El Reto **no** lleva fecha/cancha; al `ACEPTADO` genera un **Partido de escalera**. Hay un cap chico de retos abiertos en simultáneo por persona.
+_Código_: `Challenge` (1–1 con `Match` una vez aceptado).
+_Evitar_: "desafío" suelto en código — usar `Challenge`.
+
+**Rating**:
+Puntaje ELO de un **Miembro**; su orden define el puesto en **La Escalera**. Suma-cero (lo que gana uno lo pierde el otro), `K=24` de arranque. Baja por inactividad (penalización mensual). Seed inicial desde el primer torneo: −20 puntos por puesto, A>B>C (1500→700).
+_Código_: `LadderMember.rating` (+ historial para gráficos y "jugador de la semana").
+_UI_: al usuario se le muestra como **«ranking»** (uso coloquial uruguayo: "tengo 1500 de ranking"). En código sigue siendo `rating`.
+_Evitar_: llamarlo "puntos" sin contexto — choca con los "puntos" del **Ranking** del torneo (que hoy es `pg`). En La Escalera, "puntos"/"ranking" = **Rating** ELO.
+
+**Partido de escalera**:
+Un **Partido** (`Match`) generado por un **Reto** aceptado. Reusa el ciclo `PENDING → CONFIRMED → PLAYED | CANCELLED` y la **Reserva de slot**. A diferencia de un partido de torneo, `tournamentId`/`categoryId` van **nulos** y el partido se vincula a la escalera/reto (`Match` pasa a ser polimórfico: torneo **o** escalera).
+_Código_: `Match` con `tournamentId`/`categoryId` nullable + vínculo a `Challenge`.
+
+**Siembra**:
+Acto **único** de poblar **La Escalera** por primera vez a partir del **resultado final del 1er Torneo**. El admin recibe un orden 1‑N propuesto (ganador de la final de cada categoría arriba, luego por ronda de bracket alcanzada, empates de ronda desempatados por ranking de grupos, categorías A→B→C) sobre **todos** los inscriptos del torneo; lo reordena/quita gente y lo **bloquea** en una sola transacción que crea los **Miembros**, sus **Rating** iniciales (−`seedStep` por puesto desde `seedBaseRating`) y la fila de historial inicial. Mientras la escalera no tenga partidos, se puede **re-sembrar** (reset).
+_Código_: acción de admin sobre `Ladder`/`LadderMember`; `RatingHistory` reason `SEED`.
+_Evitar_: "importar" / "migrar jugadores" — es **Siembra**.
+
+**Acceso prioritario a reserva**:
+Beneficio central de La Escalera: un **Miembro** activo puede reservar cancha con **anticipación** (vía nuestra app), mientras el socio común solo el día anterior (app del club). Es **binario por participar** (no depende del puesto): el #1 y el último tienen el mismo acceso. Se pierde si se cae la actividad (no llega al mínimo mensual). Hoy la reserva es **semiautomática** (el Miembro la pide, Mati la carga en la app del club y confirma).
+_Código_: reusa `SlotReservation` + flujo `PENDING → CONFIRMED`.

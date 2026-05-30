@@ -2,7 +2,7 @@ import { BracketMatchCard, type BracketMatchCardMatch } from '@/components/brack
 import { Trophy } from 'lucide-react'
 
 export type BracketViewMatch = BracketMatchCardMatch & {
-  category: { name: string }
+  category: { name: string } | null
   group?: { id: string; number: number } | null
 }
 

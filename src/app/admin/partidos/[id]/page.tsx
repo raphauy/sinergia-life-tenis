@@ -30,7 +30,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <Badge variant={MATCH_STATUS_VARIANTS[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>
         </div>
         <p className="text-sm text-muted-foreground">
-          {match.tournament.name} — Categoría {match.category.name}
+          {match.tournament?.name} — Categoría {match.category?.name}
           {formatStageLabel(match.stage) && ` — ${formatStageLabel(match.stage)}`}
         </p>
         {match.scheduledAt && (
@@ -68,7 +68,7 @@ export default async function MatchDetailPage({ params }: Props) {
         matchId={match.id}
         status={match.status}
         stage={match.stage}
-        matchFormat={match.tournament.matchFormat}
+        matchFormat={match.tournament?.matchFormat ?? 'SINGLE_SET'}
         player1Id={match.player1Id}
         player2Id={match.player2Id}
         player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}
@@ -76,7 +76,7 @@ export default async function MatchDetailPage({ params }: Props) {
         hasResult={!!match.result}
         scheduledAt={match.scheduledAt?.toISOString()}
         courtNumber={match.courtNumber}
-        finalsDate={match.tournament.finalsDate?.toISOString() ?? null}
+        finalsDate={match.tournament?.finalsDate?.toISOString() ?? null}
         result={
           match.result
             ? {

@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
   const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
-  const title = `${p1} vs ${p2} - ${match.tournament.name}`
-  const description = `${p1} vs ${p2} - Categoría ${match.category.name} - ${match.tournament.name}`
+  const title = `${p1} vs ${p2} - ${match.tournament?.name ?? ''}`
+  const description = `${p1} vs ${p2} - Categoría ${match.category?.name ?? ''} - ${match.tournament?.name ?? ''}`
 
   return { title, description, openGraph: { title, description } }
 }
@@ -80,13 +80,13 @@ export default async function PartidoPublicPage({ params }: Props) {
         {/* Tournament & category header */}
         <div className="mb-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">{match.tournament.name}</h1>
+            <h1 className="text-lg font-bold">{match.tournament?.name}</h1>
             <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'} className="text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold">
               {MATCH_STATUS_LABELS[match.status] || match.status}
             </Badge>
           </div>
           <div className="flex items-center gap-1.5 mt-1">
-            <CategoryBadge name={match.category.name} />
+            <CategoryBadge name={match.category?.name ?? ''} />
             {stageLabel(match.stage) ? (
               <Badge variant="secondary-outline">{stageLabel(match.stage)}</Badge>
             ) : match.group ? (

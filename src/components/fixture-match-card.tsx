@@ -28,7 +28,7 @@ interface FixtureMatchCardProps {
     player1SourcePosition?: number | null
     player2SourcePosition?: number | null
     bracketPosition?: number | null
-    category: { name: string; _count?: { matches: number } }
+    category: { name: string; _count?: { matches: number } } | null
     group?: { id: string; number: number } | null
     result: {
       walkover: boolean
@@ -107,7 +107,7 @@ function PlayerName({
 export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
-  const qfCount = match.category._count?.matches ?? 4
+  const qfCount = match.category?._count?.matches ?? 4
   const p1Name = match.player1
     ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
     : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1', qfCount)
@@ -201,7 +201,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       {/* Row 2: Category - Group/Stage (+ badge if no date/time) */}
       <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Categoría {match.category.name}
+          Categoría {match.category?.name}
           {stageLabel ? ` - ${stageLabel}` : match.group && ` - Grupo ${match.group.number}`}
         </span>
         {!hasDateTime && !showFallbackDate && statusBadge}

@@ -17,6 +17,7 @@ export default async function proxy(request: NextRequest) {
     '/fixture',
     '/calendario',
     '/partido',
+    '/torneo',
   ]
   const isPublicRoute = publicRoutes.some(
     (route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`))

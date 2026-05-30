@@ -31,8 +31,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
   const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
   return {
-    title: `${p1} vs ${p2} - ${match.tournament.name}`,
-    description: `${p1} vs ${p2} - Categoría ${match.category.name} - ${match.tournament.name}`,
+    title: `${p1} vs ${p2} - ${match.tournament?.name ?? ''}`,
+    description: `${p1} vs ${p2} - Categoría ${match.category?.name ?? ''} - ${match.tournament?.name ?? ''}`,
   }
 }
 
@@ -52,6 +52,13 @@ export default async function MatchDetailPage({ params }: Props) {
   // Verify this player is part of the match
   const isInMatch = match.player1Id === player.userId || match.player2Id === player.userId
   if (!isInMatch) notFound()
+
+  // TODO Fase 2: este detalle asume partido de torneo. Los partidos de escalera
+  // (tournamentId/categoryId null) se manejan en Fase 2. Hoy no existen, así que no rompe.
+  if (match.tournamentId == null || !match.tournament || !match.category) notFound()
+  const tournamentId = match.tournamentId
+  const tournament = match.tournament
+  const category = match.category
 
   const isPlayer1 = match.player1Id === player.userId
   const rival = isPlayer1 ? match.player2 : match.player1
@@ -78,8 +85,8 @@ export default async function MatchDetailPage({ params }: Props) {
     const year = nowUY.getFullYear()
     const month = nowUY.getMonth() + 1
     const [monthMatches, monthReservations, myReservation] = await Promise.all([
-      getMonthMatches(match.tournamentId, year, month),
-      getReservationsByMonth(match.tournamentId, year, month),
+      getMonthMatches(tournamentId, year, month),
+      getReservationsByMonth(tournamentId, year, month),
       getReservationByMatch(matchId),
     ])
     const reservationsList = monthReservations.map(mapReservationToCalendar)
@@ -94,7 +101,7 @@ export default async function MatchDetailPage({ params }: Props) {
         courtNumber: m.courtNumber,
         player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
         player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-        categoryName: m.category.name,
+        categoryName: m.category?.name ?? '',
         groupNumber: m.group?.number ?? null,
       })),
       reservations: reservationsList,
@@ -115,7 +122,7 @@ export default async function MatchDetailPage({ params }: Props) {
           {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {match.tournament.name} — Categoría {match.category.name}
+          {tournament.name} — Categoría {category.name}
         </p>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
@@ -208,7 +215,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <PlayerCalendar
             initialMatches={calendarData.matches}
             initialReservations={calendarData.reservations}
-            tournamentId={match.tournamentId}
+            tournamentId={tournamentId}
             initialYear={calendarData.year}
             initialMonth={calendarData.month}
             matchId={matchId}
@@ -235,7 +242,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <PlayerLoadResult
             matchId={matchId}
             playerId={player.id}
-            matchFormat={match.tournament.matchFormat}
+            matchFormat={tournament.matchFormat}
             player1Id={match.player1Id}
             player2Id={match.player2Id}
             player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}

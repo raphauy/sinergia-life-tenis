@@ -44,6 +44,21 @@ enum ImportedPlayerStatus {
   ERROR
 }
 
+enum ChallengeStatus {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum RatingChangeReason {
+  SEED
+  MATCH
+  PENALTY
+  ADJUSTMENT
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -69,6 +84,9 @@ model User {
   matchResultsReported MatchResult[] @relation("MatchReporter")
   invitationsSent      AdminInvitation[] @relation("InvitationSender")
   slotReservations     SlotReservation[]
+  ladderMemberships       LadderMember[]
+  challengesAsChallenger  Challenge[]   @relation("ChallengeChallenger")
+  challengesAsChallenged  Challenge[]   @relation("ChallengeChallenged")
 
   @@index([email])
   @@index([role])
@@ -199,10 +217,15 @@ model Player {
   @@index([slug])
 }
 
+// Polimórfico (ADR 0001): un partido es de torneo (tournamentId+categoryId) XOR de
+// escalera (ladderId). La invariante se impone con un CHECK en BD ("match_tournament_xor_ladder",
+// ver la migración) que el schema no refleja — Prisma no introspecta CHECKs, así que
+// un `db push` o regeneración desde el schema NO lo recrearía.
 model Match {
   id           String      @id @default(cuid())
-  tournamentId String
-  categoryId   String
+  tournamentId String?
+  categoryId   String?
+  ladderId     String?
   groupId      String?
   stage        MatchStage  @default(GROUP)
   bracketPosition Int?
@@ -220,8 +243,10 @@ model Match {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tournament Tournament?        @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  category   TournamentCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  ladder     Ladder?            @relation(fields: [ladderId], references: [id], onDelete: Cascade)
+  challenge  Challenge?
   group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
   player1    User?              @relation("MatchPlayer1", fields: [player1Id], references: [id])
   player2    User?              @relation("MatchPlayer2", fields: [player2Id], references: [id])
@@ -229,9 +254,11 @@ model Match {
   player2SourceGroup Group?     @relation("MatchPlayer2SourceGroup", fields: [player2SourceGroupId], references: [id], onDelete: SetNull)
   result      MatchResult?
   reservation SlotReservation?
+  ratingHistory RatingHistory[]
 
   @@index([tournamentId])
   @@index([categoryId])
+  @@index([ladderId])
   @@index([groupId])
   @@index([player1Id])
   @@index([player2Id])
@@ -305,4 +332,110 @@ model SlotReservation {
 
   @@index([scheduledAt])
   @@index([reservedBy])
+}
+
+// ============================================================================
+// LA ESCALERA (liga permanente)
+// ============================================================================
+
+model Ladder {
+  id                    String   @id @default(cuid())
+  name                  String
+  slug                  String   @unique
+  isActive              Boolean  @default(true)
+  // config calibrable
+  kFactor               Int      @default(24)
+  seedBaseRating        Int      @default(1500) // rating del puesto 1 en el seed
+  seedStep              Int      @default(20)   // -20 por puesto
+  minMatchesPerMonth    Int      @default(2)
+  monthlyPenalty        Int      @default(50)   // -50 por no llegar al mínimo
+  maxChallengesPerMonth Int      @default(4)    // retos iniciados por mes
+  maxOpenChallenges     Int      @default(2)    // retos abiertos en simultáneo
+  acceptanceWindowDays  Int      @default(4)
+  reservationLeadDays   Int      @default(30)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  members    LadderMember[]
+  challenges Challenge[]
+  matches    Match[]
+  closes     LadderPeriodClose[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model LadderMember {
+  id               String   @id @default(cuid())
+  ladderId         String
+  userId           String
+  rating           Int
+  isActive         Boolean  @default(true)
+  priorityEligible Boolean  @default(true) // recalculado por el cron (fase 3)
+  joinedAt         DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  ladder        Ladder          @relation(fields: [ladderId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ratingHistory RatingHistory[]
+
+  @@unique([ladderId, userId])
+  @@index([ladderId])
+  @@index([userId])
+  @@index([rating])
+}
+
+model Challenge {
+  id           String          @id @default(cuid())
+  ladderId     String
+  challengerId String // User
+  challengedId String // User
+  status       ChallengeStatus @default(PROPOSED)
+  proposedAt   DateTime        @default(now())
+  respondByAt  DateTime
+  respondedAt  DateTime?
+  matchId      String?         @unique
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  ladder     Ladder @relation(fields: [ladderId], references: [id], onDelete: Cascade)
+  challenger User   @relation("ChallengeChallenger", fields: [challengerId], references: [id])
+  challenged User   @relation("ChallengeChallenged", fields: [challengedId], references: [id])
+  match      Match? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([ladderId])
+  @@index([challengerId])
+  @@index([challengedId])
+  @@index([status])
+}
+
+model RatingHistory {
+  id             String             @id @default(cuid())
+  ladderMemberId String
+  reason         RatingChangeReason
+  matchId        String?
+  ratingBefore   Int
+  ratingAfter    Int
+  delta          Int
+  createdAt      DateTime           @default(now())
+
+  member LadderMember @relation(fields: [ladderMemberId], references: [id], onDelete: Cascade)
+  match  Match?       @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([ladderMemberId])
+  @@index([matchId])
+  @@index([createdAt])
+}
+
+model LadderPeriodClose {
+  id       String   @id @default(cuid())
+  ladderId String
+  year     Int
+  month    Int
+  closedAt DateTime @default(now())
+
+  ladder Ladder @relation(fields: [ladderId], references: [id], onDelete: Cascade)
+
+  @@unique([ladderId, year, month])
 }

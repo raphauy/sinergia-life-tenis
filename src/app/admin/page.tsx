@@ -44,7 +44,7 @@ export default async function AdminDashboardPage() {
         courtNumber: m.courtNumber,
         player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
         player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-        categoryName: m.category.name,
+        categoryName: m.category?.name ?? '',
         groupNumber: m.group?.number ?? null,
       })),
       reservations: monthReservations.map(mapReservationToCalendar),

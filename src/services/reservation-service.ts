@@ -121,7 +121,7 @@ export function mapReservationToCalendar(r: Awaited<ReturnType<typeof getReserva
     courtNumber: r.courtNumber,
     player1Name: r.match.player1 ? fullName(r.match.player1.firstName, r.match.player1.lastName) : '',
     player2Name: r.match.player2 ? fullName(r.match.player2.firstName, r.match.player2.lastName) : '',
-    categoryName: r.match.category.name,
+    categoryName: r.match.category?.name ?? '',
     groupNumber: r.match.group?.number ?? null,
     reservedByName: r.user.firstName || 'Jugador',
     player1Cedula: r.match.player1?.cedula ?? null,

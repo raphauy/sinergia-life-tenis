@@ -35,7 +35,7 @@ function headToHeadWinner(a: string, b: string, matches: MatchWithResult[]): str
   return null
 }
 
-function computeRanking(
+export function computeRanking(
   players: { id: string; slug: string; userId: string; displayName: string; image: string | null }[],
   matches: MatchWithResult[]
 ): RankingEntry[] {

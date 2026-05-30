@@ -582,6 +582,7 @@ export async function propagateWinner(matchId: string, tx?: Tx): Promise<void> {
   })
   if (!match || !match.result || match.bracketPosition == null) return
   if (match.stage === 'GROUP' || match.stage === 'FINAL') return
+  if (match.categoryId == null) return // partido de escalera: sin bracket
 
   const winnerId = match.result.winnerId
 
@@ -637,6 +638,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
   })
   if (!match || match.bracketPosition == null) return
   if (match.stage === 'GROUP' || match.stage === 'FINAL') return
+  if (match.categoryId == null) return // partido de escalera: sin bracket
 
   if (match.stage === 'QUARTERFINAL') {
     const qfCount = await client.match.count({

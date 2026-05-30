@@ -52,7 +52,7 @@ export async function playerLoadResultAction(
 
     const isWalkover = data.walkover === true || data.walkover === 'true'
     const schema = createMatchResultSchema(
-      match.tournament.matchFormat,
+      match.tournament?.matchFormat ?? 'SINGLE_SET',
       match.player1Id,
       match.player2Id,
       isWalkover
@@ -103,7 +103,7 @@ export async function fetchMonthMatchesAction(
     courtNumber: m.courtNumber,
     player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
     player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-    categoryName: m.category.name,
+    categoryName: m.category?.name ?? '',
     groupNumber: m.group?.number ?? null,
   }))
 }

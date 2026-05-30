@@ -10,7 +10,7 @@ type MatchForNotification = {
   player2: { firstName: string | null; lastName: string | null } | null
   player1Id: string | null
   player2Id: string | null
-  tournament: { name: string }
+  tournament: { name: string } | null
   group: { id: string; number: number } | null
   result: {
     walkover: boolean
@@ -89,7 +89,7 @@ async function gatherNotificationData(match: MatchForNotification) {
   return {
     to: toEmails,
     bcc: bccEmails,
-    tournamentName: match.tournament.name,
+    tournamentName: match.tournament?.name ?? '',
     categoryName: group.category.name,
     groupNumber: group.number,
     player1Name,

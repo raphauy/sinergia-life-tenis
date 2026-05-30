@@ -33,7 +33,7 @@ export async function fetchMonthMatchesAdminAction(
     courtNumber: m.courtNumber,
     player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
     player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-    categoryName: m.category.name,
+    categoryName: m.category?.name ?? '',
     groupNumber: m.group?.number ?? null,
   }))
 }
@@ -68,7 +68,7 @@ export async function searchPendingMatchesAction(
     id: m.id,
     player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
     player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-    categoryName: m.category.name,
+    categoryName: m.category?.name ?? '',
     groupNumber: m.group?.number ?? null,
   }))
 }
@@ -99,7 +99,7 @@ export async function confirmMatchFromCalendarAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament.name,
+        tournamentName: match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -111,7 +111,7 @@ export async function confirmMatchFromCalendarAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament.name,
+        tournamentName: match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -197,7 +197,7 @@ export async function confirmReservationAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament.name,
+        tournamentName: match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -209,7 +209,7 @@ export async function confirmReservationAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament.name,
+        tournamentName: match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,

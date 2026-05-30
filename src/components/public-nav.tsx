@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Trophy, CalendarDays, LayoutList, User, LogIn } from 'lucide-react'
+import { Trophy, CalendarDays, LayoutList, User, LogIn, ListOrdered } from 'lucide-react'
 
 interface PublicNavProps {
   userHref: string | null
@@ -8,6 +8,7 @@ interface PublicNavProps {
 export function PublicNav({ userHref }: PublicNavProps) {
   return (
     <nav className="flex items-center gap-1">
+      <NavLink href="/" icon={<ListOrdered className="h-5 w-5" />} label="La Escalera" />
       <NavLink href="/ranking" icon={<Trophy className="h-5 w-5" />} label="Ranking" />
       <NavLink href="/fixture" icon={<LayoutList className="h-5 w-5" />} label="Fixture" />
       <NavLink href="/calendario" icon={<CalendarDays className="h-5 w-5" />} label="Calendario" />

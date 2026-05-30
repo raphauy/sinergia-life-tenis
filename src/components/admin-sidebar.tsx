@@ -26,6 +26,7 @@ import {
   Users,
   UserPlus,
   Swords,
+  ListOrdered,
   ChevronUp,
   ExternalLink,
   LogOut,
@@ -40,6 +41,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { title: 'La Escalera', href: '/admin/escalera', icon: ListOrdered },
   { title: 'Torneos', href: '/admin/torneos', icon: Trophy },
   { title: 'Jugadores', href: '/admin/jugadores', icon: Users },
   { title: 'Partidos', href: '/admin/partidos', icon: Swords },
