@@ -63,3 +63,26 @@ Schema en `prisma/schema.prisma`. Modelos clave: User, Tournament, TournamentCat
 
 - Plan extremadamente conciso. Sacrificar gramática por concisión.
 - Al final del plan, listar preguntas sin resolver.
+
+## Flujo de features
+
+Para cada **feature nueva** (post-MVP):
+
+1. (Opcional) Borrador en `docs/new-features/<feature>.md`.
+2. `/grill-me` para cerrar decisiones de alto nivel → escribir `docs/PRPs/<feature>-prp.md` (diseño completo) + `docs/PRPs/<feature>-roadmap.md` (fases en prosa).
+3. Por cada fase: `/grill-me` (cierra decisiones de implementación) → plan mode → implementar → validar con el usuario antes de la siguiente.
+4. Antes de cerrar una fase: `/revisar` + `pnpm typecheck` + `pnpm build`.
+
+El glosario del dominio (`docs/context.md`) se llena inline durante `grill-me`.
+
+## Docs
+
+- `docs/prd.md` — spec del MVP ya construido (fuente de verdad del producto base).
+- `docs/context.md` — glosario de lenguaje ubicuo del dominio (se llena lazy durante `grill-me`).
+- `docs/PRPs/` — por cada feature nueva: `<feature>-prp.md` (diseño completo: goal, decisiones cerradas, blueprint con task list) y `<feature>-roadmap.md` (fases secuenciales en prosa, sin checkboxes). Una fase se aterriza con `/grill-me` + plan mode.
+- `docs/roadmap/` — índice de producto de alto nivel (features/épicas y su orden). El detalle por fase vive en el roadmap de cada feature en `docs/PRPs/`.
+- `docs/new-features/` — borradores de features antes de PRP.
+- `docs/research/` — investigaciones previas a una feature (comparativas, costos, estado del arte).
+- `docs/adr/` — Architecture Decision Records.
+- `docs/dev/` — notas técnicas, code reviews extensas.
+- `docs/deploy/` — notas de deploy por feature.

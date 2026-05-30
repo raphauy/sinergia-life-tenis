@@ -49,5 +49,13 @@ dev.log
 
 # claude
 .agents/
-.claude/
 skills-lock.json
+
+# claude: versionar el proceso (commands + skills propias), ignorar lo local/instalado
+.claude/settings.local.json
+# skills instaladas vía manager (symlinks → .agents/, se reinstalan con skills-lock.json)
+.claude/skills/agent-browser
+.claude/skills/next-best-practices
+.claude/skills/next-cache-components
+.claude/skills/shadcn-ui
+.claude/skills/web-design-guidelines
