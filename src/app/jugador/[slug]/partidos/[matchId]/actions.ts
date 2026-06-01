@@ -51,8 +51,11 @@ export async function playerLoadResultAction(
     }
 
     const isWalkover = data.walkover === true || data.walkover === 'true'
+    const matchFormat = match.ladderId
+      ? match.ladder?.matchFormat ?? 'SINGLE_SET'
+      : match.tournament?.matchFormat ?? 'SINGLE_SET'
     const schema = createMatchResultSchema(
-      match.tournament?.matchFormat ?? 'SINGLE_SET',
+      matchFormat,
       match.player1Id,
       match.player2Id,
       isWalkover
@@ -88,7 +91,7 @@ export async function playerLoadResultAction(
 }
 
 export async function fetchMonthMatchesAction(
-  tournamentId: string,
+  tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarMatch[]> {
@@ -109,7 +112,7 @@ export async function fetchMonthMatchesAction(
 }
 
 export async function fetchMonthReservationsAction(
-  tournamentId: string,
+  tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarReservation[]> {

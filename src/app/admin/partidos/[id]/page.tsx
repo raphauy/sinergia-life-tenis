@@ -20,6 +20,16 @@ export default async function MatchDetailPage({ params }: Props) {
 
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
+  // Contexto + formato según torneo XOR escalera (ADR 0001).
+  const isLadder = match.ladderId != null
+  const stageSuffix = formatStageLabel(match.stage) ? ` — ${formatStageLabel(match.stage)}` : ''
+  const contextLabel = isLadder
+    ? 'La Escalera'
+    : `${match.tournament?.name ?? ''} — Categoría ${match.category?.name ?? ''}${stageSuffix}`
+  const matchFormat = isLadder
+    ? match.ladder?.matchFormat ?? 'SINGLE_SET'
+    : match.tournament?.matchFormat ?? 'SINGLE_SET'
+
   return (
     <div className="max-w-xl">
       <div className="mb-6">
@@ -29,10 +39,7 @@ export default async function MatchDetailPage({ params }: Props) {
           </h1>
           <Badge variant={MATCH_STATUS_VARIANTS[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {match.tournament?.name} — Categoría {match.category?.name}
-          {formatStageLabel(match.stage) && ` — ${formatStageLabel(match.stage)}`}
-        </p>
+        <p className="text-sm text-muted-foreground">{contextLabel}</p>
         {match.scheduledAt && (
           <p className="text-sm text-muted-foreground">
             {formatDateTimeUY(match.scheduledAt)}
@@ -68,7 +75,7 @@ export default async function MatchDetailPage({ params }: Props) {
         matchId={match.id}
         status={match.status}
         stage={match.stage}
-        matchFormat={match.tournament?.matchFormat ?? 'SINGLE_SET'}
+        matchFormat={matchFormat}
         player1Id={match.player1Id}
         player2Id={match.player2Id}
         player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}

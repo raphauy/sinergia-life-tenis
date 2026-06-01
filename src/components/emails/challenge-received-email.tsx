@@ -10,25 +10,23 @@ import {
 } from '@react-email/components'
 import { theme } from './email-theme'
 
-interface MatchConfirmationEmailProps {
-  playerName: string
-  rivalName: string
-  tournamentName: string
-  date: string
-  time: string
-  courtName: string
-  stageLabel?: string
+interface ChallengeReceivedEmailProps {
+  challengedName: string
+  challengerName: string
+  respondBy: string
+  ifWin: number
+  ifLose: number
+  actionUrl: string
 }
 
-export default function MatchConfirmationEmail({
-  playerName,
-  rivalName,
-  tournamentName,
-  date,
-  time,
-  courtName,
-  stageLabel,
-}: MatchConfirmationEmailProps) {
+export default function ChallengeReceivedEmail({
+  challengedName,
+  challengerName,
+  respondBy,
+  ifWin,
+  ifLose,
+  actionUrl,
+}: ChallengeReceivedEmailProps) {
   return (
     <Html>
       <Head />
@@ -39,34 +37,28 @@ export default function MatchConfirmationEmail({
           </Section>
           <Hr style={{ borderColor: theme.colors.border }} />
           <Text style={{ fontSize: '16px', color: theme.colors.text, margin: '24px 0 8px' }}>
-            Hola {playerName},
+            Hola {challengedName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            {stageLabel ? (
-              <>
-                Tu partido de <strong>{stageLabel}</strong> contra <strong>{rivalName}</strong> en <strong>{tournamentName}</strong> ha sido confirmado:
-              </>
-            ) : (
-              <>
-                Tu partido contra <strong>{rivalName}</strong> en <strong>{tournamentName}</strong> ha sido confirmado:
-              </>
-            )}
+            <strong>{challengerName}</strong> te retó en <strong>La Escalera</strong>. Tenés tiempo de aceptar o rechazar hasta el <strong>{respondBy}</strong>.
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>
-              <strong>Fecha:</strong> {date}
-            </Text>
-            <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>
-              <strong>Hora:</strong> {time}
+              Si ganás: <strong>+{ifWin}</strong> de ranking
             </Text>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0' }}>
-              <strong>Cancha:</strong> {courtName}
+              Si perdés: <strong>{ifLose}</strong> de ranking
             </Text>
+          </Section>
+          <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
+            <a href={actionUrl} style={{ display: 'inline-block', backgroundColor: theme.colors.primary, color: '#ffffff', textDecoration: 'none', padding: '10px 22px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold' }}>
+              Ver el reto
+            </a>
           </Section>
           <Hr style={{ borderColor: theme.colors.border, margin: '16px 0 0' }} />
           <Text style={{ fontSize: '12px', color: theme.colors.textMuted, margin: '16px 0 0' }}>
-            Si tenés algún inconveniente, contactá a{' '}
-            <a href="https://wa.me/59899523201" style={{ color: theme.colors.primary, textDecoration: 'underline' }}>Mati (+59899523201)</a>.
+            Cualquier duda, escribile a{' '}
+            <a href="https://wa.me/59899523201" style={{ color: theme.colors.primary, textDecoration: 'underline' }}>Mati</a>.
           </Text>
         </Container>
       </Body>

@@ -12,13 +12,32 @@ export async function createReservation(data: {
   // Validate match is PENDING and has both players assigned
   const match = await prisma.match.findUnique({
     where: { id: data.matchId },
-    select: { status: true, reservation: true, player1Id: true, player2Id: true },
+    select: {
+      status: true,
+      reservation: true,
+      player1Id: true,
+      player2Id: true,
+      ladder: { select: { reservationLeadDays: true } },
+    },
   })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'PENDING') throw new Error('Solo se pueden reservar partidos pendientes')
   if (match.reservation) throw new Error('Este partido ya tiene una reserva activa')
   if (!match.player1Id || !match.player2Id) {
     throw new Error('El partido aún no tiene ambos jugadores definidos')
+  }
+
+  // Tope de anticipación (escalera): no se puede reservar más allá de hoy + leadDays.
+  // Defensa server-side del límite que el calendario ya aplica en el cliente.
+  if (match.ladder) {
+    const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
+    const { endOfDay, addDays } = await import('date-fns')
+    const { TIMEZONE } = await import('@/lib/constants')
+    const nowUY = toZonedTime(new Date(), TIMEZONE)
+    const maxUTC = fromZonedTime(endOfDay(addDays(nowUY, match.ladder.reservationLeadDays)), TIMEZONE)
+    if (data.scheduledAt > maxUTC) {
+      throw new Error('Ese horario está fuera del plazo de anticipación permitido.')
+    }
   }
 
   // Check slot availability: no confirmed matches + no other reservations at same time
@@ -56,7 +75,9 @@ export async function getReservationByMatch(matchId: string) {
   })
 }
 
-export async function getReservationsByMonth(tournamentId: string, year: number, month: number) {
+// tournamentId opcional: sin él, devuelve TODAS las reservas del mes (global),
+// para el cálculo de disponibilidad de canchas compartido torneo + escalera.
+export async function getReservationsByMonth(tournamentId: string | undefined, year: number, month: number) {
   const { fromZonedTime } = await import('date-fns-tz')
   const { startOfMonth, endOfMonth } = await import('date-fns')
   const { TIMEZONE } = await import('@/lib/constants')
@@ -68,7 +89,7 @@ export async function getReservationsByMonth(tournamentId: string, year: number,
   return prisma.slotReservation.findMany({
     where: {
       scheduledAt: { gte: startUTC, lte: endUTC },
-      match: { tournamentId },
+      ...(tournamentId ? { match: { tournamentId } } : {}),
     },
     select: {
       id: true,
@@ -89,11 +110,10 @@ export async function getReservationsByMonth(tournamentId: string, year: number,
   })
 }
 
-export async function getPendingReservationCount(tournamentId: string) {
+// Sin tournamentId: cuenta TODAS las reservas pendientes (torneo + escalera).
+export async function getPendingReservationCount(tournamentId?: string) {
   return prisma.slotReservation.count({
-    where: {
-      match: { tournamentId },
-    },
+    where: tournamentId ? { match: { tournamentId } } : {},
   })
 }
 

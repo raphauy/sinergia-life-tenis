@@ -5,6 +5,7 @@ const matchIncludes = {
   player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   player2: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   tournament: { select: { id: true, name: true, matchFormat: true, finalsDate: true } },
+  ladder: { select: { id: true, name: true, matchFormat: true, matchScheduleDeadlineDays: true, reservationLeadDays: true } },
   category: {
     select: {
       id: true,
@@ -184,7 +185,10 @@ export async function getMatchesByPlayer(userId: string) {
   })
 }
 
-export async function getMonthMatches(tournamentId: string, year: number, month: number) {
+// tournamentId opcional: sin él, devuelve la ocupación GLOBAL de canchas (torneo
+// + escalera). Las canchas son físicas y compartidas, así que la disponibilidad
+// para reservar se calcula global; el filtro por torneo es solo para listados.
+export async function getMonthMatches(tournamentId: string | undefined, year: number, month: number) {
   const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
   const { startOfMonth, endOfMonth } = await import('date-fns')
   const { TIMEZONE } = await import('@/lib/constants')
@@ -198,7 +202,7 @@ export async function getMonthMatches(tournamentId: string, year: number, month:
 
   return prisma.match.findMany({
     where: {
-      tournamentId,
+      ...(tournamentId ? { tournamentId } : {}),
       scheduledAt: { gte: startUTC, lte: endUTC },
       status: { in: ['CONFIRMED', 'PLAYED'] },
     },

@@ -352,7 +352,10 @@ model Ladder {
   maxChallengesPerMonth Int      @default(4)    // retos iniciados por mes
   maxOpenChallenges     Int      @default(2)    // retos abiertos en simultáneo
   acceptanceWindowDays  Int      @default(4)
-  reservationLeadDays   Int      @default(30)
+  reservationLeadDays   Int      @default(7)
+  rematchCooldownDays   Int      @default(3)    // días para re-retar al mismo rival tras jugar
+  matchScheduleDeadlineDays Int  @default(3)    // días para concretar el partido aceptado
+  matchFormat           MatchFormat @default(SINGLE_SET) // formato de los partidos de escalera
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

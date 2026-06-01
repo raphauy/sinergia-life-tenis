@@ -60,8 +60,62 @@ Una escalera única ordenada por **Rating** (ELO). Los miembros se **retan** ent
 | Cap de retos abiertos en simultáneo | 2 † | `maxOpenChallenges` |
 | Ventana de respuesta | 4 días | `acceptanceWindowDays` |
 | Anticipación de reserva | 30 días † | `reservationLeadDays` |
+| Cooldown de revancha | 3 días † | `rematchCooldownDays` (nuevo en Fase 2) |
+| Plazo del partido pendiente | 3 días † | `matchScheduleDeadlineDays` (nuevo en Fase 2) |
+| Formato de partido de escalera | SINGLE_SET † | `matchFormat` en `Ladder` (nuevo en Fase 2) |
 
 † Defaults razonables, no especificados explícitamente por Mati; ajustables.
+
+---
+
+## Fase 2 — diseño cerrado (grill-me 2026-05-31)
+
+> Refina el alcance de Fase 2 del roadmap. Decisiones de implementación/UX cerradas con el usuario; complementan (no reemplazan) la tabla de decisiones de fondo. Lenguaje sin cambios (no hubo términos nuevos). Sin ADR nuevo (todo reversible; el 0001 cubre lo arquitectónico).
+
+### Ciclo del reto
+
+- **Entrada del reto:** botón "Retar" en cada fila de La Escalera **y** en el perfil del rival (`/jugador/[slug]`). Abre diálogo con preview ELO + confirmación.
+- **Bandeja de retos:** sección "Retos" dentro del panel del jugador (`/jugador/[slug]`), arriba de "Próximos partidos". Orden por urgencia: recibidos (aceptar/rechazar) → enviados (cancelar/esperando) → próximos partidos (donde cae el partido al aceptarse). Visible solo al dueño/admin.
+  - Deuda futura (fuera de alcance): el panel cuelga de `Player` (torneo). Funciona porque los ~41 sembrados tienen `Player`. Un miembro sin torneo exigiría mover el panel a un perfil sobre `User`.
+- **Elegibilidad:** retador y retado deben ser `LadderMember` **activos**; nunca a uno mismo. El botón "Retar" aparece solo logueado, siendo miembro activo, sobre **otro** miembro activo.
+- **Cap de abiertos (`maxOpenChallenges`, 2):** cuenta retos donde el actor es **retador** y están en `PROPOSED` **o** `ACCEPTED` con partido sin jugar (`Match.status ∈ {PENDING, CONFIRMED}`). Recibir retos no consume cupo. (Predicado exacto del cap.)
+- **Máx. mensual (`maxChallengesPerMonth`, 4):** retos iniciados (creados) dentro del mes calendario UY corriente, sin importar desenlace.
+- **Un solo reto activo por par:** si ya existe un reto vivo entre A y B (en cualquier dirección), no se crea otro. Cubre duplicado y cruzado.
+- **Cooldown de revancha (`rematchCooldownDays`, default 3):** tras un partido jugado entre A y B, no se puede re-retar al mismo rival hasta pasado el cooldown. Campo nuevo en `Ladder`.
+- **Expiración perezosa (sin cron en Fase 2):** al leer la bandeja y al validar caps, todo `PROPOSED` con `respondByAt < now` pasa a `EXPIRED` en el acto. `respondByAt = proposedAt + acceptanceWindowDays`. Sin email de expiración.
+
+### Partido de escalera
+
+- **Al aceptar** → `Match` PENDING con `ladderId` + `challengeId` (`tournamentId`/`categoryId` null), `player1` = retador, `player2` = retado.
+- **Formato:** `SINGLE_SET`, en campo nuevo `matchFormat` en `Ladder` (default `SINGLE_SET`; configurable).
+- **Agendado:** reusa el flujo existente — cualquiera de los dos pide `SlotReservation` desde su panel → Mati confirma (`CONFIRMED` + email) → cargar resultado.
+- **Disponibilidad de canchas global:** generalizar `getMonthMatches`/`getReservationsByMonth` para no exigir `tournamentId` (canchas físicas compartidas torneo+escalera). Aplica también al cálculo de slots libres del torneo.
+- **Detalle del partido** (`/jugador/[slug]/partidos/[matchId]`): resolver el `TODO Fase 2` — si `ladderId`, encabezar "La Escalera" (no torneo/categoría), usar `ladder.matchFormat`, calendario global.
+- **Partido pendiente que no se concreta:** cancelable manualmente por cualquiera de los dos o admin → `Match.CANCELLED`, **no** mueve ELO, libera cupo. Banner lazy "coordinen o cancelen" pasados `matchScheduleDeadlineDays` (campo nuevo, default 3) desde la aceptación. Email pre-vencimiento + auto-cancelación → **Fase 3** (sobre su cron). El banner de Fase 2 no promete fecha dura de auto-cancelación.
+
+### ELO y feedback
+
+- **Preview ELO** ("si ganás +X / si perdés −Y", desde la perspectiva del actor) en los diálogos de **retar** y **aceptar**; no en el partido ya agendado (el rating pudo moverse; se fija recién al `PLAYED`).
+- Aplicación al `PLAYED`, suma-cero con redondeo, walkover neutral y edición por **delta local**: según el blueprint y la tabla de decisiones de fondo (sin cambios). Todo condicionado a `ladderId != null`.
+- Al cargar resultado se muestra el delta a cada jugador; en el detalle del partido jugado se ven ambos deltas (`RatingHistory`).
+
+### Emails (reusan la infra existente)
+
+Reto recibido → retado · Reto aceptado → retador · Reto rechazado → retador · Partido cancelado → el otro jugador. La confirmación de partido reusa el template existente, adaptado para nombrar "La Escalera" cuando el partido es de escalera.
+
+### Admin (Fase 2)
+
+- **Editor de config del `Ladder`** por UI en `/admin/escalera` (kFactor, ventanas, caps, cooldown, plazo, formato, penalización…). A aterrizar en plan: `seedBaseRating`/`seedStep` probablemente read-only una vez sembrada.
+- **Monitoreo** de retos vivos y partidos de escalera en admin (estado, quién a quién, vencimientos, acción de cancelar).
+
+### Fuera de alcance de Fase 2
+
+- Registro directo de partido por admin sin reto previo (fase posterior).
+- Gating de reserva por `priorityEligible`, penalización mensual e infra de cron (Fase 3).
+
+### Cambios de schema (migración nueva en Fase 2)
+
+Tres columnas en `Ladder`: `matchFormat MatchFormat @default(SINGLE_SET)`, `rematchCooldownDays Int @default(3)`, `matchScheduleDeadlineDays Int @default(3)`. (Excepción a "todo el schema se migró en Fase 1": estos no existían.)
 
 ---
 
@@ -280,12 +334,12 @@ para cada ladder activa:
 4. Seed/acción de admin: proponer orden desde el 1er torneo, reordenar, bloquear → crear `LadderMember` + ratings + `RatingHistory` reason `SEED`.
 5. Vista pública de la escalera (adaptar `ranking-table`). Home/nav apuntan a la escalera.
 
-**Fase 2 — Retos + ELO**
-6. `challenge-service.ts`: `createChallenge` (valida cap de abiertos + máximo mensual de iniciados + objetivo válido), `acceptChallenge` (crea `Match`), `rejectChallenge`, `cancelChallenge`, expiración.
-7. Preview ELO (`expectedScore` + delta) en la UI de aceptar.
-8. Hook en `match-result-service`: al `PLAYED`, aplicar ELO + `RatingHistory`; editar → delta local; walkover → neutral.
-9. Emails de reto (recibido/aceptado/rechazado).
-10. UI de jugador: lanzar reto, bandeja de retos, estado.
+**Fase 2 — Retos + ELO** (migración previa: 3 columnas nuevas en `Ladder`; detalle en §"Fase 2 — diseño cerrado")
+6. `challenge-service.ts`: `createChallenge` (elegibilidad + cap de abiertos + máx. mensual + un-reto-por-par + cooldown), `acceptChallenge` (crea `Match`), `rejectChallenge`, `cancelChallenge`/`cancelLadderMatch`, expiración perezosa.
+7. ELO: núcleo `expectedScore`/`eloDelta` + preview en diálogos de retar/aceptar; hook en `match-result-service` (aplicar al `PLAYED`, `RatingHistory`, editar→delta local, walkover→neutral) solo si `ladderId`.
+8. Reserva/partido de escalera: disponibilidad global (`getMonthMatches`/`getReservationsByMonth` sin `tournamentId`); generalizar detalle `/jugador/[slug]/partidos/[matchId]`; banner lazy de plazo + cancelación manual.
+9. Emails: reto recibido/aceptado/rechazado + partido cancelado; adaptar confirmación a "La Escalera".
+10. UI jugador (lanzar reto fila+perfil, bandeja en el panel, feedback de delta) + admin (editor de config del `Ladder` + monitoreo de retos/partidos).
 
 **Fase 3 — Compromiso**
 11. `/api/cron/ladder-close` + config Vercel cron. `LadderPeriodClose` idempotente.

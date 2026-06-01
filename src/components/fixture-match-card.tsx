@@ -201,7 +201,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       {/* Row 2: Category - Group/Stage (+ badge if no date/time) */}
       <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Categoría {match.category?.name}
+          {match.category ? `Categoría ${match.category.name}` : 'La Escalera'}
           {stageLabel ? ` - ${stageLabel}` : match.group && ` - Grupo ${match.group.number}`}
         </span>
         {!hasDateTime && !showFallbackDate && statusBadge}

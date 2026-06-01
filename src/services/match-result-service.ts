@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { refreshBracketSlotsFromGroup, propagateWinner, retractWinner } from './bracket-service'
+import { applyMatchElo, recalcMatchElo } from './ladder-elo-service'
 
 export async function createMatchResult(data: {
   matchId: string
@@ -53,7 +54,9 @@ export async function createMatchResult(data: {
       data: { status: 'PLAYED', playedAt: new Date() },
     })
 
-    if (match.stage === 'GROUP' && match.groupId) {
+    if (match.ladderId) {
+      await applyMatchElo(match, data.winnerId, data.walkover ?? false, tx)
+    } else if (match.stage === 'GROUP' && match.groupId) {
       await refreshBracketSlotsFromGroup(match.groupId, tx)
     } else if (match.stage === 'QUARTERFINAL' || match.stage === 'SEMIFINAL') {
       await propagateWinner(data.matchId, tx)
@@ -109,13 +112,17 @@ export async function updateMatchResult(
       },
     })
 
-    if (winnerChanged && (match.stage === 'QUARTERFINAL' || match.stage === 'SEMIFINAL')) {
-      await retractWinner(matchId, previousWinnerId, tx)
-      await propagateWinner(matchId, tx)
-    }
+    if (match.ladderId) {
+      await recalcMatchElo(match, data.winnerId, data.walkover ?? false, tx)
+    } else {
+      if (winnerChanged && (match.stage === 'QUARTERFINAL' || match.stage === 'SEMIFINAL')) {
+        await retractWinner(matchId, previousWinnerId, tx)
+        await propagateWinner(matchId, tx)
+      }
 
-    if (match.stage === 'GROUP' && match.groupId) {
-      await refreshBracketSlotsFromGroup(match.groupId, tx)
+      if (match.stage === 'GROUP' && match.groupId) {
+        await refreshBracketSlotsFromGroup(match.groupId, tx)
+      }
     }
 
     return updated

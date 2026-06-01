@@ -3,7 +3,9 @@
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
-import { commitSeed, resetSeed } from '@/services/ladder-service'
+import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
+import { adminCancelChallenge } from '@/services/challenge-service'
+import { ladderConfigSchema } from '@/lib/validations/ladder'
 import { seedCommitSchema } from '@/lib/validations/ladder'
 
 async function requireAdmin() {
@@ -50,5 +52,39 @@ export async function resetSeedAction(): Promise<ActionResult> {
   } catch (error) {
     console.error('Error reiniciando la escalera:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error al reiniciar la escalera' }
+  }
+}
+
+export async function updateLadderConfigAction(data: Record<string, unknown>): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+
+    const validated = ladderConfigSchema.safeParse(data)
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message || 'Datos inválidos' }
+    }
+
+    await updateLadderConfig(validated.data)
+    // kFactor/matchFormat afectan previews y partidos futuros → revalidar home.
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return { success: true, message: 'Configuración guardada.' }
+  } catch (error) {
+    console.error('Error guardando la config de la escalera:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al guardar la configuración' }
+  }
+}
+
+export async function cancelChallengeAdminAction(challengeId: string): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+
+    await adminCancelChallenge(challengeId)
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return { success: true, message: 'Reto cancelado.' }
+  } catch (error) {
+    console.error('Error cancelando el reto:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al cancelar el reto' }
   }
 }

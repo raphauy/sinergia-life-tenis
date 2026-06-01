@@ -12,6 +12,10 @@ import { Button } from '@/components/ui/button'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
+import { getInbox, getChallengeState } from '@/services/challenge-service'
+import { getActivePlayerSlugByUserId } from '@/services/player-service'
+import { ChallengeControl } from '@/components/challenge-control'
+import { ChallengeInbox } from '@/components/challenge-inbox'
 import { fullName, initials } from '@/lib/format-name'
 
 export async function generateMetadata({
@@ -111,6 +115,16 @@ export default async function JugadorProfilePage({ params }: Props) {
   const reservations = await getReservationsByMatchIds(pendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
+  // La Escalera: estado del reto entre el viewer y este perfil (+ preview); bandeja del dueño.
+  const viewerId = session?.user?.id ?? null
+  const challengeState = viewerId && userId ? await getChallengeState(viewerId, userId) : null
+  const inbox = isOwner && userId ? await getInbox(userId) : null
+  // Slug del viewer para los links de "Responder" / "A jugar" del control.
+  const viewerPanelSlug =
+    viewerId && challengeState && (challengeState.state === 'received' || challengeState.state === 'playing')
+      ? await getActivePlayerSlugByUserId(viewerId)
+      : null
+
   return (
     <div>
       {/* Profile header */}
@@ -121,7 +135,7 @@ export default async function JugadorProfilePage({ params }: Props) {
             {initials(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)}
           </AvatarFallback>
         </Avatar>
-        <div>
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{displayName}</h1>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
@@ -134,7 +148,30 @@ export default async function JugadorProfilePage({ params }: Props) {
             )}
           </div>
         </div>
+        {challengeState && challengeState.state !== 'self' && userId && (
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <ChallengeControl
+              state={challengeState.state}
+              rivalUserId={userId}
+              rivalName={displayName}
+              preview={challengeState.preview}
+              matchId={challengeState.matchId}
+              panelHref={viewerPanelSlug ? `/jugador/${viewerPanelSlug}` : '/'}
+              size="default"
+            />
+            {challengeState.state === 'none' && challengeState.preview && (
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{challengeState.preview.ifWin}</span>
+                <span className="text-muted-foreground/40">/</span>
+                <span className="font-semibold text-red-600 tabular-nums dark:text-red-500">{challengeState.preview.ifLose}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Bandeja de retos (solo el dueño) */}
+      {inbox && <ChallengeInbox received={inbox.received} sent={inbox.sent} />}
 
       {/* Upcoming matches */}
       <section className="mb-8">

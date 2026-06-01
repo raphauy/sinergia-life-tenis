@@ -24,32 +24,30 @@ export const metadata = {
 export default async function AdminDashboardPage() {
   const tournament = await getActiveTournament()
 
-  let calendarData = null
-  if (tournament) {
-    const nowUY = toZonedTime(new Date(), TIMEZONE)
-    const year = nowUY.getFullYear()
-    const month = nowUY.getMonth() + 1
-    const [monthMatches, monthReservations] = await Promise.all([
-      getMonthMatches(tournament.id, year, month),
-      getReservationsByMonth(tournament.id, year, month),
-    ])
-    calendarData = {
-      year,
-      month,
-      matches: monthMatches.map((m) => ({
-        id: m.id,
-        scheduledAt: m.scheduledAt!.toISOString(),
-        timeUY: formatTimeUY(m.scheduledAt!),
-        dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
-        courtNumber: m.courtNumber,
-        player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-        player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
-        categoryName: m.category?.name ?? '',
-        groupNumber: m.group?.number ?? null,
-      })),
-      reservations: monthReservations.map(mapReservationToCalendar),
-      tournamentId: tournament.id,
-    }
+  // Calendario global (torneo + escalera): el admin confirma reservas de ambos.
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const year = nowUY.getFullYear()
+  const month = nowUY.getMonth() + 1
+  const [monthMatches, monthReservations] = await Promise.all([
+    getMonthMatches(undefined, year, month),
+    getReservationsByMonth(undefined, year, month),
+  ])
+  const calendarData = {
+    year,
+    month,
+    matches: monthMatches.map((m) => ({
+      id: m.id,
+      scheduledAt: m.scheduledAt!.toISOString(),
+      timeUY: formatTimeUY(m.scheduledAt!),
+      dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
+      courtNumber: m.courtNumber,
+      player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
+      player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+      categoryName: m.category?.name ?? '',
+      groupNumber: m.group?.number ?? null,
+    })),
+    reservations: monthReservations.map(mapReservationToCalendar),
+    tournamentId: tournament?.id ?? '',
   }
 
   return (
@@ -57,27 +55,23 @@ export default async function AdminDashboardPage() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
       <p className="text-muted-foreground mt-1 mb-6">Panel de administración</p>
 
-      {calendarData ? (
-        <div className="max-w-lg">
-          <AdminCalendar
-            initialMatches={calendarData.matches}
-            initialReservations={calendarData.reservations}
-            tournamentId={calendarData.tournamentId}
-            initialYear={calendarData.year}
-            initialMonth={calendarData.month}
-            fetchAction={fetchMonthMatchesAdminAction}
-            fetchReservationsAction={fetchMonthReservationsAdminAction}
-            searchAction={searchPendingMatchesAction}
-            confirmAction={confirmMatchFromCalendarAction}
-            confirmReservationAction={confirmReservationAction}
-            rejectReservationAction={rejectReservationAction}
-            cancelMatchAction={cancelMatchAction}
-            changeCourtAction={changeCourtFromCalendarAction}
-          />
-        </div>
-      ) : (
-        <p className="text-muted-foreground">No hay torneo activo.</p>
-      )}
+      <div className="max-w-lg">
+        <AdminCalendar
+          initialMatches={calendarData.matches}
+          initialReservations={calendarData.reservations}
+          tournamentId={calendarData.tournamentId}
+          initialYear={calendarData.year}
+          initialMonth={calendarData.month}
+          fetchAction={fetchMonthMatchesAdminAction}
+          fetchReservationsAction={fetchMonthReservationsAdminAction}
+          searchAction={searchPendingMatchesAction}
+          confirmAction={confirmMatchFromCalendarAction}
+          confirmReservationAction={confirmReservationAction}
+          rejectReservationAction={rejectReservationAction}
+          cancelMatchAction={cancelMatchAction}
+          changeCourtAction={changeCourtFromCalendarAction}
+        />
+      </div>
     </div>
   )
 }

@@ -7,6 +7,10 @@ import MatchRescheduledEmail from '@/components/emails/match-rescheduled-email'
 import MatchCancelledEmail from '@/components/emails/match-cancelled-email'
 import MatchResultEmail from '@/components/emails/match-result-email'
 import MatchResultEditedEmail from '@/components/emails/match-result-edited-email'
+import ChallengeReceivedEmail from '@/components/emails/challenge-received-email'
+import ChallengeAcceptedEmail from '@/components/emails/challenge-accepted-email'
+import ChallengeRejectedEmail from '@/components/emails/challenge-rejected-email'
+import LadderMatchCancelledEmail from '@/components/emails/ladder-match-cancelled-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -239,7 +243,109 @@ export async function sendMatchResultEditedEmail(input: {
   })
 }
 
+// ===================== La Escalera — Retos =====================
+
+export async function sendChallengeReceivedEmail(input: {
+  to: string
+  challengedName: string
+  challengerName: string
+  respondBy: string
+  ifWin: number
+  ifLose: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Challenge received -> ${input.to} (de ${input.challengerName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `${input.challengerName} te retó en La Escalera - Life Tenis`,
+    react: ChallengeReceivedEmail({
+      challengedName: input.challengedName,
+      challengerName: input.challengerName,
+      respondBy: input.respondBy,
+      ifWin: input.ifWin,
+      ifLose: input.ifLose,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendChallengeAcceptedEmail(input: {
+  to: string
+  challengerName: string
+  challengedName: string
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Challenge accepted -> ${input.to} (por ${input.challengedName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `${input.challengedName} aceptó tu reto - La Escalera - Life Tenis`,
+    react: ChallengeAcceptedEmail({
+      challengerName: input.challengerName,
+      challengedName: input.challengedName,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendChallengeRejectedEmail(input: {
+  to: string
+  challengerName: string
+  challengedName: string
+}) {
+  console.log(`[EMAIL] Challenge rejected -> ${input.to} (por ${input.challengedName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Tu reto en La Escalera - Life Tenis`,
+    react: ChallengeRejectedEmail({
+      challengerName: input.challengerName,
+      challengedName: input.challengedName,
+    }),
+  })
+}
+
+export async function sendLadderMatchCancelledEmail(input: {
+  to: string
+  recipientName: string
+  otherName: string
+  cancelledByName: string
+}) {
+  console.log(`[EMAIL] Ladder match cancelled -> ${input.to} (por ${input.cancelledByName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Partido de La Escalera cancelado - Life Tenis`,
+    react: LadderMatchCancelledEmail({
+      recipientName: input.recipientName,
+      otherName: input.otherName,
+      cancelledByName: input.cancelledByName,
+    }),
+  })
+}
+
 // ===================== URL Helpers =====================
+
+/** Panel del jugador (bandeja de retos). Cae a la home si no tiene slug. */
+export function generatePlayerPanelUrl(playerSlug: string | null): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return playerSlug ? `${baseUrl}/jugador/${playerSlug}` : baseUrl
+}
+
+/** Detalle de un partido en el panel del jugador. */
+export function generatePlayerMatchUrl(playerSlug: string | null, matchId: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return playerSlug ? `${baseUrl}/jugador/${playerSlug}/partidos/${matchId}` : baseUrl
+}
 
 export function generatePlayerInviteUrl(token: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'

@@ -4,7 +4,6 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AdminSidebar } from '@/components/admin-sidebar'
 import { AdminHeader } from '@/components/admin-header'
 import { SidebarCloseOnNav } from '@/components/sidebar-close-on-nav'
-import { getActiveTournament } from '@/services/tournament-service'
 import { getPendingReservationCount } from '@/services/reservation-service'
 import { CalendarCheck } from 'lucide-react'
 
@@ -16,8 +15,8 @@ export default async function AdminLayout({
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 
-  const tournament = await getActiveTournament()
-  const reservationCount = tournament ? await getPendingReservationCount(tournament.id) : 0
+  // Global: incluye reservas pendientes de torneo y de escalera.
+  const reservationCount = await getPendingReservationCount()
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>

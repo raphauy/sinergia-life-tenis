@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
-import { CLASS_SCHEDULE, getSlotsForDay, COURTS, getMinReservationDate } from '@/lib/constants'
+import { CLASS_SCHEDULE, getSlotsForDay, COURTS, getMinReservationDate, getMaxReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CalendarCheck, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
+import { slotContextLabel } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -15,6 +16,7 @@ interface Props {
   day: Date
   matchId: string
   currentReservation: CalendarReservation | null // reserva activa de este partido
+  reservationLeadDays?: number | null // tope de anticipación (escalera); null = sin tope (torneo)
   createAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
   cancelAction: (matchId: string) => Promise<{ success: boolean; error?: string }>
   onChanged?: () => void
@@ -38,7 +40,7 @@ function formatDateKey(day: Date) {
 }
 
 export function PlayerDailySchedule({
-  matches, reservations, day, matchId, currentReservation,
+  matches, reservations, day, matchId, currentReservation, reservationLeadDays,
   createAction, cancelAction, onChanged,
 }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
@@ -46,8 +48,11 @@ export function PlayerDailySchedule({
   const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
-  const minDate = getMinReservationDate(new Date())
+  const now = new Date()
+  const minDate = getMinReservationDate(now)
+  const maxDate = reservationLeadDays != null ? getMaxReservationDate(now, reservationLeadDays) : null
   const dayTooSoon = day < minDate
+  const dayTooLate = maxDate != null && day > maxDate
 
   const [openSlot, setOpenSlot] = useState<string | null>(null)
   const [cedulaRequired, setCedulaRequired] = useState(false)
@@ -113,6 +118,16 @@ export function PlayerDailySchedule({
         {day.toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' })}
       </h3>
 
+      {dayTooLate && maxDate && (
+        <p className="mb-2 text-xs text-muted-foreground">
+          Solo se puede reservar hasta el{' '}
+          <span className="font-medium text-foreground">
+            {maxDate.toLocaleDateString('es-UY', { day: 'numeric', month: 'long' })}
+          </span>{' '}
+          (tope de anticipación).
+        </p>
+      )}
+
       {slots.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">Club cerrado</p>
       ) : (
@@ -127,7 +142,7 @@ export function PlayerDailySchedule({
           const isFirst = (total > 0 || isClass) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const canReserve = !isClass && total === 0 && !currentReservation && !dayTooSoon
+          const canReserve = !isClass && total === 0 && !currentReservation && !dayTooSoon && !dayTooLate
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
@@ -163,7 +178,7 @@ export function PlayerDailySchedule({
                     {slotMatches.map((m, i) => (
                       <div key={`m-${i}`} className="text-xs leading-tight">
                         <span className="text-muted-foreground">
-                          Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
+                          Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                         </span>
                         <br />
                         <span className="font-medium">{m.player1Name} vs {m.player2Name}</span>
@@ -176,7 +191,7 @@ export function PlayerDailySchedule({
                           <div>
                             <span className="text-blue-600 dark:text-blue-400 font-medium">Reservado</span>
                             <span className="text-muted-foreground">
-                              {' '}| Cat {r.categoryName}{r.groupNumber != null ? ` | Grupo ${r.groupNumber}` : ''}
+                              {' '}| {slotContextLabel(r)}
                             </span>
                             <br />
                             <span className="font-medium">{r.player1Name} vs {r.player2Name}</span>

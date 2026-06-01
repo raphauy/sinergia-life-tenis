@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { CLASS_SCHEDULE, getSlotsForDay, getMinReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
+import { slotContextLabel } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -87,7 +88,7 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
                   {slotMatches.map((m, i) => (
                     <div key={`m-${i}`} className="text-xs leading-tight">
                       <span className="text-muted-foreground">
-                        Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
+                        Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                       </span>
                       <br />
                       <span className="font-medium">
@@ -101,7 +102,7 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
                         Reservado
                       </span>
                       <span className="text-muted-foreground">
-                        {' '}| Cat {r.categoryName}{r.groupNumber != null ? ` | Grupo ${r.groupNumber}` : ''}
+                        {' '}| {slotContextLabel(r)}
                       </span>
                       <br />
                       <span className="font-medium">

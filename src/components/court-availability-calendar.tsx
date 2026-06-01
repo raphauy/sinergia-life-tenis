@@ -36,13 +36,20 @@ export type CalendarReservation = {
   player2Cedula?: string | null
 }
 
-export type FetchMonthMatches = (tournamentId: string, year: number, month: number) => Promise<CalendarMatch[]>
-export type FetchMonthReservations = (tournamentId: string, year: number, month: number) => Promise<CalendarReservation[]>
+// tournamentId puede ser undefined → disponibilidad global (escalera).
+export type FetchMonthMatches = (tournamentId: string | undefined, year: number, month: number) => Promise<CalendarMatch[]>
+export type FetchMonthReservations = (tournamentId: string | undefined, year: number, month: number) => Promise<CalendarReservation[]>
+
+/** Etiqueta de contexto de un slot: "La Escalera" (sin categoría) o "Cat X | Grupo Y" (torneo). */
+export function slotContextLabel(item: { categoryName: string; groupNumber: number | null }): string {
+  if (!item.categoryName) return 'La Escalera'
+  return `Cat ${item.categoryName}${item.groupNumber != null ? ` | Grupo ${item.groupNumber}` : ''}`
+}
 
 interface Props {
   initialMatches: CalendarMatch[]
   initialReservations?: CalendarReservation[]
-  tournamentId: string
+  tournamentId: string | undefined
   initialYear: number
   initialMonth: number // 1-based
   fetchAction: FetchMonthMatches

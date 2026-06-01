@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
+import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateTimeUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
@@ -16,6 +17,7 @@ import { PlayerLoadResult } from './player-load-result'
 import { MatchPhoto } from './match-photo'
 import { blobUrl } from '@/lib/blob-url'
 import { PlayerCalendar } from '@/components/player-calendar'
+import { CancelLadderMatchButton } from '@/components/cancel-ladder-match-button'
 import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservationAction, cancelReservationAction } from './actions'
 import { getReservationsByMonth, getReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
 import { toZonedTime } from 'date-fns-tz'
@@ -30,9 +32,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!match) return { title: 'Partido' }
   const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
   const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
+  const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
   return {
-    title: `${p1} vs ${p2} - ${match.tournament?.name ?? ''}`,
-    description: `${p1} vs ${p2} - Categoría ${match.category?.name ?? ''} - ${match.tournament?.name ?? ''}`,
+    title: `${p1} vs ${p2} - ${context}`,
+    description: `${p1} vs ${p2}${match.category ? ` - Categoría ${match.category.name}` : ''} - ${context}`,
   }
 }
 
@@ -53,17 +56,28 @@ export default async function MatchDetailPage({ params }: Props) {
   const isInMatch = match.player1Id === player.userId || match.player2Id === player.userId
   if (!isInMatch) notFound()
 
-  // TODO Fase 2: este detalle asume partido de torneo. Los partidos de escalera
-  // (tournamentId/categoryId null) se manejan en Fase 2. Hoy no existen, así que no rompe.
-  if (match.tournamentId == null || !match.tournament || !match.category) notFound()
-  const tournamentId = match.tournamentId
+  // Partido polimórfico: de torneo (tournamentId/categoryId) o de escalera (ladderId).
+  const isLadder = match.ladderId != null
+  if (!isLadder && (match.tournamentId == null || !match.tournament || !match.category)) notFound()
   const tournament = match.tournament
   const category = match.category
+  const matchFormat = isLadder
+    ? match.ladder?.matchFormat ?? 'SINGLE_SET'
+    : tournament?.matchFormat ?? 'SINGLE_SET'
+  const contextLabel = isLadder
+    ? 'La Escalera'
+    : `${tournament?.name ?? ''} — Categoría ${category?.name ?? ''}`
+  // Disponibilidad de canchas: global para escalera (sin filtrar por torneo).
+  const availabilityTournamentId = isLadder ? undefined : match.tournamentId ?? undefined
 
   const isPlayer1 = match.player1Id === player.userId
   const rival = isPlayer1 ? match.player2 : match.player1
   const rivalName = fullName(rival?.firstName, rival?.lastName)
   const court = COURTS.find((c) => c.number === match.courtNumber)
+
+  // Deltas de rating del partido de escalera ya jugado (para mostrar el cambio).
+  const ratingDeltas = isLadder && match.result ? await getMatchRatingDeltas(matchId) : null
+  const fmtDelta = (d: number | undefined) => (d == null ? '' : d > 0 ? `+${d}` : `${d}`)
 
   // Can load result: match is CONFIRMED, no result, and user is this player (or admin)
   const isOwner = session?.user?.id === player.userId
@@ -71,6 +85,15 @@ export default async function MatchDetailPage({ params }: Props) {
   const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
   const canLoadResult =
     match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin)
+
+  // Partido de escalera sin jugar: se puede cancelar; aviso de plazo si lleva mucho.
+  const canCancelLadder =
+    isLadder && !match.result && (match.status === 'PENDING' || match.status === 'CONFIRMED') && (isOwner || isAdmin)
+  const deadlineDays = match.ladder?.matchScheduleDeadlineDays ?? 3
+  const deadlinePassed =
+    isLadder &&
+    match.status === 'PENDING' &&
+    Date.now() - match.createdAt.getTime() > deadlineDays * 24 * 60 * 60 * 1000
 
   // Fetch court availability + reservations for pending matches
   let calendarData: {
@@ -85,8 +108,8 @@ export default async function MatchDetailPage({ params }: Props) {
     const year = nowUY.getFullYear()
     const month = nowUY.getMonth() + 1
     const [monthMatches, monthReservations, myReservation] = await Promise.all([
-      getMonthMatches(tournamentId, year, month),
-      getReservationsByMonth(tournamentId, year, month),
+      getMonthMatches(availabilityTournamentId, year, month),
+      getReservationsByMonth(availabilityTournamentId, year, month),
       getReservationByMatch(matchId),
     ])
     const reservationsList = monthReservations.map(mapReservationToCalendar)
@@ -122,7 +145,7 @@ export default async function MatchDetailPage({ params }: Props) {
           {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {tournament.name} — Categoría {category.name}
+          {contextLabel}
         </p>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
@@ -150,6 +173,15 @@ export default async function MatchDetailPage({ params }: Props) {
               ? fullName(match.player1?.firstName, match.player1?.lastName)
               : fullName(match.player2?.firstName, match.player2?.lastName)}
           </p>
+          {isLadder && ratingDeltas && match.player1Id && match.player2Id && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Ranking: {fullName(match.player1?.firstName, match.player1?.lastName)}{' '}
+              <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player1Id))}</span>
+              {' · '}
+              {fullName(match.player2?.firstName, match.player2?.lastName)}{' '}
+              <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player2Id))}</span>
+            </p>
+          )}
           {match.result.photoUrl && (
             <img
               src={blobUrl(match.result.photoUrl)}
@@ -165,6 +197,25 @@ export default async function MatchDetailPage({ params }: Props) {
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Partido de escalera sin jugar: cancelar + aviso de plazo */}
+      {canCancelLadder && (
+        <div className={`mb-6 flex items-center justify-between gap-3 rounded-lg border p-4 ${deadlinePassed ? 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30' : ''}`}>
+          <div className="min-w-0">
+            {match.status === 'CONFIRMED' ? (
+              <p className="text-sm text-muted-foreground">¿No van a poder jugar? Pueden cancelar el partido.</p>
+            ) : deadlinePassed ? (
+              <>
+                <h2 className="font-semibold text-amber-800 dark:text-amber-300">Este partido lleva varios días sin jugarse</h2>
+                <p className="text-sm text-muted-foreground">Coordinen y reserven, o cancelen el partido para liberar el cupo.</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">¿No llegan a coordinar? Pueden cancelar el partido.</p>
+            )}
+          </div>
+          <CancelLadderMatchButton matchId={matchId} />
         </div>
       )}
 
@@ -215,11 +266,12 @@ export default async function MatchDetailPage({ params }: Props) {
           <PlayerCalendar
             initialMatches={calendarData.matches}
             initialReservations={calendarData.reservations}
-            tournamentId={tournamentId}
+            tournamentId={availabilityTournamentId}
             initialYear={calendarData.year}
             initialMonth={calendarData.month}
             matchId={matchId}
             currentReservation={calendarData.currentReservation}
+            reservationLeadDays={isLadder ? match.ladder?.reservationLeadDays ?? null : null}
             fetchAction={fetchMonthMatchesAction}
             fetchReservationsAction={fetchMonthReservationsAction}
             createReservationAction={createReservationAction}
@@ -242,7 +294,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <PlayerLoadResult
             matchId={matchId}
             playerId={player.id}
-            matchFormat={tournament.matchFormat}
+            matchFormat={matchFormat}
             player1Id={match.player1Id}
             player2Id={match.player2Id}
             player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}

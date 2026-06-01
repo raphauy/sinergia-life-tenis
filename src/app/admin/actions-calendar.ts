@@ -17,14 +17,15 @@ function isAdmin(role?: string) {
 }
 
 export async function fetchMonthMatchesAdminAction(
-  tournamentId: string,
+  _tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarMatch[]> {
   const session = await auth()
   if (!session?.user || !isAdmin(session.user.role)) return []
 
-  const matches = await getMonthMatches(tournamentId, year, month)
+  // Ocupación global de canchas: el admin gestiona torneo + escalera (canchas compartidas).
+  const matches = await getMonthMatches(undefined, year, month)
   return matches.map((m) => ({
     id: m.id,
     scheduledAt: m.scheduledAt!.toISOString(),
@@ -99,7 +100,7 @@ export async function confirmMatchFromCalendarAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -111,7 +112,7 @@ export async function confirmMatchFromCalendarAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -153,14 +154,15 @@ export async function changeCourtFromCalendarAction(
 }
 
 export async function fetchMonthReservationsAdminAction(
-  tournamentId: string,
+  _tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarReservation[]> {
   const session = await auth()
   if (!session?.user || !isAdmin(session.user.role)) return []
 
-  const reservations = await getReservationsByMonth(tournamentId, year, month)
+  // Reservas globales: incluye las de partidos de escalera (sin torneo).
+  const reservations = await getReservationsByMonth(undefined, year, month)
   return reservations.map(mapReservationToCalendar)
 }
 
@@ -197,7 +199,7 @@ export async function confirmReservationAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -209,7 +211,7 @@ export async function confirmReservationAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,

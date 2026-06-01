@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Check, Loader2, Search, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
+import { slotContextLabel } from './court-availability-calendar'
 import type { PendingMatch } from '@/app/admin/actions-calendar'
 
 interface Props {
@@ -240,7 +241,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         onClick={(e) => { if (changeCourtAction && m.id) { e.stopPropagation(); handleSlotClick(slot, m) } }}
                       >
                         <span className="text-muted-foreground">
-                          Cancha {m.courtNumber ?? '?'} | Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
+                          Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                         </span>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">
@@ -296,7 +297,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                       <div key={`r-${r.id}`} className="text-xs leading-tight">
                         <span className="text-blue-600 dark:text-blue-400 font-medium">Reserva pendiente</span>
                         <span className="text-muted-foreground">
-                          {' '}| Cancha {r.courtNumber} | Cat {r.categoryName}{r.groupNumber != null ? ` | Grupo ${r.groupNumber}` : ''}
+                          {' '}| Cancha {r.courtNumber} | {slotContextLabel(r)}
                         </span>
                         <br />
                         <span className="font-medium">{r.player1Name} vs {r.player2Name}</span>
@@ -413,7 +414,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                             <span className="font-medium">{m.player1Name} vs {m.player2Name}</span>
                             <br />
                             <span className="text-muted-foreground">
-                              Cat {m.categoryName}{m.groupNumber != null ? ` | Grupo ${m.groupNumber}` : ''}
+                              {slotContextLabel(m)}
                             </span>
                           </button>
                         ))
@@ -429,7 +430,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                           {selectedMatch.player1Name} vs {selectedMatch.player2Name}
                         </p>
                         <p className="text-muted-foreground">
-                          Cat {selectedMatch.categoryName}{selectedMatch.groupNumber != null ? ` | Grupo ${selectedMatch.groupNumber}` : ''}
+                          {slotContextLabel(selectedMatch)}
                         </p>
                         <div className="flex items-center gap-2 pt-1 text-foreground font-medium">
                           <span>{day.toLocaleDateString('es-UY', { weekday: 'short', day: 'numeric', month: 'short' })}</span>

@@ -4,7 +4,7 @@ import { fullName } from '@/lib/format-name'
 import { computeRanking } from './ranking-service'
 import { getBracketByCategory } from './bracket-service'
 import { getPlayerSlugsByUserIds } from './player-service'
-import type { Prisma } from '@prisma/client'
+import type { MatchFormat, MatchStatus, Prisma } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
 
@@ -338,4 +338,115 @@ export async function resetSeed(): Promise<void> {
     throw new Error('No se puede re-sembrar: la escalera ya tiene partidos.')
   }
   await prisma.ladderMember.deleteMany({ where: { ladderId: ladder.id } })
+}
+
+// ============================================================================
+// Config (editor admin)
+// ============================================================================
+
+export interface LadderConfigData {
+  kFactor: number
+  matchFormat: MatchFormat
+  maxOpenChallenges: number
+  maxChallengesPerMonth: number
+  acceptanceWindowDays: number
+  rematchCooldownDays: number
+  matchScheduleDeadlineDays: number
+  reservationLeadDays: number
+  minMatchesPerMonth: number
+  monthlyPenalty: number
+}
+
+/**
+ * Actualiza la config calibrable de la escalera. NO toca seedBaseRating/seedStep
+ * (solo aplican al sembrar). kFactor/matchFormat solo afectan partidos futuros:
+ * los deltas ya jugados quedan congelados en RatingHistory.
+ */
+export async function updateLadderConfig(data: LadderConfigData): Promise<void> {
+  const ladder = await getLadder()
+  if (!ladder) throw new Error('La Escalera no existe.')
+  await prisma.ladder.update({ where: { id: ladder.id }, data })
+}
+
+// ============================================================================
+// Monitoreo de partidos (admin)
+// ============================================================================
+
+export interface AdminLadderMatchRow {
+  id: string
+  status: MatchStatus
+  player1Name: string
+  player1Slug: string | null
+  player2Name: string
+  player2Slug: string | null
+  scheduledAt: Date | null
+  courtNumber: number | null
+  walkover: boolean
+  winnerName: string | null
+  winnerDelta: number | null // +X del ganador (0 si walkover)
+}
+
+/**
+ * Partidos de la escalera para el panel admin, separados en activos (PENDING +
+ * CONFIRMED, los que requieren seguimiento) y jugados (PLAYED recientes, con el
+ * delta ELO). Excluye CANCELLED. La fecha sale del match (si está confirmado) o
+ * de la reserva pendiente.
+ */
+export async function getLadderMatchesForAdmin(
+  ladderId: string
+): Promise<{ active: AdminLadderMatchRow[]; played: AdminLadderMatchRow[] }> {
+  const matches = await prisma.match.findMany({
+    where: { ladderId, status: { in: ['PENDING', 'CONFIRMED', 'PLAYED'] } },
+    include: {
+      player1: { select: { firstName: true, lastName: true } },
+      player2: { select: { firstName: true, lastName: true } },
+      result: { select: { winnerId: true, walkover: true } },
+      reservation: { select: { scheduledAt: true, courtNumber: true } },
+      ratingHistory: {
+        where: { reason: 'MATCH' },
+        select: { delta: true, member: { select: { userId: true } } },
+      },
+    },
+    orderBy: { updatedAt: 'desc' },
+  })
+
+  const userIds = matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
+  const slugMap = await getPlayerSlugsByUserIds(userIds)
+
+  const toRow = (m: (typeof matches)[number]): AdminLadderMatchRow => {
+    const p1Name = m.player1 ? fullName(m.player1.firstName, m.player1.lastName) || 'Jugador' : 'Jugador'
+    const p2Name = m.player2 ? fullName(m.player2.firstName, m.player2.lastName) || 'Jugador' : 'Jugador'
+    const winnerId = m.result?.winnerId ?? null
+    const winnerName =
+      winnerId === m.player1Id ? p1Name : winnerId === m.player2Id ? p2Name : null
+    const winnerDelta =
+      winnerId != null ? m.ratingHistory.find((r) => r.member.userId === winnerId)?.delta ?? null : null
+    return {
+      id: m.id,
+      status: m.status,
+      player1Name: p1Name,
+      player1Slug: m.player1Id ? slugMap.get(m.player1Id) ?? null : null,
+      player2Name: p2Name,
+      player2Slug: m.player2Id ? slugMap.get(m.player2Id) ?? null : null,
+      scheduledAt: m.scheduledAt ?? m.reservation?.scheduledAt ?? null,
+      courtNumber: m.courtNumber ?? m.reservation?.courtNumber ?? null,
+      walkover: m.result?.walkover ?? false,
+      winnerName,
+      winnerDelta,
+    }
+  }
+
+  const active = matches
+    .filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
+    .map(toRow)
+    // Activos: confirmados primero, luego por fecha más próxima (sin fecha al final).
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'CONFIRMED' ? -1 : 1
+      const ta = a.scheduledAt?.getTime() ?? Infinity
+      const tb = b.scheduledAt?.getTime() ?? Infinity
+      return ta - tb
+    })
+  const played = matches.filter((m) => m.status === 'PLAYED').slice(0, 20).map(toRow)
+
+  return { active, played }
 }

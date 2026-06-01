@@ -79,7 +79,7 @@ export async function confirmMatchAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -91,7 +91,7 @@ export async function confirmMatchAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -141,7 +141,7 @@ export async function rescheduleMatchAction(
         to: match.player1.email,
         playerName: fullName(match.player1.firstName, match.player1.lastName) || 'Jugador',
         rivalName: fullName(match.player2?.firstName, match.player2?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -152,7 +152,7 @@ export async function rescheduleMatchAction(
         to: match.player2.email,
         playerName: fullName(match.player2.firstName, match.player2.lastName) || 'Jugador',
         rivalName: fullName(match.player1?.firstName, match.player1?.lastName) || 'Rival',
-        tournamentName: match.tournament?.name ?? '',
+        tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
         courtName: court?.name || `Cancha ${match.courtNumber}`,
@@ -251,8 +251,11 @@ export async function adminLoadResultAction(
     }
 
     const isWalkover = data.walkover === true || data.walkover === 'true'
+    const matchFormat = match.ladderId
+      ? match.ladder?.matchFormat ?? 'SINGLE_SET'
+      : match.tournament?.matchFormat ?? 'SINGLE_SET'
     const schema = createMatchResultSchema(
-      match.tournament?.matchFormat ?? 'SINGLE_SET',
+      matchFormat,
       match.player1Id,
       match.player2Id,
       isWalkover

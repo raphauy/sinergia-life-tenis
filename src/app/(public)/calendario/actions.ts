@@ -7,7 +7,7 @@ import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 
 export async function fetchMonthMatchesPublicAction(
-  tournamentId: string,
+  tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarMatch[]> {
@@ -25,7 +25,7 @@ export async function fetchMonthMatchesPublicAction(
 }
 
 export async function fetchMonthReservationsPublicAction(
-  tournamentId: string,
+  tournamentId: string | undefined,
   year: number,
   month: number
 ): Promise<CalendarReservation[]> {

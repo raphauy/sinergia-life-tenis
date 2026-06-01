@@ -56,6 +56,16 @@ export function getMinReservationDate(today: Date): Date {
   return min
 }
 
+// Fecha máxima (inclusive) para reservar: hoy + leadDays días, fin del día.
+// Cablea `Ladder.reservationLeadDays` (tope de anticipación). Para torneo no hay
+// tope hoy (se pasa null y no se aplica).
+export function getMaxReservationDate(today: Date, leadDays: number): Date {
+  const max = new Date(today)
+  max.setDate(max.getDate() + leadDays)
+  max.setHours(23, 59, 59, 999)
+  return max
+}
+
 export function getSlotsForDay(dayOfWeek: number): string[] {
   if (dayOfWeek === 0) {
     return process.env.NODE_ENV === 'development' ? TIME_SLOTS : []

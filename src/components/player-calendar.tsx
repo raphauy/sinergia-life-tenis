@@ -5,6 +5,7 @@ import { CalendarCheck, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { friendlyDateTimeUY } from '@/lib/date-utils'
+import { getMaxReservationDate } from '@/lib/constants'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { PlayerDailySchedule } from './player-daily-schedule'
@@ -16,11 +17,12 @@ import type { CalendarMatch, CalendarReservation, FetchMonthMatches, FetchMonthR
 interface Props {
   initialMatches: CalendarMatch[]
   initialReservations: CalendarReservation[]
-  tournamentId: string
+  tournamentId: string | undefined
   initialYear: number
   initialMonth: number
   matchId: string
   currentReservation: CalendarReservation | null
+  reservationLeadDays?: number | null
   fetchAction: FetchMonthMatches
   fetchReservationsAction: FetchMonthReservations
   createReservationAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
@@ -35,6 +37,7 @@ export function PlayerCalendar({
   initialMonth,
   matchId,
   currentReservation: initialCurrentReservation,
+  reservationLeadDays,
   fetchAction,
   fetchReservationsAction,
   createReservationAction,
@@ -57,6 +60,13 @@ export function PlayerCalendar({
   const currentKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`
   const currentMatches = matchesByMonth.get(currentKey) || []
   const currentReservations = reservationsByMonth.get(currentKey) || []
+
+  // Tope de anticipación (escalera): los días posteriores quedan deshabilitados
+  // (no clickeables). null en torneo → sin tope.
+  const maxReservationDate = useMemo(
+    () => (reservationLeadDays != null ? getMaxReservationDate(new Date(), reservationLeadDays) : null),
+    [reservationLeadDays]
+  )
 
   const matchCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -163,6 +173,7 @@ export function PlayerCalendar({
           month={currentMonth}
           onMonthChange={handleMonthChange}
           onDayClick={handleDayClick}
+          disabled={maxReservationDate ? { after: maxReservationDate } : undefined}
           className="w-full !px-0 !py-1 [&_table]:w-full [&_.rdp-weekdays]:grid [&_.rdp-weekdays]:grid-cols-7 [&_.rdp-week]:grid [&_.rdp-week]:grid-cols-7 [&_.rdp-weekday]:text-center [&_.rdp-day]:text-center"
           classNames={{
             root: 'w-full',
@@ -174,6 +185,15 @@ export function PlayerCalendar({
           }}
         />
       </div>
+
+      {maxReservationDate && (
+        <p className="mt-1 text-center text-xs text-muted-foreground">
+          Reservas habilitadas hasta el{' '}
+          <span className="font-medium text-foreground">
+            {maxReservationDate.toLocaleDateString('es-UY', { day: 'numeric', month: 'long' })}
+          </span>
+        </p>
+      )}
 
       {/* Reservation banner — always visible */}
       {currentReservation && (
@@ -218,6 +238,7 @@ export function PlayerCalendar({
           day={selectedDay}
           matchId={matchId}
           currentReservation={currentReservation}
+          reservationLeadDays={reservationLeadDays}
           createAction={createReservationAction}
           cancelAction={cancelReservationAction}
           onChanged={refreshAll}

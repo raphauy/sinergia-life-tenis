@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
-import { getLadderRanking } from '@/services/ladder-service'
+import { getLadderView } from '@/services/challenge-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PublicNav } from '@/components/public-nav'
 import { Button } from '@/components/ui/button'
@@ -29,8 +29,14 @@ export default async function HomePage() {
     }
   }
 
-  const [ranking, tournament] = await Promise.all([getLadderRanking(), getActiveTournament()])
+  const [view, tournament] = await Promise.all([
+    getLadderView(session?.user?.id ?? null),
+    getActiveTournament(),
+  ])
+  const { rows, canChallenge } = view
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
+  // Slug del viewer para los links de "Responder" / "A jugar" en la tabla.
+  const currentPlayerSlug = canChallenge && session?.user?.id ? await getActivePlayerSlugByUserId(session.user.id) : null
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -63,9 +69,9 @@ export default async function HomePage() {
 
       {/* Content */}
       <main className="flex-1 container mx-auto px-4 py-8 max-w-3xl">
-        {ranking.length > 0 ? (
+        {rows.length > 0 ? (
           <>
-            <LadderTable entries={ranking} />
+            <LadderTable rows={rows} canChallenge={canChallenge} currentPlayerSlug={currentPlayerSlug} />
             {tournament && (
               <Link
                 href={`/torneo/${tournament.slug}`}
