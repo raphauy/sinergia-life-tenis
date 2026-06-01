@@ -130,5 +130,22 @@ _Código_: acción de admin sobre `Ladder`/`LadderMember`; `RatingHistory` reaso
 _Evitar_: "importar" / "migrar jugadores" — es **Siembra**.
 
 **Acceso prioritario a reserva**:
-Beneficio central de La Escalera: un **Miembro** activo puede reservar cancha con **anticipación** (vía nuestra app), mientras el socio común solo el día anterior (app del club). Es **binario por participar** (no depende del puesto): el #1 y el último tienen el mismo acceso. Se pierde si se cae la actividad (no llega al mínimo mensual). Hoy la reserva es **semiautomática** (el Miembro la pide, Mati la carga en la app del club y confirma).
-_Código_: reusa `SlotReservation` + flujo `PENDING → CONFIRMED`.
+Beneficio inherente de La Escalera: un **Partido de escalera** se puede reservar con **anticipación** (hasta `reservationLeadDays`) por nuestra app —cualquiera de los dos jugadores lo pide—, mientras el socio común reserva por la app del club el día anterior. **No está gateado por actividad ni por puesto**: el #1 y el último tienen el mismo acceso, y la inactividad **no** lo revoca. La única consecuencia de la inactividad es la **Penalización mensual** de **Rating** (puntos), nunca el acceso a reservar. Hoy la reserva es **semiautomática** (el jugador la pide, Mati la carga en la app del club y confirma).
+_Código_: reusa `SlotReservation` + flujo `PENDING → CONFIRMED`; el tope de anticipación vive en `Ladder.reservationLeadDays`.
+_Evitar_: "acceso prioritario que se pierde por inactividad" / `priorityEligible` — el acceso no se gatea; la inactividad penaliza puntos.
+
+**Penalización mensual** (multa):
+Descuento de **Rating** que el cierre de mes aplica a un **Miembro** activo que jugó menos del **Mínimo mensual de partidos** en el mes calendario UY. Monto = `monthlyPenalty` (default 50; se guarda positivo y se **resta**). Es la **única** consecuencia de la inactividad: no afecta el acceso a reservar ni a retar. Se registra en `RatingHistory` con reason `PENALTY`.
+_Evitar_: confundirla con el **Máximo de retos mensual** (limita retar, no toca puntos) o con el "acceso prioritario a reserva" (que no se gatea).
+
+**Mínimo mensual de partidos**:
+Cantidad de **Partidos de escalera** *jugados* que un **Miembro** activo debe alcanzar en el mes calendario UY para no recibir la **Penalización mensual** (`minMatchesPerMonth`, default 2).
+_Evitar_: confundirlo con el **Máximo de retos mensual** — son dos topes distintos (uno mínimo de jugados, otro máximo de retos iniciados).
+
+**Máximo de retos mensual**:
+Tope de **Retos** que un **Miembro** puede **iniciar** en el mes calendario UY (`maxChallengesPerMonth`, default 4). Alcanzado el tope, no inicia más retos ese mes, pero sigue pudiendo **aceptar** retos recibidos, jugar y reservar. Gobierna "poder retar"; no penaliza puntos.
+_Código_: `challenge-service` (conteo de retos iniciados en el mes).
+
+**Cierre de mes**:
+Proceso mensual (Vercel cron, 1º a las 00:00 UY, idempotente vía `LadderPeriodClose`) que evalúa la actividad del mes recién terminado de cada **Miembro** activo y aplica la **Penalización mensual** a quien no alcanzó el **Mínimo mensual de partidos**. Un miembro cuyo alta cae en el mes que se cierra tiene **gracia** (no se penaliza ese mes).
+_Código_: `closeLadderMonth` + ruta `/api/cron/ladder-month-close`.

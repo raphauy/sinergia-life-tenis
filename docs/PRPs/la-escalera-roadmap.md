@@ -32,7 +32,7 @@ Liga permanente de desafíos sobre un ranking ELO único. Diseño completo en [`
 
 ## Fase 2 — Retos + partidos + ELO en vivo
 
-**Estado:** pendiente
+**Estado:** ✅ terminada
 
 **Objetivo:** Cerrar el loop competitivo: un miembro reta a otro, se juega y el resultado **mueve el ranking** solo.
 
@@ -57,24 +57,28 @@ Liga permanente de desafíos sobre un ranking ELO único. Diseño completo en [`
 
 ---
 
-## Fase 3 — Compromiso + gancho de reserva
+## Fase 3 — Compromiso (penalización por inactividad) + automatización de vencimientos
 
-**Estado:** pendiente
+**Estado:** ✅ terminada
 
-**Objetivo:** Que la actividad mensual gobierne penalizaciones y el acceso prioritario a reservar (el premio central).
+**Objetivo:** Que la actividad mensual gobierne la **penalización de puntos** por inactividad, y estrenar la infra de cron que además absorbe los vencimientos diferidos de Fase 2.
+
+> **Corrección de diseño (grill-me 2026-06-01):** la penalización es **solo puntos de Rating** (multa), no toca la reserva. La reserva **no** se gatea por actividad: cualquiera de los dos jugadores de un partido de escalera puede reservar con anticipación. El campo `LadderMember.priorityEligible` (migrado en Fase 1) **se elimina**. Ver §"Fase 3 — diseño cerrado" en el PRP.
 
 **Alcance:**
-- Vercel cron de cierre de mes (idempotente vía `LadderPeriodClose`): cuenta partidos jugados del mes por miembro (el ganador por walkover suma participación; el ausente no), aplica −X de penalización a los que no llegan al mínimo (`RatingHistory` reason `PENALTY`) y recalcula `priorityEligible`.
-- `priorityEligible` **gatea** la acción de pedir reserva: al día → puede reservar con anticipación por nuestra app; bajo mínimo → no puede (vuelve a la app del club, día anterior).
-- Mensajería/feedback al miembro sobre su estado mensual (al día / en riesgo / penalizado).
+- **Cron mensual de cierre** (idempotente vía `LadderPeriodClose`): cuenta partidos de escalera jugados del mes por miembro (el ganador por walkover suma participación; el ausente no), y aplica −`monthlyPenalty` a los que no llegan a `minMatchesPerMonth` (`RatingHistory` reason `PENALTY`).
+- **Cron diario** (diferidos de Fase 2): auto-cancelar partidos `PENDING` vencidos (`matchScheduleDeadlineDays`) con email pre-vencimiento, y expirar retos `PROPOSED` vencidos (`respondByAt`).
+- **Migración:** eliminar `LadderMember.priorityEligible`.
+- **Feedback** al miembro sobre su estado mensual en términos de puntos: al día / en riesgo / penalizado.
 
-**Fuera de alcance:** automatización de la reserva en la app del club (sigue manual de Mati); gamificación.
+**Fuera de alcance:** automatización de la reserva en la app del club (sigue manual de Mati); gamificación; cualquier gating de reserva.
 
 **Dependencias:** Fase 2.
 
 **Criterios de "hecha":**
-- El cron cierra el mes una sola vez por período (idempotente) y aplica penalización + elegibilidad correctamente.
-- Un miembro bajo mínimo no puede pedir reserva; al ponerse al día, recupera el acceso.
+- El cron mensual cierra el mes una sola vez por período (idempotente) y aplica la multa de puntos correctamente a quien no llega al mínimo.
+- El cron diario auto-cancela partidos pendientes vencidos (con email) y expira retos vencidos.
+- La reserva sigue abierta a ambos jugadores sin gating; `priorityEligible` eliminado.
 - `pnpm typecheck` + `pnpm build` + `/revisar`. Validado por el usuario.
 
 ---

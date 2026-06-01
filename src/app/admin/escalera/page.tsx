@@ -4,18 +4,21 @@ import {
   getLadder,
   getLadderRanking,
   getLadderMatchesForAdmin,
+  getLastPeriodClose,
   hasLadderMatches,
   proposeSeedOrder,
   SEED_BASE_RATING,
   SEED_STEP,
 } from '@/services/ladder-service'
 import { getLadderChallenges } from '@/services/challenge-service'
+import { previousMonthInUY, monthLabelUY, formatDateUY } from '@/lib/date-utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SeedEditor } from './seed-editor'
 import { ResetLadderButton } from './reset-ladder-button'
 import { LadderConfigForm } from './ladder-config-form'
 import { AdminLadderMonitor } from './admin-ladder-monitor'
+import { LadderPeriodControls } from './ladder-period-controls'
 
 export const metadata: Metadata = { title: 'La Escalera - Admin' }
 
@@ -25,11 +28,33 @@ export default async function AdminEscaleraPage() {
 
   // Ya sembrada: panel con pestañas (ranking, actividad, ajustes).
   if (ladder && ranking.length > 0) {
-    const [locked, challenges, matches] = await Promise.all([
+    const [locked, challenges, matches, lastPeriodClose] = await Promise.all([
       hasLadderMatches(ladder.id),
       getLadderChallenges(ladder.id),
       getLadderMatchesForAdmin(ladder.id),
+      getLastPeriodClose(),
     ])
+
+    // Opciones para "cerrar mes": los últimos 6 meses ya terminados (no el actual,
+    // para no cerrar un mes en curso). Default = mes recién terminado.
+    const { year: prevY, month: prevM } = previousMonthInUY()
+    const monthOptions: { value: string; label: string }[] = []
+    let oy = prevY
+    let om = prevM
+    for (let i = 0; i < 6; i++) {
+      monthOptions.push({ value: `${oy}-${om}`, label: monthLabelUY(oy, om) })
+      om--
+      if (om < 1) {
+        om = 12
+        oy--
+      }
+    }
+    const lastClose = lastPeriodClose
+      ? {
+          label: monthLabelUY(lastPeriodClose.year, lastPeriodClose.month),
+          closedAtLabel: formatDateUY(lastPeriodClose.closedAt),
+        }
+      : null
 
     return (
       <div className="space-y-6">
@@ -74,8 +99,13 @@ export default async function AdminEscaleraPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="actividad" className="mt-4">
+          <TabsContent value="actividad" className="mt-4 space-y-6">
             <AdminLadderMonitor challenges={challenges} active={matches.active} played={matches.played} />
+            <LadderPeriodControls
+              lastClose={lastClose}
+              monthOptions={monthOptions}
+              defaultMonth={`${prevY}-${prevM}`}
+            />
           </TabsContent>
 
           <TabsContent value="ajustes" className="mt-4">
@@ -91,6 +121,8 @@ export default async function AdminEscaleraPage() {
                 reservationLeadDays: ladder.reservationLeadDays,
                 minMatchesPerMonth: ladder.minMatchesPerMonth,
                 monthlyPenalty: ladder.monthlyPenalty,
+                ratingFloor: ladder.ratingFloor,
+                monthlyWarningLeadDays: ladder.monthlyWarningLeadDays,
                 seedBaseRating: ladder.seedBaseRating,
                 seedStep: ladder.seedStep,
               }}

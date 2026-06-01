@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
 import { adminCancelChallenge } from '@/services/challenge-service'
+import { closeLadderMonth, runLadderDailyTasks } from '@/services/ladder-cron-service'
 import { ladderConfigSchema } from '@/lib/validations/ladder'
 import { seedCommitSchema } from '@/lib/validations/ladder'
 
@@ -72,6 +73,46 @@ export async function updateLadderConfigAction(data: Record<string, unknown>): P
   } catch (error) {
     console.error('Error guardando la config de la escalera:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error al guardar la configuración' }
+  }
+}
+
+export async function closeMonthAction(year: number, month: number): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      return { success: false, error: 'Período inválido' }
+    }
+
+    const res = await closeLadderMonth(year, month)
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    if (res.alreadyClosed) {
+      return { success: true, message: `El mes ${month}/${year} ya estaba cerrado (no se hizo nada).` }
+    }
+    return {
+      success: true,
+      message: `Mes ${month}/${year} cerrado: ${res.penalized.length} penalizados de ${res.processed} miembros.`,
+    }
+  } catch (error) {
+    console.error('Error cerrando el mes:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al cerrar el mes' }
+  }
+}
+
+export async function runDailyTasksAction(): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+
+    const r = await runLadderDailyTasks()
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return {
+      success: true,
+      message: `Tareas diarias: ${r.matchesWarned} avisados, ${r.matchesCancelled} cancelados, ${r.monthWarnings} avisos de cierre.`,
+    }
+  } catch (error) {
+    console.error('Error corriendo tareas diarias:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al correr las tareas diarias' }
   }
 }
 

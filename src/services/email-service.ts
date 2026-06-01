@@ -11,6 +11,10 @@ import ChallengeReceivedEmail from '@/components/emails/challenge-received-email
 import ChallengeAcceptedEmail from '@/components/emails/challenge-accepted-email'
 import ChallengeRejectedEmail from '@/components/emails/challenge-rejected-email'
 import LadderMatchCancelledEmail from '@/components/emails/ladder-match-cancelled-email'
+import LadderPenaltyAppliedEmail from '@/components/emails/ladder-penalty-applied-email'
+import LadderMonthClosingWarningEmail from '@/components/emails/ladder-month-closing-warning-email'
+import LadderMatchExpiryWarningEmail from '@/components/emails/ladder-match-expiry-warning-email'
+import LadderMatchAutoCancelledEmail from '@/components/emails/ladder-match-auto-cancelled-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -329,6 +333,106 @@ export async function sendLadderMatchCancelledEmail(input: {
       recipientName: input.recipientName,
       otherName: input.otherName,
       cancelledByName: input.cancelledByName,
+    }),
+  })
+}
+
+// ===================== La Escalera — Compromiso mensual (Fase 3) =====================
+
+export async function sendLadderPenaltyAppliedEmail(input: {
+  to: string
+  playerName: string
+  points: number
+  newRating: number
+  monthLabel: string
+  minMatches: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder penalty -> ${input.to} (−${input.points}, nuevo ${input.newRating}, ${input.monthLabel})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Penalización mensual en La Escalera - Life Tenis`,
+    react: LadderPenaltyAppliedEmail({
+      playerName: input.playerName,
+      points: input.points,
+      newRating: input.newRating,
+      monthLabel: input.monthLabel,
+      minMatches: input.minMatches,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendLadderMonthClosingWarningEmail(input: {
+  to: string
+  playerName: string
+  played: number
+  min: number
+  daysLeft: number
+  penalty: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder month-closing warning -> ${input.to} (${input.played}/${input.min}, ${input.daysLeft}d)`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Te faltan partidos este mes en La Escalera - Life Tenis`,
+    react: LadderMonthClosingWarningEmail({
+      playerName: input.playerName,
+      played: input.played,
+      min: input.min,
+      daysLeft: input.daysLeft,
+      penalty: input.penalty,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendLadderMatchExpiryWarningEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  daysLeft: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder match expiry warning -> ${input.to} (vs ${input.rivalName}, ${input.daysLeft}d)`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Coordiná tu partido de La Escalera - Life Tenis`,
+    react: LadderMatchExpiryWarningEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      daysLeft: input.daysLeft,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendLadderMatchAutoCancelledEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder match auto-cancelled -> ${input.to} (vs ${input.rivalName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Partido de La Escalera cancelado - Life Tenis`,
+    react: LadderMatchAutoCancelledEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      actionUrl: input.actionUrl,
     }),
   })
 }

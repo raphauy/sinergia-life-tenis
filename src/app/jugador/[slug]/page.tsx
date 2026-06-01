@@ -13,9 +13,11 @@ import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { getInbox, getChallengeState } from '@/services/challenge-service'
+import { getMonthlyActivity } from '@/services/ladder-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ChallengeInbox } from '@/components/challenge-inbox'
+import { LadderMonthlyStatus } from '@/components/ladder-monthly-status'
 import { fullName, initials } from '@/lib/format-name'
 
 export async function generateMetadata({
@@ -119,6 +121,8 @@ export default async function JugadorProfilePage({ params }: Props) {
   const viewerId = session?.user?.id ?? null
   const challengeState = viewerId && userId ? await getChallengeState(viewerId, userId) : null
   const inbox = isOwner && userId ? await getInbox(userId) : null
+  // Estado de actividad mensual: solo para el dueño/admin y si es miembro de la escalera.
+  const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
   // Slug del viewer para los links de "Responder" / "A jugar" del control.
   const viewerPanelSlug =
     viewerId && challengeState && (challengeState.state === 'received' || challengeState.state === 'playing')
@@ -169,6 +173,9 @@ export default async function JugadorProfilePage({ params }: Props) {
           </div>
         )}
       </div>
+
+      {/* Estado de actividad mensual (solo dueño/admin, si es miembro) */}
+      {monthlyActivity && <LadderMonthlyStatus activity={monthlyActivity} />}
 
       {/* Bandeja de retos (solo el dueño) */}
       {inbox && <ChallengeInbox received={inbox.received} sent={inbox.sent} />}

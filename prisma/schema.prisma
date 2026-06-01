@@ -348,7 +348,9 @@ model Ladder {
   seedBaseRating        Int      @default(1500) // rating del puesto 1 en el seed
   seedStep              Int      @default(20)   // -20 por puesto
   minMatchesPerMonth    Int      @default(2)
-  monthlyPenalty        Int      @default(50)   // -50 por no llegar al mínimo
+  monthlyPenalty        Int      @default(50)   // -50 por no llegar al mínimo (se guarda positivo, se resta)
+  ratingFloor           Int      @default(0)    // piso: la multa no baja el rating por debajo de esto
+  monthlyWarningLeadDays Int     @default(3)    // días antes de fin de mes para el aviso pre-cierre
   maxChallengesPerMonth Int      @default(4)    // retos iniciados por mes
   maxOpenChallenges     Int      @default(2)    // retos abiertos en simultáneo
   acceptanceWindowDays  Int      @default(4)
@@ -374,7 +376,6 @@ model LadderMember {
   userId           String
   rating           Int
   isActive         Boolean  @default(true)
-  priorityEligible Boolean  @default(true) // recalculado por el cron (fase 3)
   joinedAt         DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

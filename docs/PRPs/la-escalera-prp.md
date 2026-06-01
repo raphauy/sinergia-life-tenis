@@ -15,12 +15,12 @@ Construir **La Escalera**: una liga permanente de desafíos sobre un **ranking E
 
 ## What + success criteria
 
-Una escalera única ordenada por **Rating** (ELO). Los miembros se **retan** entre sí; al aceptarse un reto se genera un partido que reusa el flujo existente; al cargar el resultado el rating de ambos se ajusta (suma-cero). Un **mínimo mensual** de partidos mantiene el rating y el **acceso prioritario a reserva**; no llegar penaliza y revoca el beneficio hasta ponerse al día.
+Una escalera única ordenada por **Rating** (ELO). Los miembros se **retan** entre sí; al aceptarse un reto se genera un partido que reusa el flujo existente; al cargar el resultado el rating de ambos se ajusta (suma-cero). Un **mínimo mensual** de partidos jugados mantiene el rating: no llegar aplica una **penalización de puntos** (multa) al cierre del mes. La reserva **no** se gatea por actividad — cualquiera de los dos jugadores de un partido de escalera puede reservar con anticipación.
 
 **Éxito:**
 - La escalera única, sembrada con los ~41 del primer torneo, es visible públicamente y se reordena sola con cada resultado.
 - El ciclo `reto → reserva → partido → resultado → cambio de rating` funciona de punta a punta.
-- La actividad mensual gobierna penalización y acceso a reservar.
+- La actividad mensual gobierna la **penalización de puntos** (no el acceso a reservar).
 - El módulo de torneos sigue funcionando intacto tras volver `Match` polimórfico.
 
 ---
@@ -45,7 +45,7 @@ Una escalera única ordenada por **Rating** (ELO). Los miembros se **retan** ent
 | 12 | Walkover | **ELO-neutral** (delta 0). Al ausente se lo castiga en la capa de actividad, no en el rating. |
 | 13 | Editar resultado | **Delta local**: recalcular el delta de ese partido con los ratings guardados y aplicar la diferencia al rating actual. Sin replay. |
 | 14 | Cierre de mes | **Vercel cron** idempotente (1º de mes 00:00 UY). Mes = calendario UY. Cuenta partidos, aplica penalización, recalcula elegibilidad. |
-| 15 | Premio (reserva) | Acceso a reservar **anticipado por nuestra app**, **binario por participar** (no por puesto). `priorityEligible` gatea el pedir reserva. Reserva sigue **semiautomática** (Mati confirma). |
+| 15 | Premio (reserva) | Acceso a reservar **anticipado por nuestra app** (hasta `reservationLeadDays`), inherente a tener partidos de escalera. **No se gatea** por actividad ni por puesto; cualquiera de los dos jugadores reserva. La inactividad cuesta **puntos** (decisión #3), no el acceso. Reserva sigue **semiautomática** (Mati confirma). _(Corrige el diseño previo de `priorityEligible`; ver §"Fase 3".)_ |
 | 16 | Seed inicial | Propuesto desde el resultado del 1er torneo; el admin **confirma/reordena** el 1‑41 antes de bloquear. Escalón −20/puesto, A>B>C (1500→700). |
 
 ### Números configurables (defaults aprobados con Mati; ajustables en la fila `Ladder`)
@@ -119,6 +119,74 @@ Tres columnas en `Ladder`: `matchFormat MatchFormat @default(SINGLE_SET)`, `rema
 
 ---
 
+## Fase 3 — diseño cerrado (grill-me 2026-06-01)
+
+> Refina y **corrige** el alcance de Fase 3. La corrección de fondo (penalización = puntos, reserva no gateada) está arriba en decisión #15 y en el glosario. Decisiones de implementación/UX cerradas con el usuario.
+
+### Corrección de modelo (reemplaza el diseño previo de "reserva gateada")
+
+- La **Penalización mensual** es **solo puntos de Rating** (multa). **No** afecta el acceso a reservar ni a retar.
+- La **reserva** no se gatea por actividad: **cualquiera de los dos** jugadores de un partido de escalera puede reservar con anticipación (el tope `reservationLeadDays` ya vive en `Ladder`). El beneficio es inherente a tener partidos de escalera.
+- Los dos topes mensuales son **independientes**: `maxChallengesPerMonth` (máximo de retos iniciados → "poder retar", ya en Fase 2) y `minMatchesPerMonth` (mínimo de jugados → multa de puntos, esta fase).
+- Se **elimina** `LadderMember.priorityEligible` (sin uso).
+
+### Alcance de cron (decidido)
+
+Fase 3 = roadmap **+ diferidos de Fase 2**. Vercel **Pro**. **Dos crons separados** declarados en `vercel.json`:
+- `/api/cron/ladder-month-close` — schedule `0 3 1 * *` (00:00 UY del 1º).
+- `/api/cron/ladder-daily` — schedule `0 4 * * *` (~01:00 UY).
+
+Auth: env `CRON_SECRET`; Vercel manda `Authorization: Bearer $CRON_SECRET`; la ruta valida. `/api/cron` se agrega a `publicRoutes` en `proxy.ts` (el secret lo chequea la ruta, no el middleware). La lógica vive en funciones de servicio reutilizables por la ruta del cron **y** por acciones de admin (disparo manual).
+
+### Cierre mensual (`closeLadderMonth(ladderId, year, month)`)
+
+- **Mes a cerrar**: el recién terminado en UY. **Sin backfill**: cada corrida cierra solo ese mes (mayo 2026 no se auto-cierra; el 1º real de cierre será 1‑jul para junio).
+- **Idempotencia**: se intenta crear `LadderPeriodClose(ladderId, year, month)`; si choca el `@@unique`, ya estaba cerrado → abortar. Todo el cierre (multas + insert) en **una transacción**.
+- **Conteo por miembro activo** (`isActive`): partidos `Match` `PLAYED` con `ladderId`, `playedAt` dentro del mes UY, donde el miembro fue `player1`/`player2`. En **walkover** el ganador suma, el ausente (no-ganador) **no**. `CANCELLED` no cuenta.
+- **Gracia de alta**: si `joinedAt` cae en el mes que se cierra, el miembro **no** se penaliza ese mes (recién se le exige el mínimo desde el primer mes calendario completo).
+- **Multa**: si jugados < `minMatchesPerMonth` → restar `monthlyPenalty` (positivo en BD, se resta) con **piso** `Ladder.ratingFloor` (default 0): el delta aplicado = `-min(monthlyPenalty, rating - ratingFloor)`. Se registra `RatingHistory` reason `PENALTY` con `ratingBefore`/`ratingAfter`/`delta`. Si el delta resulta 0 (ya en el piso), no se escribe fila ni se emaila.
+- La multa es un **sumidero** (deflaciona el total a propósito; no es suma-cero). El piso solo aplica a la multa, **nunca** a los deltas de partido.
+- **Email de multa**: a cada miembro penalizado, con el descuento y el nuevo rating.
+
+### Cron diario (`runLadderDailyTasks`)
+
+Tres tareas independientes (try/catch por tarea para que una falla no bloquee al resto):
+1. **Expirar retos**: `Challenge` `PROPOSED` con `respondByAt < now` → `EXPIRED`. **Sin email**. Se mantiene además la expiración perezosa actual (cron como backstop).
+2. **Aviso pre-vencimiento de partido**: a **ambos** jugadores, ~**1 día antes** del plazo (`plazo = match.createdAt + matchScheduleDeadlineDays`; avisar cuando el plazo cae dentro de las próximas 24h). Determinístico (se manda una sola vez sin campo extra en `Match`). Solo para `PENDING` **sin** `SlotReservation`.
+3. **Auto-cancelar partido vencido**: `Match` `PENDING` con `ladderId`, **sin ninguna** `SlotReservation`, pasado el plazo → `CANCELLED`. Si ya hay reserva pedida (aunque sin confirmar), **no** se cancela (la pelota está en Mati). Email de cancelación a ambos. El cap de retos abiertos se libera solo (el predicado de Fase 2 deja de contar el match `CANCELLED`). El `Challenge` queda `ACCEPTED` (histórico), igual que en la cancelación manual de Fase 2; el par queda libre para re-retarse (no hubo partido jugado → sin cooldown).
+
+- **Aviso pre-cierre de mes** (parte del diario): faltando `Ladder.monthlyWarningLeadDays` (default 3) días para fin de mes UY, email a cada miembro activo **bajo** el mínimo (respeta la gracia de alta). Dispara en un único día del mes → una sola vez, best-effort.
+
+### Feedback de estado mensual (panel del jugador)
+
+- Badge en `/jugador/[slug]` (cerca de la bandeja de retos), visible solo al dueño/admin. Estados **en vivo** (contando partidos del mes corriente del viewer):
+  - **Al día** — jugados ≥ `minMatchesPerMonth`.
+  - **En riesgo** — jugados < mínimo, mes en curso ("jugaste X/2 este mes").
+  - **Penalizado** — el último cierre le aplicó multa (muestra −X y el rating resultante).
+
+### Admin (Fase 3)
+
+- **Disparo manual** de ambos crons: botón "cerrar mes" (selector de período, default el mes recién terminado; idempotente) y botón "correr tareas diarias". Útil para validar la fase y recuperarse de fallas del cron.
+- **Visibilidad**: resumen liviano de "último cierre" en el monitoreo de escalera de Fase 2 (si sale barato); el detalle ya es observable vía `RatingHistory` (`PENALTY`) y el ranking.
+
+### Cambios de schema (migración nueva en Fase 3)
+
+En `Ladder`: agregar `ratingFloor Int @default(0)` y `monthlyWarningLeadDays Int @default(3)`.
+En `LadderMember`: **eliminar** `priorityEligible`.
+
+### Emails nuevos (reusan la infra existente)
+
+Multa aplicada → miembro penalizado · Aviso pre-cierre → miembro bajo mínimo · Aviso pre-vencimiento de partido → ambos jugadores · Partido auto-cancelado → ambos jugadores.
+
+### Fuera de alcance de Fase 3
+
+- Cualquier gating de reserva por actividad (eliminado del diseño).
+- Automatización de la reserva en la app del club (sigue manual de Mati).
+- Reversión/re-cierre de un mes ya cerrado (el guard lo bloquea; corrección manual queda fuera).
+- Gamificación (Fase 4).
+
+---
+
 ## Contexto necesario
 
 ### Archivos a leer antes de implementar
@@ -140,7 +208,7 @@ Tres columnas en `Ladder`: `matchFormat MatchFormat @default(SINGLE_SET)`, `rema
 - **Suma-cero con redondeo:** redondear el delta del ganador y aplicar su negativo al perdedor (`deltaLoser = -deltaWinner`) para que el rating total nunca se infle.
 - **Timezone:** el mes y las ventanas se calculan en `America/Montevideo` y se guardan en UTC (`src/lib/date-utils.ts`). El cron debe usar límites de mes UY.
 - **Idempotencia del cron:** registrar el cierre en `LadderPeriodClose` (`@@unique([ladderId, year, month])`) y abortar si ya existe. Vercel puede reintentar.
-- **Reserva gateada:** `createReservation` para partidos de escalera debe verificar `LadderMember.priorityEligible` del solicitante.
+- **Reserva NO gateada:** cualquiera de los dos jugadores de un partido de escalera puede reservar; no se verifica actividad. La inactividad penaliza puntos, no el acceso. (El campo `priorityEligible` se elimina en Fase 3.)
 - **Conteo de actividad con walkover:** el ganador por walkover suma partido para su mínimo; el ausente (perdedor del walkover) **no**.
 
 ---
@@ -197,7 +265,7 @@ model LadderMember {
   userId           String
   rating           Int
   isActive         Boolean  @default(true)
-  priorityEligible Boolean  @default(true)  // recalculado por el cron
+  // priorityEligible: ELIMINADO en Fase 3 — la reserva no se gatea por actividad (ver §"Fase 3").
   joinedAt         DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -319,9 +387,7 @@ para cada ladder activa:
   para cada LadderMember activo:
     jugados = count(Match PLAYED del mes, ladderId, member participó y NO fue el ausente del walkover)
     si jugados < minMatchesPerMonth:
-      aplicar -monthlyPenalty (RatingHistory reason PENALTY); priorityEligible = false
-    si no:
-      priorityEligible = true
+      aplicar -monthlyPenalty (RatingHistory reason PENALTY)   // multa de puntos; NO toca reserva
   crear LadderPeriodClose(ladderId, year, month)
 ```
 
@@ -341,14 +407,15 @@ para cada ladder activa:
 9. Emails: reto recibido/aceptado/rechazado + partido cancelado; adaptar confirmación a "La Escalera".
 10. UI jugador (lanzar reto fila+perfil, bandeja en el panel, feedback de delta) + admin (editor de config del `Ladder` + monitoreo de retos/partidos).
 
-**Fase 3 — Compromiso**
-11. `/api/cron/ladder-close` + config Vercel cron. `LadderPeriodClose` idempotente.
-12. Gating de `createReservation` por `priorityEligible`.
-13. Feedback de estado mensual al miembro.
+**Fase 3 — Compromiso** (detalle cerrado en §"Fase 3 — diseño cerrado")
+11. Migración: eliminar `LadderMember.priorityEligible`.
+12. Cron mensual de cierre (`LadderPeriodClose` idempotente): multa de puntos a quien no llega al mínimo.
+13. Cron diario (diferidos de Fase 2): auto-cancelar partidos PENDING vencidos + email pre-vencimiento; expirar retos `PROPOSED` vencidos.
+14. Feedback de estado mensual al miembro (en términos de puntos: al día / en riesgo / penalizado).
 
 **Fase 4 — Gamificación**
-14. "Jugador de la semana" (deltas de `RatingHistory` en la semana).
-15. Evolución de rating / movimientos de puesto. UI motivadora.
+15. "Jugador de la semana" (deltas de `RatingHistory` en la semana).
+16. Evolución de rating / movimientos de puesto. UI motivadora.
 
 ---
 
@@ -368,8 +435,8 @@ Por cada fase, antes de darla por hecha:
 - [ ] Ciclo de reto completo (`PROPUESTO→ACEPTADO→reserva→jugado`) con ELO aplicado.
 - [ ] Preview de puntos == delta real; suma-cero sin inflar el total.
 - [ ] Walkover ELO-neutral; edición por delta local.
-- [ ] Cron de cierre idempotente; penalización + elegibilidad correctas.
-- [ ] Reserva gateada por actividad.
+- [ ] Cron de cierre idempotente; penalización de puntos correcta a quien no llega al mínimo.
+- [ ] Reserva abierta a ambos jugadores (sin gating por actividad); `priorityEligible` eliminado.
 - [ ] Módulo de torneos intacto tras `Match` polimórfico.
 - [ ] Términos en `docs/context.md` reflejan lo implementado.
 

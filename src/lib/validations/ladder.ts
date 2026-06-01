@@ -41,6 +41,8 @@ export const ladderConfigSchema = z.object({
   reservationLeadDays: intField(1, 120),
   minMatchesPerMonth: intField(0, 30),
   monthlyPenalty: intField(0, 500),
+  ratingFloor: intField(0, 2000),
+  monthlyWarningLeadDays: intField(1, 28),
 })
 
 export type LadderConfigInput = z.infer<typeof ladderConfigSchema>

@@ -1,4 +1,4 @@
-import { format, differenceInCalendarDays } from 'date-fns'
+import { format, differenceInCalendarDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { TIMEZONE } from './constants'
 
@@ -44,4 +44,35 @@ export function longDateUY(date: Date): string {
 export function parseFromUY(dateStr: string, timeStr: string): Date {
   const dateTimeStr = `${dateStr}T${timeStr}:00`
   return fromZonedTime(dateTimeStr, TIMEZONE)
+}
+
+/** Límites UTC del mes calendario UY indicado (month: 1-12). */
+export function monthRangeUY(year: number, month: number): { startUTC: Date; endUTC: Date } {
+  const refDate = new Date(year, month - 1, 1)
+  return {
+    startUTC: fromZonedTime(startOfMonth(refDate), TIMEZONE),
+    endUTC: fromZonedTime(endOfMonth(refDate), TIMEZONE),
+  }
+}
+
+/** Año y mes (1-12) del mes calendario UY recién terminado respecto de ahora. */
+export function previousMonthInUY(): { year: number; month: number } {
+  const lastMonthUY = subMonths(toZonedTime(new Date(), TIMEZONE), 1)
+  return { year: lastMonthUY.getFullYear(), month: lastMonthUY.getMonth() + 1 }
+}
+
+/** Días de calendario UY que faltan para fin del mes corriente (0 = hoy es el último día). */
+export function daysUntilEndOfMonthUY(date: Date = new Date()): number {
+  const dateUY = toZonedTime(date, TIMEZONE)
+  return differenceInCalendarDays(endOfMonth(dateUY), dateUY)
+}
+
+const MONTHS_ES = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+/** Etiqueta de mes en español, p.ej. "mayo de 2026" (month: 1-12). */
+export function monthLabelUY(year: number, month: number): string {
+  return `${MONTHS_ES[month - 1]} de ${year}`
 }

@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
 import { fullName } from '@/lib/format-name'
+import { toZonedTime } from 'date-fns-tz'
+import { TIMEZONE } from '@/lib/constants'
+import { monthRangeUY } from '@/lib/date-utils'
 import { computeRanking } from './ranking-service'
 import { getBracketByCategory } from './bracket-service'
 import { getPlayerSlugsByUserIds } from './player-service'
@@ -71,6 +74,73 @@ export async function hasLadderMatches(ladderId: string, tx?: Tx): Promise<boole
   const client = tx ?? prisma
   const count = await client.match.count({ where: { ladderId } })
   return count > 0
+}
+
+// ============================================================================
+// Estado de actividad mensual (badge del jugador) y último cierre (admin)
+// ============================================================================
+
+export interface MonthlyActivity {
+  played: number
+  min: number
+  status: 'al-dia' | 'en-riesgo'
+  /** Puntos perdidos en el cierre más reciente (positivo), o null si no lo penalizaron. */
+  lastPenalty: number | null
+}
+
+/**
+ * Estado de actividad del miembro en el mes corriente UY: partidos jugados
+ * (excluyendo al ausente del walkover), mínimo exigido, y si el último cierre le
+ * aplicó multa. Devuelve null si el usuario no es miembro de la escalera.
+ */
+export async function getMonthlyActivity(userId: string): Promise<MonthlyActivity | null> {
+  const ladder = await getLadder()
+  if (!ladder) return null
+  const member = await prisma.ladderMember.findUnique({
+    where: { ladderId_userId: { ladderId: ladder.id, userId } },
+    select: { id: true },
+  })
+  if (!member) return null
+
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const { startUTC, endUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
+
+  const matches = await prisma.match.findMany({
+    where: {
+      ladderId: ladder.id,
+      status: 'PLAYED',
+      playedAt: { gte: startUTC, lte: endUTC },
+      OR: [{ player1Id: userId }, { player2Id: userId }],
+    },
+    select: { result: { select: { walkover: true, winnerId: true } } },
+  })
+  // Excluir partidos ganados por walkover donde el miembro fue el ausente.
+  const played = matches.filter((m) => !(m.result?.walkover && m.result.winnerId !== userId)).length
+
+  // "Penalizado": fila PENALTY de este miembro creada en el cierre más reciente
+  // (el cron corre el 1º, así que cae dentro del mes corriente).
+  const penaltyRow = await prisma.ratingHistory.findFirst({
+    where: { ladderMemberId: member.id, reason: 'PENALTY', createdAt: { gte: startUTC } },
+    orderBy: { createdAt: 'desc' },
+    select: { delta: true },
+  })
+
+  return {
+    played,
+    min: ladder.minMatchesPerMonth,
+    status: played >= ladder.minMatchesPerMonth ? 'al-dia' : 'en-riesgo',
+    lastPenalty: penaltyRow ? Math.abs(penaltyRow.delta) : null,
+  }
+}
+
+/** Último período cerrado de la escalera (para el panel admin). */
+export async function getLastPeriodClose() {
+  const ladder = await getLadder()
+  if (!ladder) return null
+  return prisma.ladderPeriodClose.findFirst({
+    where: { ladderId: ladder.id },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  })
 }
 
 // ============================================================================
@@ -355,6 +425,8 @@ export interface LadderConfigData {
   reservationLeadDays: number
   minMatchesPerMonth: number
   monthlyPenalty: number
+  ratingFloor: number
+  monthlyWarningLeadDays: number
 }
 
 /**
