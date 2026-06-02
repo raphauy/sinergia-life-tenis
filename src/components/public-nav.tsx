@@ -1,31 +1,49 @@
-import Link from 'next/link'
-import { Trophy, CalendarDays, LayoutList, User, LogIn, ListOrdered } from 'lucide-react'
+'use client'
 
-interface PublicNavProps {
-  userHref: string | null
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { CalendarDays, LayoutList, ListOrdered } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+/** La raíz (La Escalera) solo matchea exacto; el resto matchea la ruta y sus sub-rutas. */
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function PublicNav({ userHref }: PublicNavProps) {
+export function PublicNav() {
+  const pathname = usePathname()
   return (
     <nav className="flex items-center gap-1">
-      <NavLink href="/" icon={<ListOrdered className="h-5 w-5" />} label="La Escalera" />
-      <NavLink href="/ranking" icon={<Trophy className="h-5 w-5" />} label="Ranking" />
-      <NavLink href="/fixture" icon={<LayoutList className="h-5 w-5" />} label="Fixture" />
-      <NavLink href="/calendario" icon={<CalendarDays className="h-5 w-5" />} label="Calendario" />
-      {userHref ? (
-        <NavLink href={userHref} icon={<User className="h-5 w-5" />} label="Mi panel" />
-      ) : (
-        <NavLink href="/login" icon={<LogIn className="h-5 w-5" />} label="Ingresar" />
-      )}
+      <NavLink href="/" icon={<ListOrdered className="h-5 w-5" />} label="La Escalera" pathname={pathname} />
+      <NavLink href="/partidos" icon={<LayoutList className="h-5 w-5" />} label="Partidos" pathname={pathname} />
+      <NavLink href="/calendario" icon={<CalendarDays className="h-5 w-5" />} label="Calendario" pathname={pathname} />
     </nav>
   )
 }
 
-function NavLink({ href, icon, label }: { href: string; icon: React.ReactNode; label: string }) {
+function NavLink({
+  href,
+  icon,
+  label,
+  pathname,
+}: {
+  href: string
+  icon: React.ReactNode
+  label: string
+  pathname: string
+}) {
+  const active = isActive(pathname, href)
   return (
     <Link
       href={href}
-      className="flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-md transition-colors',
+        active
+          ? 'text-primary bg-muted font-semibold'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+      )}
     >
       {icon}
       <span className="text-[10px] leading-none font-medium whitespace-nowrap">{label}</span>

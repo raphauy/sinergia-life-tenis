@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tournament) return { title: 'Torneo no encontrado' }
   return {
     title: `${tournament.name} - Life Tenis`,
-    description: `Ranking, fixture y resultados del ${tournament.name} - Club Sinergia Life`,
+    description: `Ranking, fixture y resultados del ${tournament.name} - Club Life Montevideo`,
   }
 }
 

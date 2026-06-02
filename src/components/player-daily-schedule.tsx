@@ -244,7 +244,7 @@ export function PlayerDailySchedule({
                           className="h-8 text-sm"
                           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleCedulaSubmit() } }}
                         />
-                        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Sinergia Life</p>
+                        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Life Montevideo</p>
                       </div>
                     )}
                     <Button

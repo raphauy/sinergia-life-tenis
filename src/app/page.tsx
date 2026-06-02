@@ -9,7 +9,7 @@ import { getPlayerOfTheWeek, getFeaturedMatches, getMonthlyPositionMovement } fr
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { FeaturedMatches } from '@/components/featured-matches'
-import { PublicNav } from '@/components/public-nav'
+import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
 import { ChevronRight, Trophy } from 'lucide-react'
 
@@ -20,17 +20,6 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const session = await auth()
-
-  // Resolve nav target for the logged-in user
-  let userHref: string | null = null
-  if (session?.user) {
-    if (session.user.role === 'SUPERADMIN' || session.user.role === 'ADMIN') {
-      userHref = '/admin'
-    } else {
-      const playerSlug = await getActivePlayerSlugByUserId(session.user.id)
-      userHref = playerSlug ? `/jugador/${playerSlug}` : '/perfil'
-    }
-  }
 
   const [view, tournament, playerOfWeek, featured, movement] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
@@ -46,16 +35,7 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navbar */}
-      <header className="border-b bg-white dark:bg-black sticky top-0 z-50">
-        <div className="container mx-auto flex h-14 items-center justify-between px-4">
-          <Link href="/">
-            <Image src="/life-logo.png" alt="Life Tenis" width={120} height={40} className="block dark:hidden" />
-            <Image src="/life-logo-dark.png" alt="Life Tenis" width={120} height={40} className="hidden dark:block" />
-          </Link>
-          <PublicNav userHref={userHref} />
-        </div>
-      </header>
+      <SiteHeader sticky />
 
       {/* Hero */}
       <section className="relative h-56 md:h-72 overflow-hidden">
@@ -127,8 +107,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>Life Tenis</span>
           <div className="flex gap-4">
-            <Link href="/ranking" className="hover:text-foreground">Ranking</Link>
-            <Link href="/fixture" className="hover:text-foreground">Fixture</Link>
+            <Link href="/partidos" className="hover:text-foreground">Partidos</Link>
             <Link href="/calendario" className="hover:text-foreground">Calendario</Link>
           </div>
         </div>

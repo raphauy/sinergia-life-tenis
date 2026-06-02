@@ -197,7 +197,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
           onChange={(e) => setCedula(e.target.value)}
           placeholder="Ej: 1.234.567-8"
         />
-        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Sinergia Life</p>
+        <p className="text-xs text-muted-foreground">Se usa para reservar la cancha en la app de Life Montevideo</p>
       </div>
 
       {/* Email (readonly) */}

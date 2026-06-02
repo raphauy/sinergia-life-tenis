@@ -7,6 +7,7 @@ import { monthRangeUY, weekRangeUY, previousWeekRangeUY } from '@/lib/date-utils
 import { eloPreview } from '@/lib/elo'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
+import { getReservationsByMatchIds } from './reservation-service'
 import type { Prisma } from '@prisma/client'
 
 // ============================================================================
@@ -252,6 +253,77 @@ export async function getLadderChallengerPreviews(
     out.set(m.id, eloPreview(ladder.kFactor, r1, r2))
   }
   return out
+}
+
+// ============================================================================
+// Todos los partidos de la escalera (vista pública de Partidos)
+// ============================================================================
+
+export interface LadderMatchItem {
+  match: FeaturedRow & { category: null }
+  player1Slug: string | null
+  player2Slug: string | null
+  /** Puntos en juego del retador (player1): +gana / pierde (solo no jugados). */
+  preview: { ifWin: number; ifLose: number } | null
+  /** Delta de Rating aplicado a cada jugador (solo jugados). */
+  resultDeltas: { player1: number | null; player2: number | null } | null
+  /** Reserva pendiente de cancha+horario (solo PENDING). */
+  reservation: { scheduledAt: Date; courtNumber: number } | null
+}
+
+/**
+ * Todos los partidos de escalera (excepto CANCELLED), separados en próximos
+ * (PENDING + CONFIRMED) y resultados (PLAYED), con todo lo que la card necesita:
+ * slug de cada jugador, preview ELO de los no jugados, delta de los jugados y la
+ * reserva pendiente. Próximos: confirmados primero (por fecha), luego los pendientes
+ * sin fecha. Resultados: del más reciente al más viejo por fecha del slot.
+ */
+export async function getLadderMatches(): Promise<{ upcoming: LadderMatchItem[]; played: LadderMatchItem[] }> {
+  const ladder = await getLadder()
+  if (!ladder) return { upcoming: [], played: [] }
+
+  const matches = await prisma.match.findMany({
+    where: { ladderId: ladder.id, status: { in: ['PENDING', 'CONFIRMED', 'PLAYED'] } },
+    select: featuredSelect,
+  })
+  if (matches.length === 0) return { upcoming: [], played: [] }
+
+  const userIds = matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
+  const pendingIds = matches.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  const [slugMap, deltaMap, previewMap, reservations] = await Promise.all([
+    getPlayerSlugsByUserIds(userIds),
+    getLadderResultDeltas(matches),
+    getLadderChallengerPreviews(matches),
+    getReservationsByMatchIds(pendingIds),
+  ])
+  const reservationMap = new Map(
+    reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }])
+  )
+
+  const toItem = (m: FeaturedRow): LadderMatchItem => ({
+    match: { ...m, category: null },
+    player1Slug: m.player1Id ? slugMap.get(m.player1Id) ?? null : null,
+    player2Slug: m.player2Id ? slugMap.get(m.player2Id) ?? null : null,
+    preview: m.status !== 'PLAYED' ? previewMap.get(m.id) ?? null : null,
+    resultDeltas: m.status === 'PLAYED' ? deltaMap.get(m.id) ?? null : null,
+    reservation: m.status === 'PENDING' ? reservationMap.get(m.id) ?? null : null,
+  })
+
+  const upcoming = matches
+    .filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
+    .map(toItem)
+    .sort((a, b) => {
+      if (a.match.status !== b.match.status) return a.match.status === 'CONFIRMED' ? -1 : 1
+      const ta = a.match.scheduledAt?.getTime() ?? Infinity
+      const tb = b.match.scheduledAt?.getTime() ?? Infinity
+      return ta - tb
+    })
+  const played = matches
+    .filter((m) => m.status === 'PLAYED')
+    .map(toItem)
+    .sort((a, b) => (b.match.scheduledAt?.getTime() ?? 0) - (a.match.scheduledAt?.getTime() ?? 0))
+
+  return { upcoming, played }
 }
 
 // ============================================================================

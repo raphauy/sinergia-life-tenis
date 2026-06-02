@@ -73,7 +73,9 @@ export default async function PartidosPage({ searchParams }: Props) {
                     {fullName(m.player1?.firstName, m.player1?.lastName) || 'Por definir'} vs {fullName(m.player2?.firstName, m.player2?.lastName) || 'Por definir'}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {m.tournament?.name} — {m.category?.name}
+                    {m.tournament
+                      ? `${m.tournament.name}${m.category ? ` — ${m.category.name}` : ''}`
+                      : 'La Escalera'}
                   </p>
                 </div>
                 <div className="text-right">

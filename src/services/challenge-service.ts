@@ -315,6 +315,75 @@ export async function getInbox(userId: string): Promise<{ received: InboxChallen
   }
 }
 
+export interface PendingChallengeParty {
+  userId: string
+  name: string
+  image: string | null
+  playerSlug: string | null
+  rating: number
+  position: number
+}
+
+export interface PublicPendingChallenge {
+  id: string
+  challenger: PendingChallengeParty
+  challenged: PendingChallengeParty
+  // Puntos en juego desde la perspectiva del retador (challenger): +gana / pierde.
+  ifWin: number
+  ifLose: number
+  proposedAt: Date
+  respondByAt: Date
+}
+
+/**
+ * Retos PROPOSED vivos de toda la escalera, para la vista pública de Partidos
+ * (global, read-only, también anónima). Filtra los vencidos por `respondByAt` sin
+ * escribir (igual que getLadderView, para no disparar un updateMany en cada GET
+ * público); el flip a EXPIRED lo hacen el cron diario y los write-paths. Toma
+ * nombre/avatar/puntos/puesto del ranking ya resuelto; descarta retos donde algún
+ * participante quedó inactivo (fuera del ranking).
+ */
+export async function getPendingChallenges(): Promise<PublicPendingChallenge[]> {
+  const ladder = await getLadder()
+  if (!ladder) return []
+
+  const ranking = await getLadderRanking()
+  const standByUser = new Map(ranking.map((e) => [e.userId, e]))
+
+  const challenges = await prisma.challenge.findMany({
+    where: { ladderId: ladder.id, status: 'PROPOSED', respondByAt: { gte: new Date() } },
+    select: { id: true, challengerId: true, challengedId: true, proposedAt: true, respondByAt: true },
+    orderBy: { proposedAt: 'asc' },
+  })
+
+  const toParty = (e: LadderEntry): PendingChallengeParty => ({
+    userId: e.userId,
+    name: e.name,
+    image: e.image,
+    playerSlug: e.playerSlug,
+    rating: e.rating,
+    position: e.position,
+  })
+
+  const out: PublicPendingChallenge[] = []
+  for (const c of challenges) {
+    const challenger = standByUser.get(c.challengerId)
+    const challenged = standByUser.get(c.challengedId)
+    if (!challenger || !challenged) continue
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, challenger.rating, challenged.rating)
+    out.push({
+      id: c.id,
+      challenger: toParty(challenger),
+      challenged: toParty(challenged),
+      ifWin,
+      ifLose,
+      proposedAt: c.proposedAt,
+      respondByAt: c.respondByAt,
+    })
+  }
+  return out
+}
+
 // ============================================================================
 // Vista de la escalera para un viewer (preview ELO + estado de reto por fila)
 // ============================================================================

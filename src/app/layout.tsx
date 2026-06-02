@@ -30,10 +30,10 @@ export const metadata: Metadata = {
     || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   ),
   title: {
-    default: 'Life Tenis - Club Sinergia Life',
+    default: 'Life Tenis - Club Life Montevideo',
     template: '%s | Life Tenis',
   },
-  description: 'Torneos de tenis del Club Sinergia Life. Ranking, fixture, resultados y perfiles de jugadores.',
+  description: 'Torneos de tenis del Club Life Montevideo. Ranking, fixture, resultados y perfiles de jugadores.',
   applicationName: 'Life Tenis',
   openGraph: {
     siteName: 'Life Tenis',

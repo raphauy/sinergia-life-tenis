@@ -11,8 +11,8 @@ export async function generateMetadata(): Promise<Metadata> {
     ? `Ranking - ${tournament.name}`
     : 'Ranking'
   const description = tournament
-    ? `Posiciones y estadísticas del ${tournament.name} - Club Sinergia Life`
-    : 'Ranking de tenis - Club Sinergia Life'
+    ? `Posiciones y estadísticas del ${tournament.name} - Club Life Montevideo`
+    : 'Ranking de tenis - Club Life Montevideo'
 
   return { title, description }
 }

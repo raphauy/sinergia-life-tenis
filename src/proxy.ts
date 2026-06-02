@@ -17,6 +17,7 @@ export default async function proxy(request: NextRequest) {
     '/ranking',
     '/fixture',
     '/calendario',
+    '/partidos',
     '/partido',
     '/torneo',
   ]
