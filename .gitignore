@@ -44,6 +44,9 @@ next-env.d.ts
 
 dev.log
 
+# scratch local (no versionar)
+borrar.txt
+
 # QA: los reportes (docs/qa/fase-*.md) se versionan; las capturas de evidencia no
 docs/qa/evidence/
 
