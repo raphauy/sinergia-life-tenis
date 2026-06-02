@@ -6,19 +6,29 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { blobUrl } from '@/lib/blob-url'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
-import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
-import { getInbox, getChallengeState } from '@/services/challenge-service'
+import { getInbox, getChallengeState, getMemberChallenges } from '@/services/challenge-service'
 import { getMonthlyActivity } from '@/services/ladder-service'
+import {
+  getMemberStanding,
+  getMonthlyPositionMovement,
+  getRatingEvolution,
+  getPlayerOfTheWeek,
+  getLadderChallengerPreviews,
+  getLadderResultDeltas,
+} from '@/services/ladder-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ChallengeInbox } from '@/components/challenge-inbox'
 import { LadderMonthlyStatus } from '@/components/ladder-monthly-status'
+import { PositionDelta } from '@/components/position-delta'
+import { RatingEvolutionChart } from '@/components/rating-evolution-chart'
+import { PublicChallenges } from '@/components/public-challenges'
 import { fullName, initials } from '@/lib/format-name'
+import { Trophy } from 'lucide-react'
 
 export async function generateMetadata({
   params,
@@ -30,9 +40,6 @@ export async function generateMetadata({
     where: { slug },
     include: {
       user: { select: { firstName: true, lastName: true, image: true } },
-      category: { select: { name: true } },
-      tournament: { select: { name: true } },
-      group: { select: { number: true } },
     },
   })
 
@@ -41,9 +48,12 @@ export async function generateMetadata({
   const name = player.user
     ? fullName(player.user.firstName, player.user.lastName)
     : fullName(player.firstName, player.lastName)
-  const title = `${name} - ${player.tournament.name}`
-  const groupSuffix = player.group ? `, Grupo ${player.group.number}` : ''
-  const description = `Perfil de ${name} - Categoría ${player.category.name}${groupSuffix} - ${player.tournament.name}`
+  const standing = player.userId ? await getMemberStanding(player.userId) : null
+
+  const title = `${name} - Life Tenis`
+  const description = standing
+    ? `${name} en La Escalera de Life Montevideo — Ranking ${standing.rating}, puesto #${standing.position}.`
+    : `Perfil de ${name} en La Escalera de Life Montevideo.`
 
   return {
     title,
@@ -68,9 +78,6 @@ export default async function JugadorProfilePage({ params }: Props) {
     where: { slug },
     include: {
       user: { select: { id: true, firstName: true, lastName: true, image: true } },
-      category: { select: { name: true } },
-      tournament: { select: { name: true } },
-      group: { select: { number: true } },
     },
   })
 
@@ -117,12 +124,32 @@ export default async function JugadorProfilePage({ params }: Props) {
   const reservations = await getReservationsByMatchIds(pendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
+  // Puntos en juego del retador para los próximos partidos de escalera (cards).
+  const ladderPreviews = await getLadderChallengerPreviews(upcoming)
+  // Deltas aplicados en los partidos de escalera ya jugados (historial).
+  const resultDeltas = await getLadderResultDeltas(recentPlayed)
+
   // La Escalera: estado del reto entre el viewer y este perfil (+ preview); bandeja del dueño.
   const viewerId = session?.user?.id ?? null
   const challengeState = viewerId && userId ? await getChallengeState(viewerId, userId) : null
   const inbox = isOwner && userId ? await getInbox(userId) : null
   // Estado de actividad mensual: solo para el dueño/admin y si es miembro de la escalera.
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
+
+  // Gamificación (pública): rating+puesto, movimiento del mes, evolución, jugador de la semana.
+  const [standing, ratingEvolution, playerOfWeek, movement] = userId
+    ? await Promise.all([
+        getMemberStanding(userId),
+        getRatingEvolution(userId),
+        getPlayerOfTheWeek(),
+        getMonthlyPositionMovement(),
+      ])
+    : [null, [], null, new Map<string, number>()]
+  const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
+  // Retos del jugador para la vista pública (read-only). No para el dueño (los ve
+  // con acciones en su bandeja). El reto con el propio viewer se muestra con
+  // etiqueta personalizada ("Retado por ti" / "Te retó").
+  const publicChallenges = userId && !isOwner ? await getMemberChallenges(userId) : []
   // Slug del viewer para los links de "Responder" / "A jugar" del control.
   const viewerPanelSlug =
     viewerId && challengeState && (challengeState.state === 'received' || challengeState.state === 'playing')
@@ -141,16 +168,22 @@ export default async function JugadorProfilePage({ params }: Props) {
         </Avatar>
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{displayName}</h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <Badge variant="outline" className="rounded-md">{player.tournament.name}</Badge>
-            <CategoryBadge name={player.category.name} />
-            {player.group && (
-              <Badge variant="outline" className="rounded-md">Grupo {player.group.number}</Badge>
-            )}
-            {player.withdrawnAt && (
-              <Badge variant="destructive" className="rounded-md">Retirado</Badge>
-            )}
-          </div>
+          {standing && (
+            <div className="mt-2 space-y-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="font-semibold tabular-nums">Ranking #{standing.position}</span>
+                <PositionDelta value={userId ? movement.get(userId) : undefined} />
+                {isPlayerOfWeek && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                    <Trophy className="h-3 w-3" /> Jugador de la semana
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <span className="tabular-nums">{standing.rating}</span> puntos en La Escalera
+              </p>
+            </div>
+          )}
         </div>
         {challengeState && challengeState.state !== 'self' && userId && (
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -177,8 +210,19 @@ export default async function JugadorProfilePage({ params }: Props) {
       {/* Estado de actividad mensual (solo dueño/admin, si es miembro) */}
       {monthlyActivity && <LadderMonthlyStatus activity={monthlyActivity} />}
 
-      {/* Bandeja de retos (solo el dueño) */}
+      {/* Bandeja de retos (solo el dueño, con acciones) */}
       {inbox && <ChallengeInbox received={inbox.received} sent={inbox.sent} />}
+
+      {/* Retos del jugador (vista pública, read-only) — para quien no es el dueño */}
+      {publicChallenges.length > 0 && <PublicChallenges challenges={publicChallenges} viewerUserId={viewerId} />}
+
+      {/* Evolución de rating (pública, si es miembro con historial) */}
+      {ratingEvolution.length >= 2 && (
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Evolución</h2>
+          <RatingEvolutionChart points={ratingEvolution} />
+        </section>
+      )}
 
       {/* Upcoming matches */}
       <section className="mb-8">
@@ -204,6 +248,7 @@ export default async function JugadorProfilePage({ params }: Props) {
                 currentUserId={canAct ? userId ?? undefined : undefined}
                 currentPlayerSlug={canAct ? slug : undefined}
                 reservation={reservationMap.get(m.id)}
+                ladderPreview={ladderPreviews.get(m.id) ?? null}
               />
             ))}
           </div>
@@ -224,6 +269,7 @@ export default async function JugadorProfilePage({ params }: Props) {
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                ladderResultDeltas={resultDeltas.get(m.id) ?? null}
               />
             ))}
           </div>

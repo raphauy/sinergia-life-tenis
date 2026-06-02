@@ -1,4 +1,4 @@
-import { format, differenceInCalendarDays, startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { format, differenceInCalendarDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { TIMEZONE } from './constants'
 
@@ -59,6 +59,26 @@ export function monthRangeUY(year: number, month: number): { startUTC: Date; end
 export function previousMonthInUY(): { year: number; month: number } {
   const lastMonthUY = subMonths(toZonedTime(new Date(), TIMEZONE), 1)
   return { year: lastMonthUY.getFullYear(), month: lastMonthUY.getMonth() + 1 }
+}
+
+/**
+ * Límites UTC de la semana calendario UY (lunes 00:00 → domingo 23:59) que
+ * contiene `date`. El juego real es lunes–sábado (club cerrado domingo); la
+ * atribución de partidos a una semana se hace por su `scheduledAt`.
+ */
+export function weekRangeUY(date: Date = new Date()): { startUTC: Date; endUTC: Date } {
+  const dUY = toZonedTime(date, TIMEZONE)
+  return {
+    startUTC: fromZonedTime(startOfWeek(dUY, { weekStartsOn: 1 }), TIMEZONE),
+    endUTC: fromZonedTime(endOfWeek(dUY, { weekStartsOn: 1 }), TIMEZONE),
+  }
+}
+
+/** Límites UTC de la semana UY recién terminada (la anterior a la que contiene `date`). */
+export function previousWeekRangeUY(date: Date = new Date()): { startUTC: Date; endUTC: Date } {
+  // Restar 7 días exactos al instante UTC (UY no tiene DST) y dejar que weekRangeUY
+  // haga la conversión a UY. NO pre-convertir con toZonedTime: weekRangeUY ya lo hace.
+  return weekRangeUY(subWeeks(date, 1))
 }
 
 /** Días de calendario UY que faltan para fin del mes corriente (0 = hoy es el último día). */

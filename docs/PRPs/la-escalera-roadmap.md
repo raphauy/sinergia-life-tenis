@@ -85,7 +85,7 @@ Liga permanente de desafíos sobre un ranking ELO único. Diseño completo en [`
 
 ## Fase 4 — Gamificación + reconocimientos
 
-**Estado:** pendiente
+**Estado:** ✅ terminada
 
 **Objetivo:** Que La Escalera "se sienta" como un juego y motive el enganche (adherencia es el objetivo de producto nº1).
 

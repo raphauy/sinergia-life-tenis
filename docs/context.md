@@ -117,8 +117,8 @@ _Evitar_: "desafío" suelto en código — usar `Challenge`.
 **Rating**:
 Puntaje ELO de un **Miembro**; su orden define el puesto en **La Escalera**. Suma-cero (lo que gana uno lo pierde el otro), `K=24` de arranque. Baja por inactividad (penalización mensual). Seed inicial desde el primer torneo: −20 puntos por puesto, A>B>C (1500→700).
 _Código_: `LadderMember.rating` (+ historial para gráficos y "jugador de la semana").
-_UI_: al usuario se le muestra como **«ranking»** (uso coloquial uruguayo: "tengo 1500 de ranking"). En código sigue siendo `rating`.
-_Evitar_: llamarlo "puntos" sin contexto — choca con los "puntos" del **Ranking** del torneo (que hoy es `pg`). En La Escalera, "puntos"/"ranking" = **Rating** ELO.
+_UI_ (decidido en Fase 4): el **valor** se muestra como **«puntos»** ("1266 puntos en La Escalera") y la palabra **«Ranking»** se reserva para el **puesto** ("Ranking #8"). En código sigue siendo `rating`. _Deuda_: algunas superficies legacy aún dicen "ranking" para el valor (columna de la tabla, "X de ranking" en tarjetas) — pendiente de unificar a "puntos".
+_Evitar_: usar «ranking» para el **valor** (es el **puesto**). El valor es **«puntos»**.
 
 **Partido de escalera**:
 Un **Partido** (`Match`) generado por un **Reto** aceptado. Reusa el ciclo `PENDING → CONFIRMED → PLAYED | CANCELLED` y la **Reserva de slot**. A diferencia de un partido de torneo, `tournamentId`/`categoryId` van **nulos** y el partido se vincula a la escalera/reto (`Match` pasa a ser polimórfico: torneo **o** escalera).
@@ -149,3 +149,31 @@ _Código_: `challenge-service` (conteo de retos iniciados en el mes).
 **Cierre de mes**:
 Proceso mensual (Vercel cron, 1º a las 00:00 UY, idempotente vía `LadderPeriodClose`) que evalúa la actividad del mes recién terminado de cada **Miembro** activo y aplica la **Penalización mensual** a quien no alcanzó el **Mínimo mensual de partidos**. Un miembro cuyo alta cae en el mes que se cierra tiene **gracia** (no se penaliza ese mes).
 _Código_: `closeLadderMonth` + ruta `/api/cron/ladder-month-close`.
+
+### Gamificación (Fase 4)
+
+> Términos cerrados en grill-me 2026-06-01 (Fase 4). Diseño en `docs/PRPs/la-escalera-prp.md` §"Fase 4".
+
+**Semana (de La Escalera)**:
+Semana calendario UY con inicio el **lunes** (lunes 00:00 → domingo 23:59). El juego real es lunes–sábado (club cerrado los domingos). Los partidos se atribuyen a una semana por su **fecha agendada** (`Match.scheduledAt`, el slot), **no** por cuándo se cargó el resultado — así un partido del sábado cuenta en su semana aunque el resultado entre el domingo o el lunes. "Rota" el lunes.
+_Evitar_: contar por `playedAt`/`RatingHistory.createdAt` (es la fecha de carga, no la de juego).
+
+**Jugador de la semana**:
+**Miembro** con mayor **ganancia neta de Rating en partidos** de la **Semana** recién cerrada: suma de los `delta` de `RatingHistory` con reason `MATCH` de sus partidos de esa semana (las victorias por walkover suman 0; las **Penalizaciones** no cuentan). Desempate: más partidos jugados, luego menor **Rating** actual. Si nadie sumó neto positivo, **no hay** jugador de la semana (estado vacío). Se muestra en el home (arriba de la escalera) y como distintivo en el **perfil** durante la semana en curso.
+_UI_: se le dice "ranking" a los puntos (ver **Rating**).
+
+**Partido destacado**:
+**Partido de escalera** con `scheduledAt` dentro de la **Semana** corriente, mostrado en el home: los `CONFIRMED` por venir y los `PLAYED` (con resultado) de la semana, que quedan visibles hasta el cierre. Tope 5, ordenados por **Importancia**. Los aceptados sin fecha (`PENDING`) no entran.
+
+**Importancia (de un partido)**:
+Criterio de orden de los **Partidos destacados**: suma de los **Rating** de los dos jugadores (los partidos entre los de más arriba pesan más).
+
+**Movimiento de puesto**:
+Cambio de posición de un **Miembro** en La Escalera desde el 1º del mes corriente UY, reconstruido desde `RatingHistory` (no se guarda historial de posiciones). Se muestra como flecha ↑/↓ N en la fila de la escalera y en el **perfil**. Un miembro sin posición de referencia al inicio del mes (alta posterior) no lleva flecha.
+
+**Evolución de rating**:
+Curva del **Rating** de un **Miembro** en el tiempo (desde `RatingHistory`, desde la **Siembra**), mostrada en su **perfil** como gráfico SVG liviano (sin librería de charts).
+
+**Actividad de la escalera (en la fila)**:
+A partir de Fase 4, la tabla de La Escalera muestra la actividad de **Retos** y **Partidos de escalera** vivos de **todos** los miembros (global y pública), no solo los del viewer. Cada reto/partido vivo aparece en las **dos** filas implicadas, desde la perspectiva de cada dueño de fila ("Retó a Fulano" / "Retado por Fulano" / "vs Fulano · fecha") con los puntos en juego (preview ELO, dos valores asimétricos según quién gana). Una fila con varios retos crece en alto (una línea por reto). El viewer conserva su acción ("Retar" con preview) sobre filas retables, aun si el rival ya está ocupado con terceros.
+_Nota_: esto **relaja** la regla de Fase 2 de "no mostrar preview en partido ya agendado" para el tablero — se muestran los puntos aunque puedan moverse antes de jugarse (se aclarará en ayuda al usuario).

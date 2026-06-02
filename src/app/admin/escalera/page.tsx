@@ -10,10 +10,13 @@ import {
   SEED_BASE_RATING,
   SEED_STEP,
 } from '@/services/ladder-service'
-import { getLadderChallenges } from '@/services/challenge-service'
+import { getLadderChallenges, getLadderView } from '@/services/challenge-service'
+import { getMonthlyPositionMovement } from '@/services/ladder-stats-service'
+import { getActivePlayerSlugByUserId } from '@/services/player-service'
+import { auth } from '@/lib/auth'
 import { previousMonthInUY, monthLabelUY, formatDateUY } from '@/lib/date-utils'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { LadderTable } from '@/components/ladder-table'
 import { SeedEditor } from './seed-editor'
 import { ResetLadderButton } from './reset-ladder-button'
 import { LadderConfigForm } from './ladder-config-form'
@@ -28,12 +31,18 @@ export default async function AdminEscaleraPage() {
 
   // Ya sembrada: panel con pestañas (ranking, actividad, ajustes).
   if (ladder && ranking.length > 0) {
-    const [locked, challenges, matches, lastPeriodClose] = await Promise.all([
+    const session = await auth()
+    const viewerUserId = session?.user?.id ?? null
+    const [locked, challenges, matches, lastPeriodClose, view, movement] = await Promise.all([
       hasLadderMatches(ladder.id),
       getLadderChallenges(ladder.id),
       getLadderMatchesForAdmin(ladder.id),
       getLastPeriodClose(),
+      getLadderView(viewerUserId),
+      getMonthlyPositionMovement(),
     ])
+    const currentPlayerSlug =
+      view.canChallenge && viewerUserId ? await getActivePlayerSlugByUserId(viewerUserId) : null
 
     // Opciones para "cerrar mes": los últimos 6 meses ya terminados (no el actual,
     // para no cerrar un mes en curso). Default = mes recién terminado.
@@ -84,19 +93,13 @@ export default async function AdminEscaleraPage() {
               <ResetLadderButton disabled={locked} />
             </div>
 
-            <div className="rounded-md border divide-y">
-              {ranking.map((e) => (
-                <div key={e.userId} className="flex items-center gap-3 px-3 py-2">
-                  <span className="w-6 text-center text-sm font-bold tabular-nums">{e.position}</span>
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={e.image || undefined} />
-                    <AvatarFallback className="text-xs">{(e.name[0] || '?').toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <span className="flex-1 truncate text-sm font-medium">{e.name}</span>
-                  <span className="text-sm font-bold tabular-nums">{e.rating}</span>
-                </div>
-              ))}
-            </div>
+            <LadderTable
+              rows={view.rows}
+              canChallenge={view.canChallenge}
+              currentPlayerSlug={currentPlayerSlug}
+              viewerUserId={viewerUserId}
+              movement={movement}
+            />
           </TabsContent>
 
           <TabsContent value="actividad" className="mt-4 space-y-6">

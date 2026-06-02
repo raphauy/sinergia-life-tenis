@@ -58,6 +58,10 @@ interface FixtureMatchCardProps {
   reservation?: { scheduledAt: Date; courtNumber: number } | null
   /** Fallback date when no scheduledAt (e.g. finalsDate for semis/final) */
   fallbackDate?: Date | null
+  /** Puntos en juego del retador (player1) en partidos de escalera no jugados: +gana / pierde. */
+  ladderPreview?: { ifWin: number; ifLose: number } | null
+  /** Delta de Rating aplicado a cada jugador (partido de escalera jugado). */
+  ladderResultDeltas?: { player1: number | null; player2: number | null } | null
 }
 
 function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number): string {
@@ -76,6 +80,16 @@ function placeholderSlot(sourceGroupNumber: number | null | undefined, position:
     return side === 'player1' ? 'Ganador Semifinal 1' : 'Ganador Semifinal 2'
   }
   return 'Por definir'
+}
+
+function DeltaTag({ d }: { d: number }) {
+  return (
+    <span
+      className={`ml-1 text-xs font-medium tabular-nums ${d >= 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'}`}
+    >
+      {d >= 0 ? `+${d}` : d}
+    </span>
+  )
 }
 
 function PlayerName({
@@ -104,7 +118,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
@@ -184,10 +198,16 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
     >
       {/* Row 1: Player1 vs Player2 + morning/afternoon icon */}
       <div className="flex items-center justify-between text-sm">
-        <div>
-          <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
-          <span className="text-muted-foreground mx-1.5 text-xs">vs</span>
-          <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
+        <div className="flex flex-wrap items-center gap-x-1.5">
+          <span className="whitespace-nowrap">
+            <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
+            {ladderResultDeltas?.player1 != null && <DeltaTag d={ladderResultDeltas.player1} />}
+            <span className="text-muted-foreground ml-1.5 text-xs">vs</span>
+          </span>
+          <span className="whitespace-nowrap">
+            <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
+            {ladderResultDeltas?.player2 != null && <DeltaTag d={ladderResultDeltas.player2} />}
+          </span>
         </div>
         {match.result?.photoUrl
           ? <img src={blobUrl(match.result.photoUrl)} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
@@ -199,11 +219,24 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       </div>
 
       {/* Row 2: Category - Group/Stage (+ badge if no date/time) */}
-      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-        <span>
-          {match.category ? `Categoría ${match.category.name}` : 'La Escalera'}
-          {stageLabel ? ` - ${stageLabel}` : match.group && ` - Grupo ${match.group.number}`}
-        </span>
+      <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+        {match.category ? (
+          <span>
+            Categoría {match.category.name}
+            {stageLabel ? ` - ${stageLabel}` : match.group ? ` - Grupo ${match.group.number}` : ''}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            {match.player1 && <span>Retador: {p1Name}</span>}
+            {ladderPreview && !isPlayed && (
+              <span className="tabular-nums">
+                <span className="font-medium text-green-600 dark:text-green-500">+{ladderPreview.ifWin}</span>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="font-medium text-red-600 dark:text-red-500">{ladderPreview.ifLose}</span>
+              </span>
+            )}
+          </span>
+        )}
         {!hasDateTime && !showFallbackDate && statusBadge}
       </div>
 

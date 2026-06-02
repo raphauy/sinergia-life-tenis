@@ -7,6 +7,14 @@ import { toast } from 'sonner'
 import { Check, X } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+} from '@/components/ui/alert-dialog'
 import { formatDateUY } from '@/lib/date-utils'
 import {
   acceptChallengeAction,
@@ -19,6 +27,7 @@ import type { ActionResult } from '@/lib/action-types'
 export function ChallengeInbox({ received, sent }: { received: InboxChallenge[]; sent: InboxChallenge[] }) {
   const router = useRouter()
   const [pendingId, setPendingId] = useState<string | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<InboxChallenge | null>(null)
 
   if (received.length === 0 && sent.length === 0) return null
 
@@ -75,7 +84,7 @@ export function ChallengeInbox({ received, sent }: { received: InboxChallenge[];
                 size="sm"
                 variant="outline"
                 disabled={pendingId === c.id}
-                onClick={() => run(c.id, () => rejectChallengeAction(c.id), 'Reto rechazado')}
+                onClick={() => setRejectTarget(c)}
                 aria-label="Rechazar"
               >
                 <X className="h-4 w-4" />
@@ -108,6 +117,34 @@ export function ChallengeInbox({ received, sent }: { received: InboxChallenge[];
           </div>
         ))}
       </div>
+
+      <AlertDialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) setRejectTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Rechazar el reto</AlertDialogTitle>
+            <AlertDialogDescription>
+              {rejectTarget
+                ? `Vas a rechazar el reto de ${rejectTarget.rival.name}. Rechazar no penaliza, y pueden volver a retarse cuando quieran.`
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={() => setRejectTarget(null)}>
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                const t = rejectTarget
+                setRejectTarget(null)
+                if (t) run(t.id, () => rejectChallengeAction(t.id), 'Reto rechazado')
+              }}
+            >
+              Rechazar reto
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

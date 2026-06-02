@@ -15,7 +15,7 @@ export function LadderMonthlyStatus({ activity }: { activity: MonthlyActivity })
         </Badge>
       ) : (
         <Badge className="border-amber-300 bg-amber-100 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-          En riesgo · {played}/{min} partidos este mes
+          {played}/{min} partidos este mes
         </Badge>
       )}
       {lastPenalty != null && (

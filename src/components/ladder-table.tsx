@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChallengeControl } from '@/components/challenge-control'
+import { PositionDelta } from '@/components/position-delta'
+import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
 
@@ -8,9 +10,13 @@ interface Props {
   rows: LadderRow[]
   canChallenge?: boolean
   currentPlayerSlug?: string | null
+  /** userId del viewer logueado: para no duplicar su propio reto (ya lo cubre el control). */
+  viewerUserId?: string | null
+  /** Movimiento de puesto del mes por userId (↑/↓). */
+  movement?: Map<string, number>
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug }: Props) {
+export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -27,19 +33,25 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug }: Props) {
       <div className="divide-y">
         {rows.map((e) => {
           const isSelf = e.state === 'self'
-          const showSecondRow = !!canChallenge && !isSelf
+          // El control (acción del viewer) solo para estados accionables; 'sent' no
+          // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
+          const showControl =
+            !!canChallenge && !isSelf && (e.state === 'none' || e.state === 'received' || e.state === 'playing')
+          // Mostrar toda la actividad del jugador (incluido el reto que involucra al
+          // propio viewer, con etiqueta "ti"), igual que en la vista pública. El
+          // control aporta la acción; la línea, el contexto.
+          const infoActivities = e.activities
 
           return (
             <div
               key={e.userId}
               className={cn('flex items-center gap-3 px-3 py-1.5 sm:px-4', isSelf && 'bg-primary/5')}
             >
-              {/* Columna izquierda: identidad (arriba) + preview/control (abajo) */}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3">
-                  {/* La flecha de posición del mes (Fase 4) irá dentro de este bloque */}
-                  <span className="w-7 shrink-0 text-center text-base font-bold tabular-nums text-muted-foreground">
-                    {e.position}
+                  <span className="flex w-7 shrink-0 flex-col items-center leading-none">
+                    <span className="text-base font-bold tabular-nums text-muted-foreground">{e.position}</span>
+                    <PositionDelta value={movement?.get(e.userId)} />
                   </span>
                   <Avatar className="h-9 w-9 shrink-0">
                     <AvatarImage src={e.image || undefined} />
@@ -59,18 +71,20 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug }: Props) {
                   )}
                 </div>
 
-                {/* Preview ELO + control de reto, juntos a la izquierda */}
-                {showSecondRow && (
-                  <div className="mt-0.5 flex items-center gap-3 pl-10">
+                {/* Actividad pública del jugador (una línea por reto vivo) */}
+                {infoActivities.length > 0 && (
+                  <div className="mt-1 space-y-0.5 pl-10">
+                    {infoActivities.map((a, i) => (
+                      <ActivityLine key={i} a={a} viewerUserId={viewerUserId} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Acción del viewer (Retar / Responder / A jugar) */}
+                {showControl && (
+                  <div className="mt-1 flex items-center gap-3 pl-10">
                     {e.state === 'none' && e.ifWin != null && e.ifLose != null && (
-                      <span
-                        className="inline-flex items-center gap-1.5 text-xs"
-                        title={`Ganás ${e.ifWin}, perdés ${Math.abs(e.ifLose)}`}
-                      >
-                        <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{e.ifWin}</span>
-                        <span className="text-muted-foreground/40">/</span>
-                        <span className="font-semibold text-red-600 tabular-nums dark:text-red-500">{e.ifLose}</span>
-                      </span>
+                      <PointsPair ifWin={e.ifWin} ifLose={e.ifLose} />
                     )}
                     <ChallengeControl
                       state={e.state}
@@ -84,7 +98,6 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug }: Props) {
                 )}
               </div>
 
-              {/* Ranking: centrado verticalmente respecto a toda la fila */}
               <span className="shrink-0 text-base font-bold tabular-nums">{e.rating}</span>
             </div>
           )

@@ -5,7 +5,10 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
+import { getPlayerOfTheWeek, getFeaturedMatches, getMonthlyPositionMovement } from '@/services/ladder-stats-service'
 import { LadderTable } from '@/components/ladder-table'
+import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
+import { FeaturedMatches } from '@/components/featured-matches'
 import { PublicNav } from '@/components/public-nav'
 import { Button } from '@/components/ui/button'
 import { ChevronRight, Trophy } from 'lucide-react'
@@ -29,9 +32,12 @@ export default async function HomePage() {
     }
   }
 
-  const [view, tournament] = await Promise.all([
+  const [view, tournament, playerOfWeek, featured, movement] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
     getActiveTournament(),
+    getPlayerOfTheWeek(),
+    getFeaturedMatches(),
+    getMonthlyPositionMovement(),
   ])
   const { rows, canChallenge } = view
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -71,7 +77,19 @@ export default async function HomePage() {
       <main className="flex-1 container mx-auto px-4 py-8 max-w-3xl">
         {rows.length > 0 ? (
           <>
-            <LadderTable rows={rows} canChallenge={canChallenge} currentPlayerSlug={currentPlayerSlug} />
+            {playerOfWeek && (
+              <div className="mb-6">
+                <PlayerOfTheWeekCard player={playerOfWeek} />
+              </div>
+            )}
+            <FeaturedMatches matches={featured} />
+            <LadderTable
+              rows={rows}
+              canChallenge={canChallenge}
+              currentPlayerSlug={currentPlayerSlug}
+              viewerUserId={session?.user?.id ?? null}
+              movement={movement}
+            />
             {tournament && (
               <Link
                 href={`/torneo/${tournament.slug}`}

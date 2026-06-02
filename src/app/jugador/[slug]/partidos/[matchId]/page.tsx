@@ -7,6 +7,7 @@ import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
+import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatDateTimeUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
@@ -79,6 +80,12 @@ export default async function MatchDetailPage({ params }: Props) {
   const ratingDeltas = isLadder && match.result ? await getMatchRatingDeltas(matchId) : null
   const fmtDelta = (d: number | undefined) => (d == null ? '' : d > 0 ? `+${d}` : `${d}`)
 
+  // Puntos en juego del retador (player1) si el partido de escalera aún no se jugó.
+  const ladderPreview =
+    isLadder && match.status !== 'PLAYED'
+      ? (await getLadderChallengerPreviews([match])).get(match.id) ?? null
+      : null
+
   // Can load result: match is CONFIRMED, no result, and user is this player (or admin)
   const isOwner = session?.user?.id === player.userId
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -144,9 +151,20 @@ export default async function MatchDetailPage({ params }: Props) {
         <h1 className="text-xl font-bold">
           {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {contextLabel}
-        </p>
+        {isLadder ? (
+          <p className="text-sm text-muted-foreground">
+            {match.player1 && `Retador: ${fullName(match.player1.firstName, match.player1.lastName)}`}
+            {ladderPreview && (
+              <span className="ml-1.5 tabular-nums">
+                <span className="font-medium text-green-600 dark:text-green-500">+{ladderPreview.ifWin}</span>
+                <span className="text-muted-foreground/50">/</span>
+                <span className="font-medium text-red-600 dark:text-red-500">{ladderPreview.ifLose}</span>
+              </span>
+            )}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground">{contextLabel}</p>
+        )}
         <div className="flex items-center gap-2 mt-2">
           <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
             {MATCH_STATUS_LABELS[match.status] || match.status}

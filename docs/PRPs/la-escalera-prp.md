@@ -187,6 +187,32 @@ Multa aplicada → miembro penalizado · Aviso pre-cierre → miembro bajo míni
 
 ---
 
+## Fase 4 — diseño cerrado (grill-me + iteración UI 2026-06-01/02)
+
+> Aterriza el alcance fino de Fase 4 (que el roadmap dejó para grill-me). Lenguaje nuevo en `docs/context.md` §"Gamificación (Fase 4)". **Sin schema nuevo** (sale de `RatingHistory`/`Challenge`/`Match`) y sin ADR (todo reversible).
+
+### Decisiones cerradas
+- **Semana**: lunes 00:00 → domingo 23:59 UY (juego real lun–sáb; club cerrado domingo). Atribución por `Match.scheduledAt` (no por carga del resultado): un partido del sábado cuenta en su semana aunque el resultado entre el lunes. Helpers `weekRangeUY`/`previousWeekRangeUY`.
+- **Jugador de la semana**: mayor ganancia **neta** de Rating en partidos (`RatingHistory` reason `MATCH`) de la semana **recién cerrada**; rota el lunes. Walkover suma 0. Desempate: más partidos → menor rating. Vacío si nadie sumó neto. Home (arriba) + badge en el perfil durante la semana en curso.
+- **Partidos destacados** (home): partidos de escalera con `scheduledAt` en la semana corriente (CONFIRMED por venir + PLAYED de la semana), top 5 por **Importancia** = suma de Rating de ambos. Reusa `FixtureMatchCard`.
+- **Movimiento de puesto**: Δ desde el 1º del mes corriente UY, reconstruido desde `RatingHistory` (sin historial de posiciones). Flecha ↑/↓ en tabla y perfil. Alta posterior al inicio del mes → sin flecha. Baseline sobre los miembros que ya existían al inicio del mes (decisión asumida).
+- **Evolución de rating**: gráfico SVG liviano hecho a mano (sin librería de charts) en el perfil; desde la siembra.
+- **Actividad de retos en la tabla**: global y pública — cada reto vivo aparece en las dos filas (perspectiva del dueño, con puntos `+a/−b` y `#puesto` del rival). Cuando el reto involucra al viewer, etiqueta en 2da persona ("Retado por ti" / "Te retó"). El partido agendado muestra fecha + puntos (**relaja** la regla de Fase 2 "no preview en agendado", a propósito; se aclara en ayuda). Lectura **sin escribir**: filtra PROPOSED vencidos por `respondByAt` (no expira en cada GET).
+
+### UI refinada (iteración con el usuario)
+- **Perfil**: header en 2 líneas — "Ranking #N" (puesto, + flecha + badge JdS) / "X puntos en La Escalera". Sin torneo/categoría/grupo. Metadata/share → "Nombre - Life Tenis". Sección "Retos" read-only (estilo bandeja, sin acciones) para quien no es el dueño.
+- **Partido** (card + detalle jugador/público): "Retador: {player1}" + puntos en juego `+a/−b` (no jugado) o delta por jugador (jugado). En la pública: `#puesto` junto a cada nombre y "Puntos disputados: ±N" bajo el ganador.
+- **Admin** `/admin/escalera`: la pestaña Ranking usa la misma `LadderTable` pública.
+- **Rechazar reto**: confirmación con `AlertDialog`. Badge de actividad mensual: "X/2 partidos este mes" (sin "En riesgo").
+
+### Fuera de alcance de Fase 4
+- Temporadas/campeón, notificaciones push/WhatsApp.
+- Unificar terminología "ranking"→"puntos" en la columna de la tabla y en "X de ranking" de algunas tarjetas (pendiente, opcional).
+- Confirmación al cancelar un reto enviado (solo se agregó al rechazar).
+- Deltas por jugador en la página pública de un partido jugado (hoy: "Ganador" + "Puntos disputados").
+
+---
+
 ## Contexto necesario
 
 ### Archivos a leer antes de implementar

@@ -321,53 +321,198 @@ export async function getInbox(userId: string): Promise<{ received: InboxChallen
 
 export type LadderRowState = 'none' | 'sent' | 'received' | 'playing' | 'self'
 
-export interface LadderRow extends LadderEntry {
-  state: LadderRowState
-  matchId: string | null // para 'playing': el partido a jugar
-  ifWin: number | null // preview ELO vs el viewer (solo filas retables)
-  ifLose: number | null
+/**
+ * Actividad de reto/partido vivo de un jugador, desde la perspectiva del dueño de
+ * la fila (global y pública — se ve aunque el viewer no esté involucrado). Una fila
+ * puede tener varias. `ifWin`/`ifLose` son del dueño de la fila vs el rival.
+ */
+export interface LadderActivity {
+  kind: 'sent' | 'received' | 'playing' // retó a / retado por / partido agendado
+  rivalUserId: string
+  rivalName: string
+  rivalSlug: string | null
+  rivalPosition: number // puesto del rival en la escalera
+  ifWin: number
+  ifLose: number
+  scheduledAt: Date | null // solo 'playing'
+  courtNumber: number | null
+  matchId: string | null
 }
 
+export interface LadderRow extends LadderEntry {
+  state: LadderRowState
+  matchId: string | null // para 'playing': el partido a jugar (acción del viewer)
+  ifWin: number | null // preview ELO vs el viewer (solo filas retables)
+  ifLose: number | null
+  activities: LadderActivity[] // actividad pública de ESTE jugador (todos sus retos vivos)
+}
+
+const KIND_ORDER: Record<LadderActivity['kind'], number> = { received: 0, playing: 1, sent: 2 }
+
 function toPlainRow(e: LadderEntry): LadderRow {
-  return { ...e, state: 'none', matchId: null, ifWin: null, ifLose: null }
+  return { ...e, state: 'none', matchId: null, ifWin: null, ifLose: null, activities: [] }
 }
 
 /**
- * Ranking de la escalera enriquecido para el viewer: por cada fila, el preview
- * ELO (cuánto gana/pierde el viewer) y el estado del reto entre ambos. El
- * preview se calcula server-side (todos los ratings ya están en memoria) → sin
- * requests por fila. `canChallenge` es true solo si el viewer es miembro activo.
+ * Ranking de la escalera enriquecido: por cada fila, la actividad PÚBLICA de retos/
+ * partidos vivos de ese jugador (desde su perspectiva) + el preview ELO y el estado
+ * del reto entre el viewer y la fila (para la acción del viewer). Todo server-side
+ * (los ratings ya están en memoria) → sin requests por fila. `canChallenge` es true
+ * solo si el viewer es miembro activo.
  */
 export async function getLadderView(
   viewerUserId: string | null
 ): Promise<{ rows: LadderRow[]; canChallenge: boolean }> {
   const ranking = await getLadderRanking()
-  if (!viewerUserId || ranking.length === 0) {
-    return { rows: ranking.map(toPlainRow), canChallenge: false }
-  }
+  if (ranking.length === 0) return { rows: [], canChallenge: false }
 
   const ladder = await getLadder()
   if (!ladder) return { rows: ranking.map(toPlainRow), canChallenge: false }
+
+  // Lectura pública (también anónima): NO escribir acá. Filtramos los PROPOSED
+  // vencidos por respondByAt en vez de expirarlos (que sería un updateMany en cada
+  // GET de la home). El flip a EXPIRED lo hacen el cron diario y los write-paths
+  // (crear/aceptar reto, bandeja).
+  const allActive = await prisma.challenge.findMany({
+    where: {
+      ladderId: ladder.id,
+      OR: [
+        { status: 'PROPOSED', respondByAt: { gte: new Date() } },
+        { status: 'ACCEPTED', match: { status: { in: ['PENDING', 'CONFIRMED'] } } },
+      ],
+    },
+    select: {
+      challengerId: true,
+      challengedId: true,
+      status: true,
+      match: { select: { id: true, scheduledAt: true, courtNumber: true } },
+    },
+  })
+
+  // Actividad pública por jugador: cada reto vivo aparece en las dos filas
+  // implicadas, con los puntos desde la perspectiva del dueño de cada fila.
+  const entryByUser = new Map(ranking.map((e) => [e.userId, e]))
+  const activitiesByUser = new Map<string, LadderActivity[]>()
+  const addActivity = (
+    ownerId: string,
+    rivalId: string,
+    kind: LadderActivity['kind'],
+    match: { id: string; scheduledAt: Date | null; courtNumber: number | null } | null
+  ) => {
+    const owner = entryByUser.get(ownerId)
+    const rival = entryByUser.get(rivalId)
+    if (!owner || !rival) return // alguno fuera del ranking (inactivo): no se muestra
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, owner.rating, rival.rating)
+    const list = activitiesByUser.get(ownerId) ?? []
+    list.push({
+      kind,
+      rivalUserId: rivalId,
+      rivalName: rival.name,
+      rivalSlug: rival.playerSlug,
+      rivalPosition: rival.position,
+      ifWin,
+      ifLose,
+      scheduledAt: match?.scheduledAt ?? null,
+      courtNumber: match?.courtNumber ?? null,
+      matchId: match?.id ?? null,
+    })
+    activitiesByUser.set(ownerId, list)
+  }
+  for (const c of allActive) {
+    if (c.status === 'ACCEPTED') {
+      addActivity(c.challengerId, c.challengedId, 'playing', c.match)
+      addActivity(c.challengedId, c.challengerId, 'playing', c.match)
+    } else {
+      addActivity(c.challengerId, c.challengedId, 'sent', null)
+      addActivity(c.challengedId, c.challengerId, 'received', null)
+    }
+  }
+  for (const list of activitiesByUser.values()) list.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
+  const activitiesOf = (userId: string) => activitiesByUser.get(userId) ?? []
+
+  // Sin viewer logueado: filas con actividad pública, sin acción.
+  if (!viewerUserId) {
+    return {
+      rows: ranking.map((e) => ({ ...toPlainRow(e), activities: activitiesOf(e.userId) })),
+      canChallenge: false,
+    }
+  }
 
   const viewer = await prisma.ladderMember.findUnique({
     where: { ladderId_userId: { ladderId: ladder.id, userId: viewerUserId } },
     select: { rating: true, isActive: true },
   })
   if (!viewer?.isActive) {
-    // Logueado pero no es miembro activo: ranking plano, sin retar.
+    // Logueado pero no miembro activo: actividad pública, sin retar.
     return {
-      rows: ranking.map((e) => ({ ...toPlainRow(e), state: e.userId === viewerUserId ? 'self' : 'none' })),
+      rows: ranking.map((e) => ({
+        ...toPlainRow(e),
+        state: e.userId === viewerUserId ? 'self' : 'none',
+        activities: activitiesOf(e.userId),
+      })),
       canChallenge: false,
     }
   }
 
-  // Expirar PROPOSED vencidos antes de leer el estado, para no mostrar retos muertos.
+  // Estado viewer-relativo (para la acción del viewer), derivado de allActive.
+  const stateByRival = new Map<string, { state: Exclude<LadderRowState, 'none' | 'self'>; matchId: string | null }>()
+  for (const c of allActive) {
+    if (c.challengerId !== viewerUserId && c.challengedId !== viewerUserId) continue
+    const rivalId = c.challengerId === viewerUserId ? c.challengedId : c.challengerId
+    if (c.status === 'ACCEPTED') {
+      stateByRival.set(rivalId, { state: 'playing', matchId: c.match?.id ?? null })
+    } else {
+      stateByRival.set(rivalId, { state: c.challengerId === viewerUserId ? 'sent' : 'received', matchId: null })
+    }
+  }
+
+  const rows: LadderRow[] = ranking.map((e) => {
+    const activities = activitiesOf(e.userId)
+    if (e.userId === viewerUserId) {
+      return { ...e, state: 'self', matchId: null, ifWin: null, ifLose: null, activities }
+    }
+    const st = stateByRival.get(e.userId)
+    if (st) {
+      return { ...e, state: st.state, matchId: st.matchId, ifWin: null, ifLose: null, activities }
+    }
+    // Fila retable: incluir el preview ELO del viewer.
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, e.rating)
+    return { ...e, state: 'none', matchId: null, ifWin, ifLose, activities }
+  })
+
+  return { rows, canChallenge: true }
+}
+
+export interface MemberChallengeCard {
+  id: string
+  kind: 'sent' | 'received' | 'playing' // retó a / retado por / partido pactado
+  rival: { userId: string; name: string; image: string | null; rating: number; position: number; playerSlug: string | null }
+  ifWin: number // puntos desde la perspectiva del dueño del perfil
+  ifLose: number
+  respondByAt: Date | null // vencimiento (solo PROPOSED)
+  scheduledAt: Date | null // fecha del partido (solo ACCEPTED/playing)
+  matchId: string | null
+}
+
+/**
+ * Retos/partidos vivos de un miembro, desde SU perspectiva — para la vista pública
+ * del perfil (estilo bandeja, read-only). Mismo dato que ve el retado pero sin acciones.
+ * Toma puesto/puntos/nombre/avatar del ranking (orden ya resuelto).
+ */
+export async function getMemberChallenges(userId: string): Promise<MemberChallengeCard[]> {
+  const ladder = await getLadder()
+  if (!ladder) return []
   await expireStaleChallenges(ladder.id)
 
-  const active = await prisma.challenge.findMany({
+  const ranking = await getLadderRanking()
+  const standByUser = new Map(ranking.map((e) => [e.userId, e]))
+  const me = standByUser.get(userId)
+  if (!me) return [] // no es miembro activo
+
+  const challenges = await prisma.challenge.findMany({
     where: {
       ladderId: ladder.id,
-      OR: [{ challengerId: viewerUserId }, { challengedId: viewerUserId }],
+      OR: [{ challengerId: userId }, { challengedId: userId }],
       AND: {
         OR: [
           { status: 'PROPOSED' },
@@ -375,33 +520,45 @@ export async function getLadderView(
         ],
       },
     },
-    select: { challengerId: true, challengedId: true, status: true, matchId: true },
+    select: {
+      id: true,
+      challengerId: true,
+      challengedId: true,
+      status: true,
+      respondByAt: true,
+      match: { select: { id: true, scheduledAt: true } },
+    },
+    orderBy: { proposedAt: 'asc' },
   })
+  if (challenges.length === 0) return []
 
-  const stateByRival = new Map<string, { state: Exclude<LadderRowState, 'none' | 'self'>; matchId: string | null }>()
-  for (const c of active) {
-    const rivalId = c.challengerId === viewerUserId ? c.challengedId : c.challengerId
-    if (c.status === 'ACCEPTED') {
-      stateByRival.set(rivalId, { state: 'playing', matchId: c.matchId })
-    } else {
-      stateByRival.set(rivalId, { state: c.challengerId === viewerUserId ? 'sent' : 'received', matchId: null })
-    }
+  const cards: MemberChallengeCard[] = []
+  for (const c of challenges) {
+    const isChallenger = c.challengerId === userId
+    const rivalId = isChallenger ? c.challengedId : c.challengerId
+    const rival = standByUser.get(rivalId)
+    if (!rival) continue // rival inactivo / fuera de la escalera
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, me.rating, rival.rating)
+    cards.push({
+      id: c.id,
+      kind: c.status === 'ACCEPTED' ? 'playing' : isChallenger ? 'sent' : 'received',
+      rival: {
+        userId: rivalId,
+        name: rival.name,
+        image: rival.image,
+        rating: rival.rating,
+        position: rival.position,
+        playerSlug: rival.playerSlug,
+      },
+      ifWin,
+      ifLose,
+      respondByAt: c.status === 'PROPOSED' ? c.respondByAt : null,
+      scheduledAt: c.match?.scheduledAt ?? null,
+      matchId: c.match?.id ?? null,
+    })
   }
-
-  const rows: LadderRow[] = ranking.map((e) => {
-    if (e.userId === viewerUserId) {
-      return { ...e, state: 'self', matchId: null, ifWin: null, ifLose: null }
-    }
-    const st = stateByRival.get(e.userId)
-    if (st) {
-      return { ...e, state: st.state, matchId: st.matchId, ifWin: null, ifLose: null }
-    }
-    // Fila retable: incluir el preview ELO.
-    const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, e.rating)
-    return { ...e, state: 'none', matchId: null, ifWin, ifLose }
-  })
-
-  return { rows, canChallenge: true }
+  cards.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
+  return cards
 }
 
 export interface ChallengeStateInfo {

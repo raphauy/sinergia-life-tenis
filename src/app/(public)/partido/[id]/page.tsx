@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
+import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/ladder-stats-service'
+import { getLadderRanking } from '@/services/ladder-service'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
@@ -72,6 +74,23 @@ export default async function PartidoPublicPage({ params }: Props) {
   const r = match.result
   const score = r ? formatMatchScore(r) : null
   const reservation = match.status === 'PENDING' ? await getReservationByMatch(match.id) : null
+  // Puntos en juego del retador (player1) si es partido de escalera sin jugar.
+  const ladderPreview =
+    match.ladderId && match.status !== 'PLAYED'
+      ? (await getLadderChallengerPreviews([match])).get(match.id) ?? null
+      : null
+  // Puesto de cada jugador en La Escalera (para mostrar #N junto al nombre).
+  const ladderPositions = match.ladderId
+    ? new Map((await getLadderRanking()).map((e) => [e.userId, e.position]))
+    : null
+  const p1Pos = match.player1Id ? ladderPositions?.get(match.player1Id) ?? null : null
+  const p2Pos = match.player2Id ? ladderPositions?.get(match.player2Id) ?? null : null
+  // Puntos disputados (delta de Rating que cambió de manos) en escalera jugada.
+  const ladderResult =
+    match.ladderId && match.status === 'PLAYED'
+      ? (await getLadderResultDeltas([match])).get(match.id) ?? null
+      : null
+  const disputedPoints = ladderResult ? Math.abs(ladderResult.player1 ?? ladderResult.player2 ?? 0) : null
 
   return (
     <div className="max-w-xl mx-auto">
@@ -96,26 +115,44 @@ export default async function PartidoPublicPage({ params }: Props) {
               ) : null}
             </div>
           )}
+          {match.ladderId && match.player1 && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Retador: {p1Name}
+              {ladderPreview && (
+                <span className="ml-1.5 tabular-nums">
+                  <span className="font-medium text-green-600 dark:text-green-500">+{ladderPreview.ifWin}</span>
+                  <span className="text-muted-foreground/50">/</span>
+                  <span className="font-medium text-red-600 dark:text-red-500">{ladderPreview.ifLose}</span>
+                </span>
+              )}
+            </p>
+          )}
         </div>
 
         {/* Players & score */}
         <div className="flex items-center justify-between py-4 border-t">
-          <div className="flex items-center gap-2 text-2xl">
-            {p1Slug ? (
-              <Link href={`/jugador/${p1Slug}`} className={`hover:underline ${winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
-                {p1Name}
-              </Link>
-            ) : (
-              <span className={winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p1Name}</span>
-            )}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl">
+            <span className="inline-flex items-baseline gap-1.5">
+              {p1Slug ? (
+                <Link href={`/jugador/${p1Slug}`} className={`hover:underline ${winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
+                  {p1Name}
+                </Link>
+              ) : (
+                <span className={winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p1Name}</span>
+              )}
+              {p1Pos != null && <span className="text-base font-normal text-muted-foreground">#{p1Pos}</span>}
+            </span>
             <span className="text-muted-foreground text-base">vs</span>
-            {p2Slug ? (
-              <Link href={`/jugador/${p2Slug}`} className={`hover:underline ${winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
-                {p2Name}
-              </Link>
-            ) : (
-              <span className={winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p2Name}</span>
-            )}
+            <span className="inline-flex items-baseline gap-1.5">
+              {p2Slug ? (
+                <Link href={`/jugador/${p2Slug}`} className={`hover:underline ${winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
+                  {p2Name}
+                </Link>
+              ) : (
+                <span className={winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}>{p2Name}</span>
+              )}
+              {p2Pos != null && <span className="text-base font-normal text-muted-foreground">#{p2Pos}</span>}
+            </span>
           </div>
 
           {score && (
@@ -127,6 +164,9 @@ export default async function PartidoPublicPage({ params }: Props) {
         {match.result && (
           <div className="pt-3 border-t text-sm">
             Ganador: <span className="font-medium">{winnerIs1 ? p1Name : p2Name}</span>
+            {disputedPoints != null && (
+              <p className="text-muted-foreground">Puntos disputados: ±{disputedPoints}</p>
+            )}
           </div>
         )}
 
