@@ -15,6 +15,11 @@ export const COURTS = [
 
 export const DEFAULT_CATEGORIES = ['A', 'B', 'C'] as const
 
+// Slug del torneo "contenedor" oculto: agrupa las fichas Player de los jugadores
+// que entran directo por La Escalera (auto-registro). Es un artefacto técnico,
+// nunca se lista como torneo (getTournaments lo excluye). Ver player-registration-service.
+export const LADDER_CONTAINER_SLUG = 'escalera-directa'
+
 // Mañana: hora justa (7:00–11:00), Tarde: hora y media (12:30–20:30)
 export const TIME_SLOTS = [
   '07:00', '08:00', '09:00', '10:00', '11:00',

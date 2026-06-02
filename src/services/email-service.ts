@@ -15,6 +15,7 @@ import LadderPenaltyAppliedEmail from '@/components/emails/ladder-penalty-applie
 import LadderMonthClosingWarningEmail from '@/components/emails/ladder-month-closing-warning-email'
 import LadderMatchExpiryWarningEmail from '@/components/emails/ladder-match-expiry-warning-email'
 import LadderMatchAutoCancelledEmail from '@/components/emails/ladder-match-auto-cancelled-email'
+import PlayerWelcomeEmail from '@/components/emails/player-welcome-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -433,6 +434,29 @@ export async function sendLadderMatchAutoCancelledEmail(input: {
       playerName: input.playerName,
       rivalName: input.rivalName,
       actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+// ===================== Registro aprobado (bienvenida a La Escalera) =====================
+
+export async function sendPlayerWelcomeEmail(input: {
+  to: string
+  playerName: string
+  panelUrl: string
+  rating: number
+}) {
+  console.log(`[EMAIL] Bienvenida a La Escalera -> ${input.to} (${input.playerName}, ${input.rating} pts)`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: '¡Bienvenido a La Escalera! - Life Tenis',
+    react: PlayerWelcomeEmail({
+      playerName: input.playerName,
+      panelUrl: input.panelUrl,
+      rating: input.rating,
     }),
   })
 }

@@ -10,6 +10,7 @@ export default async function proxy(request: NextRequest) {
   const publicRoutes = [
     '/',
     '/login',
+    '/registro',
     '/api/auth',
     '/api/blob',
     '/api/cron',

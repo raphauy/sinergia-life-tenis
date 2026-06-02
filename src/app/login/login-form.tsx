@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -102,6 +103,12 @@ export function LoginForm() {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Enviando...' : 'Continuar'}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              ¿No tenés cuenta?{' '}
+              <Link href="/registro" className="text-primary font-medium hover:underline">
+                Registrate
+              </Link>
+            </p>
           </form>
         ) : (
           <form onSubmit={handleOtpSubmit} className="space-y-5">

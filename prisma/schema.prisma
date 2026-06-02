@@ -59,6 +59,12 @@ enum RatingChangeReason {
   ADJUSTMENT
 }
 
+enum PlayerRegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -87,6 +93,7 @@ model User {
   ladderMemberships       LadderMember[]
   challengesAsChallenger  Challenge[]   @relation("ChallengeChallenger")
   challengesAsChallenged  Challenge[]   @relation("ChallengeChallenged")
+  registrationsReviewed   PlayerRegistration[] @relation("RegistrationReviewer")
 
   @@index([email])
   @@index([role])
@@ -124,6 +131,30 @@ model AdminInvitation {
   @@index([email])
   @@index([token])
   @@index([expiresAt])
+}
+
+// Solicitud de auto-registro público (pendiente de aprobación de un admin).
+// Al aprobarse se crea el User (PLAYER) + Player + LadderMember; ver
+// player-registration-service.ts. Sin @unique en email: la unicidad de un PENDING
+// la impone el service (un email puede re-solicitar tras un rechazo).
+model PlayerRegistration {
+  id             String                   @id @default(cuid())
+  firstName      String
+  lastName       String
+  email          String
+  whatsappNumber String
+  status         PlayerRegistrationStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdUserId  String? // User creado al aprobar (auditoría/idempotencia)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  reviewedBy User? @relation("RegistrationReviewer", fields: [reviewedById], references: [id])
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Tournament {

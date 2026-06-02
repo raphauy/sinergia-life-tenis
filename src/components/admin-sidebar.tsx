@@ -27,6 +27,7 @@ import {
   UserPlus,
   Swords,
   ListOrdered,
+  ClipboardList,
   ChevronUp,
   ExternalLink,
   LogOut,
@@ -44,6 +45,7 @@ const navItems = [
   { title: 'La Escalera', href: '/admin/escalera', icon: ListOrdered },
   { title: 'Torneos', href: '/admin/torneos', icon: Trophy },
   { title: 'Jugadores', href: '/admin/jugadores', icon: Users },
+  { title: 'Registros', href: '/admin/registros', icon: ClipboardList },
   { title: 'Partidos', href: '/admin/partidos', icon: Swords },
   { title: 'Administradores', href: '/admin/invitaciones', icon: UserPlus, superadminOnly: true },
 ]

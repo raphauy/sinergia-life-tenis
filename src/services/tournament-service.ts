@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { generateSlug } from '@/lib/utils'
+import { LADDER_CONTAINER_SLUG } from '@/lib/constants'
 import type { MatchFormat } from '@prisma/client'
 
 export async function generateUniqueSlug(baseName: string, excludeId?: string): Promise<string> {
@@ -48,6 +49,8 @@ export async function createTournament(data: {
 
 export async function getTournaments() {
   return prisma.tournament.findMany({
+    // Excluir el torneo contenedor de La Escalera (artefacto técnico, no es un torneo real).
+    where: { slug: { not: LADDER_CONTAINER_SLUG } },
     include: {
       categories: { orderBy: { order: 'asc' } },
       _count: { select: { players: true, matches: true } },
