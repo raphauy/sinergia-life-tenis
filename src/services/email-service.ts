@@ -19,7 +19,7 @@ import PlayerWelcomeEmail from '@/components/emails/player-welcome-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
-const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <noreply@sinergialifetenis.com>'
+const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <life-tenis@raphauy.dev>'
 
 // ===================== OTP =====================
 
