@@ -34,7 +34,7 @@ export default function LadderMatchAutoCancelledEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            El partido de <strong>La Escalera</strong> contra <strong>{rivalName}</strong> se canceló porque no se coordinó a tiempo. No afecta tu ranking. Si quieren, pueden volver a retarse cuando les quede cómodo.
+            El partido de <strong>La Escalera</strong> contra <strong>{rivalName}</strong> se canceló porque no se coordinó a tiempo. No afecta tus puntos. Si quieren, pueden volver a retarse cuando les quede cómodo.
           </Text>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
             <a href={actionUrl} style={{ display: 'inline-block', backgroundColor: theme.colors.primary, color: '#ffffff', textDecoration: 'none', padding: '10px 22px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold' }}>

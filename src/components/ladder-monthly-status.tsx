@@ -20,7 +20,7 @@ export function LadderMonthlyStatus({ activity }: { activity: MonthlyActivity })
       )}
       {lastPenalty != null && (
         <span className="text-xs text-red-600 dark:text-red-500">
-          El último cierre te descontó {lastPenalty} de ranking por inactividad.
+          El último cierre te descontó {lastPenalty} puntos por inactividad.
         </span>
       )}
     </div>

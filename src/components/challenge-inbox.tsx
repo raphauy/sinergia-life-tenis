@@ -59,7 +59,7 @@ export function ChallengeInbox({ received, sent }: { received: InboxChallenge[];
           <p className="truncate font-medium">{c.rival.name}</p>
         )}
         <p className="text-xs text-muted-foreground">
-          {c.rival.rating != null ? `${c.rival.rating} de ranking · ` : ''}vence {formatDateUY(c.respondByAt)}
+          {c.rival.position != null ? `Ranking #${c.rival.position} · ` : ''}vence {formatDateUY(c.respondByAt)}
         </p>
         {c.preview && (
           <p className="text-xs">

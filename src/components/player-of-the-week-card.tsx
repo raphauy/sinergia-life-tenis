@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Trophy } from 'lucide-react'
 import type { PlayerOfTheWeek } from '@/services/ladder-stats-service'
 
-/** Reconocimiento al miembro que más ranking ganó en la semana recién cerrada. */
+/** Reconocimiento al miembro que más puntos ganó en la semana recién cerrada. */
 export function PlayerOfTheWeekCard({ player }: { player: PlayerOfTheWeek }) {
   const inner = (
     <div className="flex items-center gap-3 rounded-lg border bg-gradient-to-r from-amber-50 to-transparent p-4 dark:from-amber-950/30">

@@ -70,7 +70,7 @@ export default async function AdminEscaleraPage() {
         <div>
           <h1 className="text-2xl font-bold">La Escalera</h1>
           <p className="text-sm text-muted-foreground">
-            {ranking.length} jugadores · ordenada por ranking
+            {ranking.length} jugadores · ordenada por puntos
           </p>
         </div>
 

@@ -52,7 +52,7 @@ export async function generateMetadata({
 
   const title = `${name} - Life Tenis`
   const description = standing
-    ? `${name} en La Escalera de Life Montevideo — Ranking ${standing.rating}, puesto #${standing.position}.`
+    ? `${name} en La Escalera de Life Montevideo — ${standing.rating} puntos, puesto #${standing.position}.`
     : `Perfil de ${name} en La Escalera de Life Montevideo.`
 
   return {

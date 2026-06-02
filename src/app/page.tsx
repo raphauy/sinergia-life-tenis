@@ -11,7 +11,7 @@ import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { FeaturedMatches } from '@/components/featured-matches'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, Trophy } from 'lucide-react'
+import { ChevronRight, HelpCircle, Trophy } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'La Escalera - Life Tenis',
@@ -50,6 +50,13 @@ export default async function HomePage() {
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center px-4">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">La Escalera</h1>
           <p className="text-base md:text-lg opacity-90">El ranking permanente del club, siempre vivo</p>
+          <Link
+            href="/escalera"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm text-white/90 underline underline-offset-4 hover:text-white"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Cómo funciona
+          </Link>
         </div>
       </section>
 
@@ -107,6 +114,7 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>Life Tenis</span>
           <div className="flex gap-4">
+            <Link href="/escalera" className="hover:text-foreground">Cómo funciona</Link>
             <Link href="/partidos" className="hover:text-foreground">Partidos</Link>
             <Link href="/calendario" className="hover:text-foreground">Calendario</Link>
           </div>

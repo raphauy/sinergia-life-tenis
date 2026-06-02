@@ -44,10 +44,10 @@ export default function ChallengeReceivedEmail({
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>
-              Si ganás: <strong>+{ifWin}</strong> de ranking
+              Si ganás: <strong>+{ifWin}</strong> puntos
             </Text>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0' }}>
-              Si perdés: <strong>{ifLose}</strong> de ranking
+              Si perdés: <strong>{ifLose}</strong> puntos
             </Text>
           </Section>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>

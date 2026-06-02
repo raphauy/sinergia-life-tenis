@@ -17,18 +17,20 @@ export async function SiteHeader({ sticky = false }: { sticky?: boolean }) {
   const session = await auth()
   const user = session?.user
 
-  let panelHref: string | null = null
-  let panelLabel: string | null = null
+  const panels: { href: string; label: string; kind: 'admin' | 'player' }[] = []
   if (user) {
-    if (user.role === 'SUPERADMIN' || user.role === 'ADMIN') {
-      panelHref = '/admin'
-      panelLabel = 'Panel de administración'
-    } else {
-      const slug = await getActivePlayerSlugByUserId(user.id)
-      if (slug) {
-        panelHref = `/jugador/${slug}`
-        panelLabel = 'Mi panel'
-      }
+    const isAdmin = user.role === 'SUPERADMIN' || user.role === 'ADMIN'
+    if (isAdmin) {
+      panels.push({ href: '/admin', label: 'Panel de administración', kind: 'admin' })
+    }
+    // Un admin/superadmin puede además ser jugador del torneo: mostramos ambos accesos.
+    const slug = await getActivePlayerSlugByUserId(user.id)
+    if (slug) {
+      panels.push({
+        href: `/jugador/${slug}`,
+        label: isAdmin ? 'Mi panel de jugador' : 'Mi panel',
+        kind: 'player',
+      })
     }
   }
 
@@ -42,7 +44,7 @@ export async function SiteHeader({ sticky = false }: { sticky?: boolean }) {
         <div className="flex items-center gap-1 sm:gap-2">
           <PublicNav />
           {user ? (
-            <UserMenu user={user} panelHref={panelHref} panelLabel={panelLabel} />
+            <UserMenu user={user} panels={panels} />
           ) : (
             <Button variant="ghost" size="sm" render={<Link href="/login" />}>
               <LogIn className="h-4 w-4 sm:mr-1" />

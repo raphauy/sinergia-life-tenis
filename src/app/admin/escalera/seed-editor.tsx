@@ -82,7 +82,7 @@ export function SeedEditor({ proposal, baseRating, step, tournamentName }: SeedE
         <p className="text-sm text-muted-foreground">
           Orden propuesto desde <span className="font-medium">{tournamentName}</span>. Reordená, quitá
           jugadores y resolvé los emails faltantes. Al confirmar se crea la escalera con {rows.length}{' '}
-          jugadores y su ranking inicial.
+          jugadores y sus puntos iniciales.
         </p>
       </div>
 

@@ -28,7 +28,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
       <div className="flex items-center gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground sm:px-4">
         <span className="w-7 text-center">#</span>
         <span className="flex-1">Jugador</span>
-        <span className="tabular-nums">Ranking</span>
+        <span className="tabular-nums">Puntos</span>
       </div>
       <div className="divide-y">
         {rows.map((e) => {

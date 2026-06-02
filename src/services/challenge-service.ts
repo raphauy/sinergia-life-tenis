@@ -251,6 +251,7 @@ export interface InboxChallenge {
     name: string
     image: string | null
     rating: number | null
+    position: number | null
     playerSlug: string | null
   }
 }
@@ -276,13 +277,18 @@ export async function getInbox(userId: string): Promise<{ received: InboxChallen
 
   const rivalIds = challenges.map((c) => (c.challengerId === userId ? c.challengedId : c.challengerId))
   const [members, slugMap] = await Promise.all([
+    // Todos los miembros activos en el orden de la escalera: de acá salen el
+    // rating y el puesto (#) de cada rival —lo que importa para decidir si
+    // aceptar un reto—.
     prisma.ladderMember.findMany({
-      where: { ladderId: ladder.id, userId: { in: [...rivalIds, userId] } },
+      where: { ladderId: ladder.id, isActive: true },
+      orderBy: [{ rating: 'desc' }, { joinedAt: 'asc' }, { id: 'asc' }],
       select: { userId: true, rating: true },
     }),
     getPlayerSlugsByUserIds(rivalIds),
   ])
   const ratingMap = new Map(members.map((m) => [m.userId, m.rating]))
+  const positionMap = new Map(members.map((m, i) => [m.userId, i + 1]))
   const viewerRating = ratingMap.get(userId) ?? null
 
   const toEntry = (c: (typeof challenges)[number]): InboxChallenge => {
@@ -304,6 +310,7 @@ export async function getInbox(userId: string): Promise<{ received: InboxChallen
         name: fullName(rivalUser.firstName, rivalUser.lastName) || 'Jugador',
         image: blobUrl(rivalUser.image) || null,
         rating: rivalRating,
+        position: positionMap.get(rivalId) ?? null,
         playerSlug: slugMap.get(rivalId) ?? null,
       },
     }

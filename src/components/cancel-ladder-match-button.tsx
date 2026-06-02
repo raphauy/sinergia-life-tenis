@@ -42,7 +42,7 @@ export function CancelLadderMatchButton({ matchId }: { matchId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar el partido</AlertDialogTitle>
             <AlertDialogDescription>
-              Se cancela el partido de La Escalera y se libera la reserva si la había. No afecta el ranking. Pueden volver a retarse cuando quieran.
+              Se cancela el partido de La Escalera y se libera la reserva si la había. No afecta los puntos. Pueden volver a retarse cuando quieran.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

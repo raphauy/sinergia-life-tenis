@@ -44,10 +44,10 @@ export default function LadderPenaltyAppliedEmail({
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 4px' }}>
-              Ranking descontado: <strong>−{points}</strong>
+              Puntos descontados: <strong>−{points}</strong>
             </Text>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0' }}>
-              Tu ranking ahora: <strong>{newRating}</strong>
+              Tus puntos ahora: <strong>{newRating}</strong>
             </Text>
           </Section>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>

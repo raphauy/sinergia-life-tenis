@@ -45,7 +45,7 @@ export default function LadderMonthClosingWarningEmail({
           </Text>
           <Section style={{ backgroundColor: theme.colors.background, borderRadius: '8px', padding: '16px', margin: '0 0 16px' }}>
             <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0' }}>
-              Si no llegás al mínimo, a fin de mes se descuentan <strong>{penalty}</strong> puntos de tu ranking.
+              Si no llegás al mínimo, a fin de mes se descuentan <strong>{penalty}</strong> puntos.
             </Text>
           </Section>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>

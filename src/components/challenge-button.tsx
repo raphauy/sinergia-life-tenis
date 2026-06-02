@@ -71,7 +71,7 @@ export function ChallengeButton({ rivalUserId, rivalName, size = 'sm', variant =
           </AlertDialogHeader>
           <div className="rounded-md border p-3 text-sm">
             {loadingPreview ? (
-              <p className="text-center text-muted-foreground">Calculando cambio de ranking…</p>
+              <p className="text-center text-muted-foreground">Calculando cambio de puntos…</p>
             ) : preview ? (
               <div className="flex justify-around text-center">
                 <div>
@@ -84,7 +84,7 @@ export function ChallengeButton({ rivalUserId, rivalName, size = 'sm', variant =
                 </div>
               </div>
             ) : (
-              <p className="text-center text-muted-foreground">No se pudo calcular el cambio de ranking.</p>
+              <p className="text-center text-muted-foreground">No se pudo calcular el cambio de puntos.</p>
             )}
           </div>
           <AlertDialogFooter>

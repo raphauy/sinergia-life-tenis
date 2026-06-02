@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
+import { cn } from '@/lib/utils'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
+import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
@@ -75,6 +77,15 @@ export default async function MatchDetailPage({ params }: Props) {
   const rival = isPlayer1 ? match.player2 : match.player1
   const rivalName = fullName(rival?.firstName, rival?.lastName)
   const court = COURTS.find((c) => c.number === match.courtNumber)
+
+  // Nombres y slugs de perfil para linkear los nombres de los jugadores.
+  const p1Name = fullName(match.player1?.firstName, match.player1?.lastName)
+  const p2Name = fullName(match.player2?.firstName, match.player2?.lastName)
+  const slugMap = await getPlayerSlugsByUserIds(
+    [match.player1Id, match.player2Id].filter((id): id is string => !!id)
+  )
+  const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
+  const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
 
   // Deltas de rating del partido de escalera ya jugado (para mostrar el cambio).
   const ratingDeltas = isLadder && match.result ? await getMatchRatingDeltas(matchId) : null
@@ -149,11 +160,16 @@ export default async function MatchDetailPage({ params }: Props) {
       </Button>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
+          <PlayerLink name={p1Name || 'Por definir'} slug={p1Slug} /> vs{' '}
+          <PlayerLink name={p2Name || 'Por definir'} slug={p2Slug} />
         </h1>
         {isLadder ? (
           <p className="text-sm text-muted-foreground">
-            {match.player1 && `Retador: ${fullName(match.player1.firstName, match.player1.lastName)}`}
+            {match.player1 && (
+              <>
+                Retador: <PlayerLink name={p1Name} slug={p1Slug} />
+              </>
+            )}
             {ladderPreview && (
               <span className="ml-1.5 tabular-nums">
                 <span className="font-medium text-green-600 dark:text-green-500">+{ladderPreview.ifWin}</span>
@@ -187,16 +203,18 @@ export default async function MatchDetailPage({ params }: Props) {
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             Ganador:{' '}
-            {match.result.winnerId === match.player1Id
-              ? fullName(match.player1?.firstName, match.player1?.lastName)
-              : fullName(match.player2?.firstName, match.player2?.lastName)}
+            {match.result.winnerId === match.player1Id ? (
+              <PlayerLink name={p1Name} slug={p1Slug} />
+            ) : (
+              <PlayerLink name={p2Name} slug={p2Slug} />
+            )}
           </p>
           {isLadder && ratingDeltas && match.player1Id && match.player2Id && (
             <p className="text-sm text-muted-foreground mt-1">
-              Ranking: {fullName(match.player1?.firstName, match.player1?.lastName)}{' '}
+              Puntos: <PlayerLink name={p1Name} slug={p1Slug} />{' '}
               <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player1Id))}</span>
               {' · '}
-              {fullName(match.player2?.firstName, match.player2?.lastName)}{' '}
+              <PlayerLink name={p2Name} slug={p2Slug} />{' '}
               <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player2Id))}</span>
             </p>
           )}
@@ -322,4 +340,16 @@ export default async function MatchDetailPage({ params }: Props) {
       )}
     </div>
   )
+}
+
+/** Nombre de jugador que linkea a su perfil si tiene slug; si no, texto plano. */
+function PlayerLink({ name, slug, className }: { name: string; slug?: string; className?: string }) {
+  if (slug) {
+    return (
+      <Link href={`/jugador/${slug}`} className={cn('hover:underline', className)}>
+        {name}
+      </Link>
+    )
+  }
+  return <span className={className}>{name}</span>
 }

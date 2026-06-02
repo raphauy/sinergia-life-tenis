@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, LayoutList, ListOrdered } from 'lucide-react'
+import { BookOpen, CalendarDays, LayoutList } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** La raíz (La Escalera) solo matchea exacto; el resto matchea la ruta y sus sub-rutas. */
+/** El home (ranking) se llega por el logo; cada ítem matchea su ruta y sub-rutas. */
 function isActive(pathname: string, href: string): boolean {
-  if (href === '/') return pathname === '/'
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
@@ -15,7 +14,7 @@ export function PublicNav() {
   const pathname = usePathname()
   return (
     <nav className="flex items-center gap-1">
-      <NavLink href="/" icon={<ListOrdered className="h-5 w-5" />} label="La Escalera" pathname={pathname} />
+      <NavLink href="/escalera" icon={<BookOpen className="h-5 w-5" />} label="La Escalera" pathname={pathname} />
       <NavLink href="/partidos" icon={<LayoutList className="h-5 w-5" />} label="Partidos" pathname={pathname} />
       <NavLink href="/calendario" icon={<CalendarDays className="h-5 w-5" />} label="Calendario" pathname={pathname} />
     </nav>

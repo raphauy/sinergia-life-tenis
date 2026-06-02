@@ -49,12 +49,13 @@ function Party({ party }: { party: PendingChallengeParty }) {
         <AvatarFallback className="text-[10px]">{initial}</AvatarFallback>
       </Avatar>
       {party.playerSlug ? (
-        <Link href={`/jugador/${party.playerSlug}`} className="truncate font-medium hover:underline">
+        <Link href={`/jugador/${party.playerSlug}`} className="min-w-0 truncate font-medium hover:underline">
           {party.name}
         </Link>
       ) : (
-        <span className="truncate font-medium">{party.name}</span>
+        <span className="min-w-0 truncate font-medium">{party.name}</span>
       )}
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{party.position}</span>
     </div>
   )
 }

@@ -29,7 +29,7 @@ export function RatingEvolutionChart({ points }: { points: RatingPoint[] }) {
   return (
     <div className="rounded-lg border p-4">
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-sm text-muted-foreground">Evolución de ranking</span>
+        <span className="text-sm text-muted-foreground">Evolución de puntos</span>
         <span className="text-sm">
           <span className="font-bold tabular-nums">{current}</span>{' '}
           <span
@@ -48,7 +48,7 @@ export function RatingEvolutionChart({ points }: { points: RatingPoint[] }) {
         className="w-full"
         preserveAspectRatio="none"
         role="img"
-        aria-label="Evolución de ranking en el tiempo"
+        aria-label="Evolución de puntos en el tiempo"
       >
         <polyline points={area} className="fill-primary/10" stroke="none" />
         <polyline

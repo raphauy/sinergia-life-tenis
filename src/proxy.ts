@@ -14,6 +14,7 @@ export default async function proxy(request: NextRequest) {
     '/api/blob',
     '/api/cron',
     '/invite',
+    '/escalera',
     '/ranking',
     '/fixture',
     '/calendario',

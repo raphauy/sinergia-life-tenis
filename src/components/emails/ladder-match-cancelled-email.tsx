@@ -34,7 +34,7 @@ export default function LadderMatchCancelledEmail({
             Hola {recipientName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Se canceló el partido pendiente de <strong>La Escalera</strong> contra <strong>{otherName}</strong> (cancelado por {cancelledByName}). No afecta el ranking. Si quieren, pueden volver a retarse.
+            Se canceló el partido pendiente de <strong>La Escalera</strong> contra <strong>{otherName}</strong> (cancelado por {cancelledByName}). No afecta los puntos. Si quieren, pueden volver a retarse.
           </Text>
           <Hr style={{ borderColor: theme.colors.border, margin: '16px 0 0' }} />
           <Text style={{ fontSize: '12px', color: theme.colors.textMuted, margin: '16px 0 0' }}>

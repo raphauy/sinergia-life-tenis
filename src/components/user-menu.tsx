@@ -21,23 +21,30 @@ interface UserMenuUser {
   role?: string | null
 }
 
+interface UserMenuPanel {
+  href: string
+  label: string
+  kind: 'admin' | 'player'
+}
+
 interface UserMenuProps {
   user: UserMenuUser
-  /** Link al panel propio (panel de jugador o admin). Si null, no se muestra el ítem. */
-  panelHref?: string | null
-  panelLabel?: string | null
+  /**
+   * Accesos a paneles propios. Un admin que además es jugador lleva ambos
+   * (administración + su panel de jugador). Vacío/omitido = no se muestran.
+   */
+  panels?: UserMenuPanel[]
 }
 
 /**
  * Menú de cuenta (avatar + identidad + tema + cerrar sesión) para usuarios
  * logueados. Se usa en el header público y en el panel del jugador.
  */
-export function UserMenu({ user, panelHref, panelLabel }: UserMenuProps) {
+export function UserMenu({ user, panels }: UserMenuProps) {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ')
   const initials =
     [user.firstName?.[0], user.lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?'
   const isAdmin = user.role === 'SUPERADMIN' || user.role === 'ADMIN'
-  const PanelIcon = isAdmin ? Settings : User
 
   return (
     <DropdownMenu>
@@ -62,12 +69,16 @@ export function UserMenu({ user, panelHref, panelLabel }: UserMenuProps) {
           </Badge>
         </div>
         <DropdownMenuSeparator />
-        {panelHref && panelLabel && (
-          <DropdownMenuItem render={<Link href={panelHref} />}>
-            <PanelIcon className="mr-2 h-4 w-4" />
-            {panelLabel}
+        {panels?.map((p) => (
+          <DropdownMenuItem key={p.href} render={<Link href={p.href} />}>
+            {p.kind === 'admin' ? (
+              <Settings className="mr-2 h-4 w-4" />
+            ) : (
+              <User className="mr-2 h-4 w-4" />
+            )}
+            {p.label}
           </DropdownMenuItem>
-        )}
+        ))}
         <DropdownMenuItem render={<Link href="/perfil" />}>
           <UserPen className="mr-2 h-4 w-4" />
           Perfil
