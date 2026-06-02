@@ -1,7 +1,7 @@
 'use server'
 
 import { signIn } from '@/lib/auth'
-import { getUserByEmail, getPlayerSlugForUser } from '@/services/user-service'
+import { getUserByEmail, getPostLoginRedirect } from '@/services/user-service'
 import { generateOtp, createOtpToken } from '@/services/auth-service'
 import { sendOtpEmail } from '@/services/email-service'
 import { emailSchema } from '@/lib/validations/auth'
@@ -69,12 +69,7 @@ export async function verifyOtpAction(
       return { success: false, error: 'Código inválido o expirado' }
     }
 
-    // Redirect based on role
-    let redirectUrl = '/admin'
-    if (user.role === 'PLAYER') {
-      const playerSlug = await getPlayerSlugForUser(user.id)
-      redirectUrl = playerSlug ? `/jugador/${playerSlug}` : '/perfil'
-    }
+    const redirectUrl = await getPostLoginRedirect(user.id, user.role)
 
     return { success: true, data: { redirectUrl } }
   } catch (error) {

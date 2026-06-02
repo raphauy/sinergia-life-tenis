@@ -78,3 +78,12 @@ export async function getPlayerSlugForUser(userId: string): Promise<string | nul
   })
   return player?.slug ?? null
 }
+
+// Destino post-login según rol: admins al panel admin; jugadores a su panel (o /perfil si aún no tienen Player)
+export async function getPostLoginRedirect(userId: string, role: string): Promise<string> {
+  if (role === 'PLAYER') {
+    const playerSlug = await getPlayerSlugForUser(userId)
+    return playerSlug ? `/jugador/${playerSlug}` : '/perfil'
+  }
+  return '/admin'
+}
