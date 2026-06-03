@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import { Check, X, Mail, Phone, Clock } from 'lucide-react'
+import { Check, X, Mail, Phone, Clock, IdCard } from 'lucide-react'
 import { approvePlayerRegistrationAction, rejectPlayerRegistrationAction } from './actions'
 import { fullName, initials } from '@/lib/format-name'
 import { formatDistanceToNow } from 'date-fns'
@@ -33,12 +33,19 @@ interface Registration {
   lastName: string
   email: string
   whatsappNumber: string
+  cedula: string
   createdAt: Date
 }
 
 type Confirm = { id: string; action: 'approve' | 'reject'; name: string }
 
-export function RegistrosClient({ registrations }: { registrations: Registration[] }) {
+export function RegistrosClient({
+  registrations,
+  seedStep,
+}: {
+  registrations: Registration[]
+  seedStep: number
+}) {
   const [confirm, setConfirm] = useState<Confirm | null>(null)
   const [isPending, startTransition] = useTransition()
 
@@ -79,7 +86,7 @@ export function RegistrosClient({ registrations }: { registrations: Registration
           <CardHeader>
             <CardTitle>Pendientes ({registrations.length})</CardTitle>
             <CardDescription>
-              Al aprobar, el jugador entra a La Escalera al pie (rating del último − 20 puntos) y recibe
+              Al aprobar, el jugador entra a La Escalera al pie (rating del último − {seedStep} puntos) y recibe
               un email de bienvenida.
             </CardDescription>
           </CardHeader>
@@ -101,6 +108,9 @@ export function RegistrosClient({ registrations }: { registrations: Registration
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Phone className="h-3 w-3" /> {r.whatsappNumber}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <IdCard className="h-3 w-3" /> {r.cedula}
                       </span>
                       <span className="inline-flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -145,7 +155,7 @@ export function RegistrosClient({ registrations }: { registrations: Registration
               {confirm?.action === 'approve' ? (
                 <>
                   Se creará la cuenta de <strong>{confirm?.name}</strong> y entrará a La Escalera al pie
-                  (rating del último − 20). Se le enviará un email de bienvenida.
+                  (rating del último − {seedStep}). Se le enviará un email de bienvenida.
                 </>
               ) : (
                 <>

@@ -10,6 +10,7 @@ export async function submitPlayerRegistrationAction(data: {
   lastName: string
   email: string
   whatsappNumber: string
+  cedula: string
 }): Promise<ActionResult> {
   try {
     const parsed = playerRegistrationSchema.parse(data)

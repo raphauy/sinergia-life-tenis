@@ -20,18 +20,19 @@ export function RegistroForm() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [whatsappNumber, setWhatsappNumber] = useState('')
+  const [cedula, setCedula] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [done, setDone] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !whatsappNumber.trim()) {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !whatsappNumber.trim() || !cedula.trim()) {
       toast.error('Completá todos los campos')
       return
     }
     setIsLoading(true)
     try {
-      const result = await submitPlayerRegistrationAction({ firstName, lastName, email, whatsappNumber })
+      const result = await submitPlayerRegistrationAction({ firstName, lastName, email, whatsappNumber, cedula })
       if (!result.success) {
         toast.error(result.error)
         return
@@ -121,6 +122,17 @@ export function RegistroForm() {
               onChange={(e) => setWhatsappNumber(e.target.value)}
               disabled={isLoading}
               autoComplete="tel"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cedula">Cédula de identidad</Label>
+            <Input
+              id="cedula"
+              inputMode="numeric"
+              placeholder="1.234.567-8"
+              value={cedula}
+              onChange={(e) => setCedula(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>

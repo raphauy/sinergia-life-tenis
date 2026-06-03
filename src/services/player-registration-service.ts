@@ -22,6 +22,7 @@ export async function createPlayerRegistration(data: {
   lastName: string
   email: string
   whatsappNumber: string
+  cedula: string
 }) {
   const email = data.email.trim().toLowerCase()
 
@@ -44,6 +45,7 @@ export async function createPlayerRegistration(data: {
       lastName: data.lastName.trim(),
       email,
       whatsappNumber: data.whatsappNumber.trim(),
+      cedula: data.cedula.trim(),
     },
   })
 }
@@ -116,6 +118,7 @@ export async function approvePlayerRegistration(registrationId: string, reviewed
       lastName: reg.lastName,
       role: 'PLAYER',
       phone: reg.whatsappNumber,
+      cedula: reg.cedula,
     })
   }
 

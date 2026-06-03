@@ -15,6 +15,7 @@ export async function createUser(data: {
   lastName?: string
   role: Role
   phone?: string
+  cedula?: string
 }) {
   return prisma.user.create({ data })
 }

@@ -7,6 +7,7 @@ export const playerRegistrationSchema = z.object({
   lastName: z.string().trim().min(1, 'Ingresá tu apellido'),
   email: emailSchema,
   whatsappNumber: z.string().trim().min(6, 'Ingresá un WhatsApp válido'),
+  cedula: z.string().trim().min(1, 'Ingresá tu cédula').max(20, 'Cédula demasiado larga'),
 })
 
 export type PlayerRegistrationInput = z.infer<typeof playerRegistrationSchema>

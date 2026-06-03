@@ -143,6 +143,7 @@ model PlayerRegistration {
   lastName       String
   email          String
   whatsappNumber String
+  cedula         String
   status         PlayerRegistrationStatus @default(PENDING)
   reviewedById   String?
   reviewedAt     DateTime?
