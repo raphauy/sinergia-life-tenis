@@ -40,6 +40,7 @@ export default async function EscaleraDocPage() {
   // renderice aunque La Escalera todavía no esté sembrada.
   const cfg = {
     kFactor: ladder?.kFactor ?? 24,
+    seedStep: ladder?.seedStep ?? 20,
     minMatchesPerMonth: ladder?.minMatchesPerMonth ?? 2,
     monthlyPenalty: ladder?.monthlyPenalty ?? 50,
     ratingFloor: ladder?.ratingFloor ?? 0,
@@ -71,9 +72,18 @@ export default async function EscaleraDocPage() {
             tanto la habilidad (ganar partidos) como el compromiso (jugar seguido).
           </p>
           <p>
-            <span className="font-medium text-foreground">¿Cómo entrás?</span> Un administrador del
-            club te suma a La Escalera. Arrancás con un puntaje inicial según tu posición de partida
-            (los de más arriba arrancan con más puntos).
+            <span className="font-medium text-foreground">¿Cómo arrancó?</span> La lista inicial salió
+            de las posiciones del torneo <Hl>Singles Apertura 2026</Hl>: ese orden definió los puntos
+            de partida de cada jugador (los de más arriba, con más puntos).
+          </p>
+          <p>
+            <span className="font-medium text-foreground">¿Todavía no estás?</span>{' '}
+            <Link href="/registro" className="font-medium text-primary underline underline-offset-2">
+              Registrate
+            </Link>{' '}
+            y un administrador del club aprueba tu solicitud. Entrás con{' '}
+            <Hl>{cfg.seedStep} puntos menos</Hl> que el último de la lista en ese momento: empezás
+            abajo de todo y vas subiendo a medida que ganás.
           </p>
           <p>
             <span className="font-medium text-foreground">Puntos vs. puesto:</span> tu puntaje son
@@ -113,8 +123,8 @@ export default async function EscaleraDocPage() {
 
         <DocSection icon={<Swords className="h-5 w-5" />} title="Retos y partidos">
           <p>
-            Podés <Hl>retar a cualquiera</Hl> de la lista, esté donde esté. No hace falta retar al de
-            arriba tuyo.
+            Podés <Hl>retar a cualquiera</Hl> de la lista, esté donde esté. No hace falta retar al que
+            está arriba de vos.
           </p>
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
@@ -123,7 +133,7 @@ export default async function EscaleraDocPage() {
             </li>
             <li>
               <span className="font-medium text-foreground">Rechazar es libre:</span> no cuesta
-              puntos ni penaliza.
+              puntos ni penaliza… pero no está bueno, ¡y la comunidad se va a enterar! 🙂
             </li>
             <li>
               Podés tener hasta <Hl>{cfg.maxOpenChallenges}</Hl> retos abiertos a la vez, y empezar
@@ -162,9 +172,6 @@ export default async function EscaleraDocPage() {
           <ul className="list-disc space-y-1.5 pl-5">
             <li>
               Si no llegás, el 1º del mes siguiente se te descuentan <Hl>{cfg.monthlyPenalty} puntos</Hl>.
-            </li>
-            <li>
-              Esa multa nunca te baja de <Hl>{cfg.ratingFloor} puntos</Hl> (es el piso).
             </li>
             <li>
               Si te sumaron a La Escalera durante el mes, ese primer mes <Hl>no se te penaliza</Hl>{' '}
