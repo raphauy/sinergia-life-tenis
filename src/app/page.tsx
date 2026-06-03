@@ -70,6 +70,7 @@ export default async function HomePage() {
               </div>
             )}
             <FeaturedMatches matches={featured} />
+            <h2 className="mb-3 text-lg font-semibold">Ranking</h2>
             <LadderTable
               rows={rows}
               canChallenge={canChallenge}

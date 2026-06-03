@@ -62,6 +62,9 @@ interface FixtureMatchCardProps {
   ladderPreview?: { ifWin: number; ifLose: number } | null
   /** Delta de Rating aplicado a cada jugador (partido de escalera jugado). */
   ladderResultDeltas?: { player1: number | null; player2: number | null } | null
+  /** Puesto en La Escalera (#N) de cada jugador; se muestra junto al nombre si viene. */
+  player1Rank?: number | null
+  player2Rank?: number | null
 }
 
 function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number): string {
@@ -118,7 +121,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
@@ -197,16 +200,26 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       className="rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
     >
       {/* Row 1: Player1 vs Player2 + morning/afternoon icon */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex flex-wrap items-center gap-x-1.5">
-          <span className="whitespace-nowrap">
-            <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
-            {ladderResultDeltas?.player1 != null && <DeltaTag d={ladderResultDeltas.player1} />}
-            <span className="text-muted-foreground ml-1.5 text-xs">vs</span>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="flex min-w-0 flex-1 items-center gap-1">
+            {p1Defined && player1Rank != null && (
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player1Rank}</span>
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
+            </span>
+            {ladderResultDeltas?.player1 != null && <span className="shrink-0"><DeltaTag d={ladderResultDeltas.player1} /></span>}
           </span>
-          <span className="whitespace-nowrap">
-            <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
-            {ladderResultDeltas?.player2 != null && <DeltaTag d={ladderResultDeltas.player2} />}
+          <span className="shrink-0 text-xs text-muted-foreground">vs</span>
+          <span className="flex min-w-0 flex-1 items-center gap-1">
+            {p2Defined && player2Rank != null && (
+              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player2Rank}</span>
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
+            </span>
+            {ladderResultDeltas?.player2 != null && <span className="shrink-0"><DeltaTag d={ladderResultDeltas.player2} /></span>}
           </span>
         </div>
         {match.result?.photoUrl

@@ -2,8 +2,9 @@ import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { toZonedTime } from 'date-fns-tz'
+import { subDays } from 'date-fns'
 import { TIMEZONE } from '@/lib/constants'
-import { monthRangeUY, weekRangeUY, previousWeekRangeUY } from '@/lib/date-utils'
+import { monthRangeUY, previousWeekRangeUY } from '@/lib/date-utils'
 import { eloPreview } from '@/lib/elo'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
@@ -137,29 +138,40 @@ export interface FeaturedMatch {
   match: FeaturedRow & { category: null }
   player1Slug: string | null
   player2Slug: string | null
+  /** Puesto en La Escalera (#N) de cada jugador. */
+  player1Rank: number | null
+  player2Rank: number | null
   importance: number
   /** Puntos en juego del retador (player1): +gana / pierde (solo no jugados). */
   preview: { ifWin: number; ifLose: number } | null
   /** Delta de Rating aplicado a cada jugador (solo jugados). */
   resultDeltas: { player1: number | null; player2: number | null } | null
+  /** Reserva pendiente de cancha+horario (solo PENDING). */
+  reservation: { scheduledAt: Date; courtNumber: number } | null
 }
 
 /**
- * Partidos de escalera con `scheduledAt` en la semana corriente UY (CONFIRMED por
- * venir + PLAYED de la semana, que quedan visibles hasta el cierre), ordenados por
- * Importancia (suma de los Rating de ambos jugadores), top 5.
+ * Partidos de escalera destacados: todo reto aceptado por venir (PENDING + CONFIRMED,
+ * con o sin reserva — aparecen ni bien existen) + jugados recientes (el resultado sigue
+ * visible 2 días después de la fecha del partido, luego sale). Ordenados por Importancia
+ * (suma de los Rating de ambos jugadores), top 7.
  */
 export async function getFeaturedMatches(): Promise<FeaturedMatch[]> {
   const ladder = await getLadder()
   if (!ladder) return []
 
-  const { startUTC, endUTC } = weekRangeUY()
+  // Los jugados quedan destacados hasta 2 días después de la fecha del partido.
+  const playedSince = subDays(new Date(), 2)
   const [matches, ranking] = await Promise.all([
     prisma.match.findMany({
       where: {
         ladderId: ladder.id,
-        status: { in: ['CONFIRMED', 'PLAYED'] },
-        scheduledAt: { gte: startUTC, lte: endUTC },
+        OR: [
+          // Por venir: todo reto aceptado, tenga o no reserva/fecha aún.
+          { status: { in: ['PENDING', 'CONFIRMED'] } },
+          // Jugados recientes: visibles 2 días tras la fecha del partido.
+          { status: 'PLAYED', scheduledAt: { gte: playedSince } },
+        ],
       },
       select: featuredSelect,
     }),
@@ -168,11 +180,17 @@ export async function getFeaturedMatches(): Promise<FeaturedMatch[]> {
   if (matches.length === 0) return []
 
   const ratingByUser = new Map(ranking.map((e) => [e.userId, e.rating]))
+  const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
   const userIds = matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
-  const [slugMap, deltaMap] = await Promise.all([
+  const pendingIds = matches.filter((m) => m.status === 'PENDING').map((m) => m.id)
+  const [slugMap, deltaMap, reservations] = await Promise.all([
     getPlayerSlugsByUserIds(userIds),
     getLadderResultDeltas(matches),
+    getReservationsByMatchIds(pendingIds),
   ])
+  const reservationMap = new Map(
+    reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }])
+  )
 
   return matches
     .map((m) => {
@@ -182,13 +200,16 @@ export async function getFeaturedMatches(): Promise<FeaturedMatch[]> {
         match: { ...m, category: null },
         player1Slug: m.player1Id ? slugMap.get(m.player1Id) ?? null : null,
         player2Slug: m.player2Id ? slugMap.get(m.player2Id) ?? null : null,
+        player1Rank: m.player1Id ? positionByUser.get(m.player1Id) ?? null : null,
+        player2Rank: m.player2Id ? positionByUser.get(m.player2Id) ?? null : null,
         importance: (r1 ?? 0) + (r2 ?? 0),
         preview: r1 != null && r2 != null ? eloPreview(ladder.kFactor, r1, r2) : null,
         resultDeltas: deltaMap.get(m.id) ?? null,
+        reservation: m.status === 'PENDING' ? reservationMap.get(m.id) ?? null : null,
       }
     })
     .sort((a, b) => b.importance - a.importance)
-    .slice(0, 5)
+    .slice(0, 7)
 }
 
 /**

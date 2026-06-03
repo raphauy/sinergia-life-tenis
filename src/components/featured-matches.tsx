@@ -2,8 +2,9 @@ import { FixtureMatchCard } from '@/components/fixture-match-card'
 import type { FeaturedMatch } from '@/services/ladder-stats-service'
 
 /**
- * Partidos destacados de la semana (home): próximos confirmados + jugados de la
- * semana, ordenados por importancia (suma de ratings). Oculto si no hay ninguno.
+ * Partidos destacados (home): todo reto aceptado por venir (con o sin reserva) +
+ * jugados recientes (visibles 2 días tras la fecha del partido), ordenados por
+ * importancia (suma de ratings), top 7. Oculto si no hay ninguno.
  */
 export function FeaturedMatches({ matches }: { matches: FeaturedMatch[] }) {
   if (matches.length === 0) return null
@@ -18,6 +19,9 @@ export function FeaturedMatches({ matches }: { matches: FeaturedMatch[] }) {
             showDate
             player1Slug={fm.player1Slug ?? undefined}
             player2Slug={fm.player2Slug ?? undefined}
+            player1Rank={fm.player1Rank}
+            player2Rank={fm.player2Rank}
+            reservation={fm.reservation}
             ladderPreview={fm.preview}
             ladderResultDeltas={fm.resultDeltas}
           />
