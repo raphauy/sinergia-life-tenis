@@ -62,6 +62,8 @@ export default async function PartidosPage() {
                     showDate
                     player1Slug={item.player1Slug ?? undefined}
                     player2Slug={item.player2Slug ?? undefined}
+                    player1Rank={item.player1Rank}
+                    player2Rank={item.player2Rank}
                     currentUserId={currentUserId}
                     currentPlayerSlug={currentPlayerSlug}
                     reservation={item.reservation}
@@ -83,6 +85,8 @@ export default async function PartidosPage() {
                     showDate
                     player1Slug={item.player1Slug ?? undefined}
                     player2Slug={item.player2Slug ?? undefined}
+                    player1Rank={item.player1Rank}
+                    player2Rank={item.player2Rank}
                     currentUserId={currentUserId}
                     currentPlayerSlug={currentPlayerSlug}
                     ladderResultDeltas={item.resultDeltas}

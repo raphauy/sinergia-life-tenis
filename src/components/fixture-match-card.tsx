@@ -203,22 +203,22 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       <div className="flex items-center justify-between gap-2 text-sm">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="flex min-w-0 flex-1 items-center gap-1">
+            <span className="min-w-0 truncate">
+              <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
+            </span>
             {p1Defined && player1Rank != null && (
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player1Rank}</span>
             )}
-            <span className="min-w-0 flex-1 truncate">
-              <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
-            </span>
             {ladderResultDeltas?.player1 != null && <span className="shrink-0"><DeltaTag d={ladderResultDeltas.player1} /></span>}
           </span>
           <span className="shrink-0 text-xs text-muted-foreground">vs</span>
           <span className="flex min-w-0 flex-1 items-center gap-1">
+            <span className="min-w-0 truncate">
+              <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
+            </span>
             {p2Defined && player2Rank != null && (
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player2Rank}</span>
             )}
-            <span className="min-w-0 flex-1 truncate">
-              <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
-            </span>
             {ladderResultDeltas?.player2 != null && <span className="shrink-0"><DeltaTag d={ladderResultDeltas.player2} /></span>}
           </span>
         </div>

@@ -284,6 +284,9 @@ export interface LadderMatchItem {
   match: FeaturedRow & { category: null }
   player1Slug: string | null
   player2Slug: string | null
+  /** Puesto en La Escalera (#N) de cada jugador. */
+  player1Rank: number | null
+  player2Rank: number | null
   /** Puntos en juego del retador (player1): +gana / pierde (solo no jugados). */
   preview: { ifWin: number; ifLose: number } | null
   /** Delta de Rating aplicado a cada jugador (solo jugados). */
@@ -311,20 +314,24 @@ export async function getLadderMatches(): Promise<{ upcoming: LadderMatchItem[];
 
   const userIds = matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
   const pendingIds = matches.filter((m) => m.status === 'PENDING').map((m) => m.id)
-  const [slugMap, deltaMap, previewMap, reservations] = await Promise.all([
+  const [slugMap, deltaMap, previewMap, reservations, ranking] = await Promise.all([
     getPlayerSlugsByUserIds(userIds),
     getLadderResultDeltas(matches),
     getLadderChallengerPreviews(matches),
     getReservationsByMatchIds(pendingIds),
+    getLadderRanking(),
   ])
   const reservationMap = new Map(
     reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }])
   )
+  const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
 
   const toItem = (m: FeaturedRow): LadderMatchItem => ({
     match: { ...m, category: null },
     player1Slug: m.player1Id ? slugMap.get(m.player1Id) ?? null : null,
     player2Slug: m.player2Id ? slugMap.get(m.player2Id) ?? null : null,
+    player1Rank: m.player1Id ? positionByUser.get(m.player1Id) ?? null : null,
+    player2Rank: m.player2Id ? positionByUser.get(m.player2Id) ?? null : null,
     preview: m.status !== 'PLAYED' ? previewMap.get(m.id) ?? null : null,
     resultDeltas: m.status === 'PLAYED' ? deltaMap.get(m.id) ?? null : null,
     reservation: m.status === 'PENDING' ? reservationMap.get(m.id) ?? null : null,
