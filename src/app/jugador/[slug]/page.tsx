@@ -11,7 +11,7 @@ import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { getInbox, getChallengeState, getMemberChallenges } from '@/services/challenge-service'
-import { getMonthlyActivity } from '@/services/ladder-service'
+import { getMonthlyActivity, getLadderRanking } from '@/services/ladder-service'
 import {
   getMemberStanding,
   getMonthlyPositionMovement,
@@ -137,15 +137,20 @@ export default async function JugadorProfilePage({ params }: Props) {
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
 
   // Gamificación (pública): rating+puesto, movimiento del mes, evolución, jugador de la semana.
-  const [standing, ratingEvolution, playerOfWeek, movement] = userId
+  const [standing, ratingEvolution, playerOfWeek, movement, ranking] = userId
     ? await Promise.all([
         getMemberStanding(userId),
         getRatingEvolution(userId),
         getPlayerOfTheWeek(),
         getMonthlyPositionMovement(),
+        getLadderRanking(),
       ])
-    : [null, [], null, new Map<string, number>()]
+    : [null, [], null, new Map<string, number>(), []]
   const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
+  // Puesto en La Escalera (#N) por usuario; solo se muestra en partidos de escalera.
+  const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
+  const rankFor = (m: { ladderId: string | null }, playerId: string | null) =>
+    m.ladderId && playerId ? positionByUser.get(playerId) ?? null : null
   // Retos del jugador para la vista pública (read-only). No para el dueño (los ve
   // con acciones en su bandeja). El reto con el propio viewer se muestra con
   // etiqueta personalizada ("Retado por ti" / "Te retó").
@@ -245,6 +250,8 @@ export default async function JugadorProfilePage({ params }: Props) {
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                player1Rank={rankFor(m, m.player1Id)}
+                player2Rank={rankFor(m, m.player2Id)}
                 currentUserId={canAct ? userId ?? undefined : undefined}
                 currentPlayerSlug={canAct ? slug : undefined}
                 reservation={reservationMap.get(m.id)}
@@ -269,6 +276,8 @@ export default async function JugadorProfilePage({ params }: Props) {
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                player1Rank={rankFor(m, m.player1Id)}
+                player2Rank={rankFor(m, m.player2Id)}
                 ladderResultDeltas={resultDeltas.get(m.id) ?? null}
               />
             ))}

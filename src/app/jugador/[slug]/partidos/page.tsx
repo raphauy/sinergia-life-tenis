@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getMatchesByPlayer } from '@/services/match-service'
 import { getPlayerBySlug, getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
+import { getLadderRanking } from '@/services/ladder-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { fullName } from '@/lib/format-name'
 
@@ -56,6 +57,12 @@ export default async function JugadorPartidosPage({ params }: Props) {
   const reservations = await getReservationsByMatchIds(pendingMatchIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
+  // Puesto en La Escalera (#N) por usuario; solo se muestra en partidos de escalera.
+  const ranking = await getLadderRanking()
+  const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
+  const rankFor = (m: { ladderId: string | null }, playerId: string | null) =>
+    m.ladderId && playerId ? positionByUser.get(playerId) ?? null : null
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6">Mis partidos</h1>
@@ -73,6 +80,8 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                player1Rank={rankFor(m, m.player1Id)}
+                player2Rank={rankFor(m, m.player2Id)}
                 currentUserId={userId}
                 currentPlayerSlug={slug}
                 reservation={reservationMap.get(m.id)}
@@ -95,6 +104,8 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                player1Rank={rankFor(m, m.player1Id)}
+                player2Rank={rankFor(m, m.player2Id)}
               />
             ))}
           </div>
