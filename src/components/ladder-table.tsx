@@ -41,6 +41,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
         {rows.map((e) => {
           const isSelf = e.state === 'self'
           const isPlayerOfWeek = e.userId === playerOfWeekUserId
+          const streak = winStreaks?.get(e.userId) ?? 0
           // El control (acción del viewer) solo para estados accionables; 'sent' no
           // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
           const showControl =
@@ -55,10 +56,16 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
               key={e.userId}
               className={cn('relative flex items-center gap-3 px-3 py-1.5 sm:px-4', isSelf && 'bg-primary/5')}
             >
-              <WinStreakBadge
-                streak={winStreaks?.get(e.userId) ?? 0}
-                className="absolute right-3 top-1 sm:right-4"
-              />
+              {(isPlayerOfWeek || streak >= 1) && (
+                <div className="absolute right-3 top-1 flex items-center gap-3 sm:right-4">
+                  {isPlayerOfWeek && (
+                    <IconTooltip label="Jugador de la semana">
+                      <Trophy className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                    </IconTooltip>
+                  )}
+                  <WinStreakBadge streak={streak} />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3">
                   <span className="flex w-7 shrink-0 flex-col items-center leading-none">
@@ -77,11 +84,6 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
                     ) : (
                       <span className="min-w-0 truncate font-medium">{e.name}</span>
                     )}
-                    {isPlayerOfWeek && (
-                      <IconTooltip label="Jugador de la semana">
-                        <Trophy className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-                      </IconTooltip>
-                    )}
                   </span>
                   {isSelf && (
                     <span className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
@@ -92,7 +94,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
 
                 {/* Actividad pública del jugador (una línea por reto vivo) */}
                 {infoActivities.length > 0 && (
-                  <div className="mt-1 space-y-0.5 pl-10">
+                  <div className="mt-1 space-y-1.5 pl-10">
                     {infoActivities.map((a, i) => (
                       <ActivityLine key={i} a={a} viewerUserId={viewerUserId} />
                     ))}

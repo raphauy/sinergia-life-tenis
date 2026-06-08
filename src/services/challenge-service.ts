@@ -427,6 +427,29 @@ export interface LadderRow extends LadderEntry {
 
 const KIND_ORDER: Record<LadderActivity['kind'], number> = { received: 0, playing: 1, sent: 2 }
 
+/**
+ * Orden de la actividad en la fila de la escalera: primero los partidos a jugar
+ * (confirmados con fecha → reservados → pendientes a coordinar) y al final los retos
+ * (recibidos antes que enviados). Los confirmados se ordenan luego por fecha asc.
+ */
+function activitySortRank(a: LadderActivity): number {
+  if (a.kind === 'playing') {
+    if (a.scheduledAt) return 0 // confirmado (con fecha/hora)
+    if (a.reserved) return 1 // reserva pedida, sin confirmar
+    return 2 // pendiente: a coordinar
+  }
+  return a.kind === 'received' ? 3 : 4 // retos: recibido antes que enviado
+}
+
+function compareActivities(a: LadderActivity, b: LadderActivity): number {
+  const ra = activitySortRank(a)
+  const rb = activitySortRank(b)
+  if (ra !== rb) return ra - rb
+  // Entre confirmados: el primero a disputar arriba (fecha/hora ascendente).
+  if (ra === 0) return a.scheduledAt!.getTime() - b.scheduledAt!.getTime()
+  return 0
+}
+
 function toPlainRow(e: LadderEntry): LadderRow {
   return { ...e, state: 'none', matchId: null, ifWin: null, ifLose: null, activities: [] }
 }
@@ -517,7 +540,7 @@ export async function getLadderView(
       addActivity(c.challengedId, c.challengerId, 'received', null)
     }
   }
-  for (const list of activitiesByUser.values()) list.sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
+  for (const list of activitiesByUser.values()) list.sort(compareActivities)
   const activitiesOf = (userId: string) => activitiesByUser.get(userId) ?? []
 
   // Sin viewer logueado: filas con actividad pública, sin acción.

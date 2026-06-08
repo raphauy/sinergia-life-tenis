@@ -17,12 +17,16 @@ export function PointsPair({ ifWin, ifLose }: { ifWin: number; ifLose: number })
 export function ActivityLine({ a, viewerUserId }: { a: LadderActivity; viewerUserId?: string | null }) {
   const isViewer = !!viewerUserId && a.rivalUserId === viewerUserId
 
-  const dateSuffix =
-    a.kind === 'playing' ? (
-      <span className="text-muted-foreground/80">
-        · {a.scheduledAt ? friendlyDateTimeUY(a.scheduledAt) : a.reserved ? 'reservado' : 'a coordinar'}
-      </span>
-    ) : null
+  // Condición del encuentro (solo partidos a jugar): fecha/hora si está confirmado,
+  // "reservado" si hay reserva pedida, "a coordinar" si falta agendar. Los retos no llevan.
+  const condition =
+    a.kind === 'playing'
+      ? a.scheduledAt
+        ? friendlyDateTimeUY(a.scheduledAt)
+        : a.reserved
+          ? 'reservado'
+          : 'a coordinar'
+      : null
 
   // Cuando el rival del reto es el propio viewer, personalizamos en 2da persona
   // (el rival ES el viewer, así que no se enlaza el nombre).
@@ -42,11 +46,17 @@ export function ActivityLine({ a, viewerUserId }: { a: LadderActivity; viewerUse
     </span>
   )
 
+  // Línea 1: "vs Player #N" + puntos (separados, no pegados a la derecha).
+  // Línea 2 (solo si hay condición): la condición, indentada para alinear con el nombre.
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
-      {subject}
-      {dateSuffix}
-      <PointsPair ifWin={a.ifWin} ifLose={a.ifLose} />
+    <div className="text-xs text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <span className="min-w-0 truncate">{subject}</span>
+        <span className="shrink-0">
+          <PointsPair ifWin={a.ifWin} ifLose={a.ifLose} />
+        </span>
+      </div>
+      {condition && <div className="mt-0.5 pl-4 text-muted-foreground/80">{condition}</div>}
     </div>
   )
 }
