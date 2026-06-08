@@ -18,7 +18,12 @@ export function PlayerOfTheWeekCard({ player }: { player: PlayerOfTheWeek }) {
         <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
           Jugador de la semana
         </p>
-        <p className="truncate font-semibold">{player.name}</p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="truncate font-semibold">{player.name}</p>
+          {player.position != null && (
+            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player.position}</span>
+          )}
+        </div>
       </div>
       <span className="shrink-0 text-sm font-bold tabular-nums text-green-600 dark:text-green-500">
         +{player.netGain}

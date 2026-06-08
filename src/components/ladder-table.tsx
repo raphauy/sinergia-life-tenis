@@ -1,8 +1,10 @@
 import Link from 'next/link'
+import { Trophy } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChallengeControl } from '@/components/challenge-control'
 import { PositionDelta } from '@/components/position-delta'
 import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
+import { IconTooltip } from '@/components/icon-tooltip'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
 
@@ -14,9 +16,11 @@ interface Props {
   viewerUserId?: string | null
   /** Movimiento de puesto del mes por userId (↑/↓). */
   movement?: Map<string, number>
+  /** userId del jugador de la semana en curso: muestra la copita al lado del nombre. */
+  playerOfWeekUserId?: string | null
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement }: Props) {
+export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -33,6 +37,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
       <div className="divide-y">
         {rows.map((e) => {
           const isSelf = e.state === 'self'
+          const isPlayerOfWeek = e.userId === playerOfWeekUserId
           // El control (acción del viewer) solo para estados accionables; 'sent' no
           // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
           const showControl =
@@ -57,13 +62,20 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
                     <AvatarImage src={e.image || undefined} />
                     <AvatarFallback className="text-xs">{(e.name[0] || '?').toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  {e.playerSlug ? (
-                    <Link href={`/jugador/${e.playerSlug}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
-                      {e.name}
-                    </Link>
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate font-medium">{e.name}</span>
-                  )}
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
+                    {e.playerSlug ? (
+                      <Link href={`/jugador/${e.playerSlug}`} className="min-w-0 truncate font-medium hover:underline">
+                        {e.name}
+                      </Link>
+                    ) : (
+                      <span className="min-w-0 truncate font-medium">{e.name}</span>
+                    )}
+                    {isPlayerOfWeek && (
+                      <IconTooltip label="Jugador de la semana">
+                        <Trophy className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
+                      </IconTooltip>
+                    )}
+                  </span>
                   {isSelf && (
                     <span className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                       tu puesto

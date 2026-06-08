@@ -20,6 +20,8 @@ export interface PlayerOfTheWeek {
   name: string
   image: string | null
   playerSlug: string | null
+  /** Puesto actual en La Escalera (#N). */
+  position: number | null
   /** Ganancia neta de Rating en partidos de la semana (suma de deltas MATCH). */
   netGain: number
   matchesPlayed: number
@@ -87,12 +89,16 @@ export async function getPlayerOfTheWeek(): Promise<PlayerOfTheWeek | null> {
 
   const [winnerId, netGain] = candidates[0]
   const m = memberMap.get(winnerId)
-  const slugMap = await getPlayerSlugsByUserIds([winnerId])
+  const [slugMap, standing] = await Promise.all([
+    getPlayerSlugsByUserIds([winnerId]),
+    getMemberStanding(winnerId),
+  ])
   return {
     userId: winnerId,
     name: m ? fullName(m.user.firstName, m.user.lastName) || 'Jugador' : 'Jugador',
     image: blobUrl(m?.user.image) ?? null,
     playerSlug: slugMap.get(winnerId) ?? null,
+    position: standing?.position ?? null,
     netGain,
     matchesPlayed: played.get(winnerId) ?? 0,
   }

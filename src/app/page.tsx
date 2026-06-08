@@ -77,6 +77,7 @@ export default async function HomePage() {
               currentPlayerSlug={currentPlayerSlug}
               viewerUserId={session?.user?.id ?? null}
               movement={movement}
+              playerOfWeekUserId={playerOfWeek?.userId ?? null}
             />
             {tournament && (
               <Link
