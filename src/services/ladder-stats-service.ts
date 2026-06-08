@@ -105,6 +105,56 @@ export async function getPlayerOfTheWeek(): Promise<PlayerOfTheWeek | null> {
 }
 
 // ============================================================================
+// Racha de victorias (fueguitos)
+// ============================================================================
+
+/**
+ * Racha actual de victorias consecutivas en partidos de escalera por usuario:
+ * cuenta hacia atrás desde su último partido jugado hasta la primera derrota.
+ * Una victoria por walkover cuenta (el winnerId es el ganador); perder por
+ * walkover corta la racha. Orden cronológico por `scheduledAt` (la fecha del
+ * slot, con fallback a `playedAt`/`createdAt`). Solo incluye usuarios con racha ≥ 1.
+ */
+export async function getLadderWinStreaks(): Promise<Map<string, number>> {
+  const ladder = await getLadder()
+  if (!ladder) return new Map()
+
+  const matches = await prisma.match.findMany({
+    where: { ladderId: ladder.id, status: 'PLAYED' },
+    select: {
+      player1Id: true,
+      player2Id: true,
+      scheduledAt: true,
+      playedAt: true,
+      createdAt: true,
+      result: { select: { winnerId: true } },
+    },
+  })
+
+  // Historial cronológico por usuario: {at, won}.
+  const byUser = new Map<string, { at: number; won: boolean }[]>()
+  for (const m of matches) {
+    if (!m.result) continue
+    const at = (m.scheduledAt ?? m.playedAt ?? m.createdAt).getTime()
+    for (const uid of [m.player1Id, m.player2Id]) {
+      if (!uid) continue
+      const list = byUser.get(uid) ?? []
+      list.push({ at, won: m.result.winnerId === uid })
+      byUser.set(uid, list)
+    }
+  }
+
+  const streaks = new Map<string, number>()
+  for (const [uid, list] of byUser) {
+    list.sort((a, b) => a.at - b.at)
+    let streak = 0
+    for (let i = list.length - 1; i >= 0 && list[i].won; i--) streak++
+    if (streak > 0) streaks.set(uid, streak)
+  }
+  return streaks
+}
+
+// ============================================================================
 // Partidos destacados de la semana (home)
 // ============================================================================
 

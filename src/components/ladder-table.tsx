@@ -5,6 +5,7 @@ import { ChallengeControl } from '@/components/challenge-control'
 import { PositionDelta } from '@/components/position-delta'
 import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
 import { IconTooltip } from '@/components/icon-tooltip'
+import { WinStreakBadge } from '@/components/win-streak-badge'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
 
@@ -18,9 +19,11 @@ interface Props {
   movement?: Map<string, number>
   /** userId del jugador de la semana en curso: muestra la copita al lado del nombre. */
   playerOfWeekUserId?: string | null
+  /** Racha de victorias consecutivas por userId: muestra fueguitos al lado del nombre. */
+  winStreaks?: Map<string, number>
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId }: Props) {
+export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -50,8 +53,12 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
           return (
             <div
               key={e.userId}
-              className={cn('flex items-center gap-3 px-3 py-1.5 sm:px-4', isSelf && 'bg-primary/5')}
+              className={cn('relative flex items-center gap-3 px-3 py-1.5 sm:px-4', isSelf && 'bg-primary/5')}
             >
+              <WinStreakBadge
+                streak={winStreaks?.get(e.userId) ?? 0}
+                className="absolute right-3 top-1 sm:right-4"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-3">
                   <span className="flex w-7 shrink-0 flex-col items-center leading-none">

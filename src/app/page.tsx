@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
-import { getPlayerOfTheWeek, getFeaturedMatches, getMonthlyPositionMovement } from '@/services/ladder-stats-service'
+import { getPlayerOfTheWeek, getFeaturedMatches, getMonthlyPositionMovement, getLadderWinStreaks } from '@/services/ladder-stats-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { FeaturedMatches } from '@/components/featured-matches'
@@ -21,12 +21,13 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await auth()
 
-  const [view, tournament, playerOfWeek, featured, movement] = await Promise.all([
+  const [view, tournament, playerOfWeek, featured, movement, winStreaks] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
     getActiveTournament(),
     getPlayerOfTheWeek(),
     getFeaturedMatches(),
     getMonthlyPositionMovement(),
+    getLadderWinStreaks(),
   ])
   const { rows, canChallenge } = view
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -78,6 +79,7 @@ export default async function HomePage() {
               viewerUserId={session?.user?.id ?? null}
               movement={movement}
               playerOfWeekUserId={playerOfWeek?.userId ?? null}
+              winStreaks={winStreaks}
             />
             {tournament && (
               <Link
