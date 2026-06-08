@@ -20,7 +20,7 @@ export function ActivityLine({ a, viewerUserId }: { a: LadderActivity; viewerUse
   const dateSuffix =
     a.kind === 'playing' ? (
       <span className="text-muted-foreground/80">
-        · {a.scheduledAt ? friendlyDateTimeUY(a.scheduledAt) : 'a coordinar'}
+        · {a.scheduledAt ? friendlyDateTimeUY(a.scheduledAt) : a.reserved ? 'reservado' : 'a coordinar'}
       </span>
     ) : null
 

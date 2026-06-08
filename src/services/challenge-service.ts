@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getLadder, getLadderRanking, type LadderEntry } from '@/services/ladder-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { eloPreview } from '@/lib/elo'
@@ -410,8 +411,9 @@ export interface LadderActivity {
   rivalPosition: number // puesto del rival en la escalera
   ifWin: number
   ifLose: number
-  scheduledAt: Date | null // solo 'playing'
+  scheduledAt: Date | null // solo 'playing'; null hasta que Mati confirma
   courtNumber: number | null
+  reserved: boolean // 'playing' aún PENDING pero ya con reserva pedida (sin confirmar)
   matchId: string | null
 }
 
@@ -465,6 +467,15 @@ export async function getLadderView(
     },
   })
 
+  // Reservas pedidas de partidos aceptados aún sin confirmar (PENDING, sin
+  // scheduledAt): para mostrar "reservado" en vez de "a coordinar".
+  const pendingAcceptedMatchIds = allActive
+    .filter((c) => c.status === 'ACCEPTED' && c.match && c.match.scheduledAt == null)
+    .map((c) => c.match!.id)
+  const reservedMatchIds = new Set(
+    (await getReservationsByMatchIds(pendingAcceptedMatchIds)).map((r) => r.matchId)
+  )
+
   // Actividad pública por jugador: cada reto vivo aparece en las dos filas
   // implicadas, con los puntos desde la perspectiva del dueño de cada fila.
   const entryByUser = new Map(ranking.map((e) => [e.userId, e]))
@@ -473,7 +484,8 @@ export async function getLadderView(
     ownerId: string,
     rivalId: string,
     kind: LadderActivity['kind'],
-    match: { id: string; scheduledAt: Date | null; courtNumber: number | null } | null
+    match: { id: string; scheduledAt: Date | null; courtNumber: number | null } | null,
+    reserved = false
   ) => {
     const owner = entryByUser.get(ownerId)
     const rival = entryByUser.get(rivalId)
@@ -490,14 +502,16 @@ export async function getLadderView(
       ifLose,
       scheduledAt: match?.scheduledAt ?? null,
       courtNumber: match?.courtNumber ?? null,
+      reserved,
       matchId: match?.id ?? null,
     })
     activitiesByUser.set(ownerId, list)
   }
   for (const c of allActive) {
     if (c.status === 'ACCEPTED') {
-      addActivity(c.challengerId, c.challengedId, 'playing', c.match)
-      addActivity(c.challengedId, c.challengerId, 'playing', c.match)
+      const reserved = !!c.match && reservedMatchIds.has(c.match.id)
+      addActivity(c.challengerId, c.challengedId, 'playing', c.match, reserved)
+      addActivity(c.challengedId, c.challengerId, 'playing', c.match, reserved)
     } else {
       addActivity(c.challengerId, c.challengedId, 'sent', null)
       addActivity(c.challengedId, c.challengerId, 'received', null)
