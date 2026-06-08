@@ -152,6 +152,23 @@ export async function getLadderWinStreaks(): Promise<Map<string, number>> {
   return streaks
 }
 
+/** Racha actual de victorias consecutivas de un solo usuario (ver getLadderWinStreaks). */
+export async function getLadderWinStreak(userId: string): Promise<number> {
+  const ladder = await getLadder()
+  if (!ladder) return 0
+  const matches = await prisma.match.findMany({
+    where: { ladderId: ladder.id, status: 'PLAYED', OR: [{ player1Id: userId }, { player2Id: userId }] },
+    select: { scheduledAt: true, playedAt: true, createdAt: true, result: { select: { winnerId: true } } },
+  })
+  const list = matches
+    .filter((m) => m.result)
+    .map((m) => ({ at: (m.scheduledAt ?? m.playedAt ?? m.createdAt).getTime(), won: m.result!.winnerId === userId }))
+    .sort((a, b) => a.at - b.at)
+  let streak = 0
+  for (let i = list.length - 1; i >= 0 && list[i].won; i--) streak++
+  return streak
+}
+
 // ============================================================================
 // Partidos destacados de la semana (home)
 // ============================================================================

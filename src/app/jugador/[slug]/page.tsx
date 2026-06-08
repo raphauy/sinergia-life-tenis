@@ -19,6 +19,7 @@ import {
   getPlayerOfTheWeek,
   getLadderChallengerPreviews,
   getLadderResultDeltas,
+  getLadderWinStreak,
 } from '@/services/ladder-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
@@ -28,7 +29,7 @@ import { PositionDelta } from '@/components/position-delta'
 import { RatingEvolutionChart } from '@/components/rating-evolution-chart'
 import { PublicChallenges } from '@/components/public-challenges'
 import { fullName, initials } from '@/lib/format-name'
-import { Trophy } from 'lucide-react'
+import { Flame, Trophy } from 'lucide-react'
 
 export async function generateMetadata({
   params,
@@ -137,15 +138,16 @@ export default async function JugadorProfilePage({ params }: Props) {
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
 
   // Gamificación (pública): rating+puesto, movimiento de la semana, evolución, jugador de la semana.
-  const [standing, ratingEvolution, playerOfWeek, movement, ranking] = userId
+  const [standing, ratingEvolution, playerOfWeek, movement, ranking, winStreak] = userId
     ? await Promise.all([
         getMemberStanding(userId),
         getRatingEvolution(userId),
         getPlayerOfTheWeek(),
         getWeeklyPositionMovement(),
         getLadderRanking(),
+        getLadderWinStreak(userId),
       ])
-    : [null, [], null, new Map<string, number>(), []]
+    : [null, [], null, new Map<string, number>(), [], 0]
   const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
   // Puesto en La Escalera (#N) por usuario; solo se muestra en partidos de escalera.
   const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
@@ -181,6 +183,11 @@ export default async function JugadorProfilePage({ params }: Props) {
                 {isPlayerOfWeek && (
                   <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                     <Trophy className="h-3 w-3" /> Jugador de la semana
+                  </span>
+                )}
+                {winStreak >= 1 && (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                    <Flame className="h-3 w-3 fill-red-500/25" /> Racha de {winStreak} {winStreak === 1 ? 'victoria' : 'victorias'}
                   </span>
                 )}
               </div>
