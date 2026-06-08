@@ -1,10 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
-import { toZonedTime } from 'date-fns-tz'
 import { subDays } from 'date-fns'
-import { TIMEZONE } from '@/lib/constants'
-import { monthRangeUY, previousWeekRangeUY } from '@/lib/date-utils'
+import { previousWeekRangeUY, weekRangeUY } from '@/lib/date-utils'
 import { eloPreview } from '@/lib/elo'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
@@ -415,17 +413,17 @@ export async function getLadderMatches(): Promise<{ upcoming: LadderMatchItem[];
 // ============================================================================
 
 /**
- * Δ de posición por miembro desde el 1º del mes corriente UY (positivo = subió,
- * negativo = bajó). Reconstruye el Rating al inicio del mes restando los deltas
- * del mes (no se guarda historial de posiciones). Los miembros con alta posterior
- * al inicio del mes no llevan entrada (sin baseline).
+ * Δ de posición por miembro desde el inicio de la semana en curso UY (lunes 00:00;
+ * positivo = subió, negativo = bajó). Reconstruye el Rating al inicio de la semana
+ * restando los deltas de la semana (no se guarda historial de posiciones). Los
+ * miembros con alta posterior al inicio de la semana no llevan entrada (sin
+ * baseline). Se reinicia cada lunes. Siempre en vivo (se recalcula por request).
  */
-export async function getMonthlyPositionMovement(): Promise<Map<string, number>> {
+export async function getWeeklyPositionMovement(): Promise<Map<string, number>> {
   const ladder = await getLadder()
   if (!ladder) return new Map()
 
-  const nowUY = toZonedTime(new Date(), TIMEZONE)
-  const { startUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
+  const { startUTC } = weekRangeUY()
 
   const [members, history] = await Promise.all([
     prisma.ladderMember.findMany({
@@ -438,9 +436,9 @@ export async function getMonthlyPositionMovement(): Promise<Map<string, number>>
     }),
   ])
 
-  const deltaSinceMonthStart = new Map<string, number>()
+  const deltaSinceWeekStart = new Map<string, number>()
   for (const h of history) {
-    deltaSinceMonthStart.set(h.member.userId, (deltaSinceMonthStart.get(h.member.userId) ?? 0) + h.delta)
+    deltaSinceWeekStart.set(h.member.userId, (deltaSinceWeekStart.get(h.member.userId) ?? 0) + h.delta)
   }
 
   // Mismo orden que getLadderRanking: rating desc, joinedAt asc, id asc.
@@ -450,11 +448,11 @@ export async function getMonthlyPositionMovement(): Promise<Map<string, number>>
   const currentRanked = [...members].sort((a, b) => b.rating - a.rating || tieBreak(a, b))
   const currentPos = new Map(currentRanked.map((m, i) => [m.userId, i + 1]))
 
-  // Baseline: solo los miembros que ya existían al inicio del mes, rankeados por
-  // su rating reconstruido a esa fecha.
+  // Baseline: solo los miembros que ya existían al inicio de la semana, rankeados
+  // por su rating reconstruido a esa fecha.
   const baseline = members
     .filter((m) => m.joinedAt < startUTC)
-    .map((m) => ({ ...m, startRating: m.rating - (deltaSinceMonthStart.get(m.userId) ?? 0) }))
+    .map((m) => ({ ...m, startRating: m.rating - (deltaSinceWeekStart.get(m.userId) ?? 0) }))
     .sort((a, b) => b.startRating - a.startRating || tieBreak(a, b))
   const startPos = new Map(baseline.map((m, i) => [m.userId, i + 1]))
 

@@ -11,7 +11,7 @@ import {
   SEED_STEP,
 } from '@/services/ladder-service'
 import { getLadderChallenges, getLadderView } from '@/services/challenge-service'
-import { getMonthlyPositionMovement } from '@/services/ladder-stats-service'
+import { getWeeklyPositionMovement } from '@/services/ladder-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { auth } from '@/lib/auth'
 import { previousMonthInUY, monthLabelUY, formatDateUY } from '@/lib/date-utils'
@@ -39,7 +39,7 @@ export default async function AdminEscaleraPage() {
       getLadderMatchesForAdmin(ladder.id),
       getLastPeriodClose(),
       getLadderView(viewerUserId),
-      getMonthlyPositionMovement(),
+      getWeeklyPositionMovement(),
     ])
     const currentPlayerSlug =
       view.canChallenge && viewerUserId ? await getActivePlayerSlugByUserId(viewerUserId) : null

@@ -14,7 +14,7 @@ import { getInbox, getChallengeState, getMemberChallenges } from '@/services/cha
 import { getMonthlyActivity, getLadderRanking } from '@/services/ladder-service'
 import {
   getMemberStanding,
-  getMonthlyPositionMovement,
+  getWeeklyPositionMovement,
   getRatingEvolution,
   getPlayerOfTheWeek,
   getLadderChallengerPreviews,
@@ -136,13 +136,13 @@ export default async function JugadorProfilePage({ params }: Props) {
   // Estado de actividad mensual: solo para el dueño/admin y si es miembro de la escalera.
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
 
-  // Gamificación (pública): rating+puesto, movimiento del mes, evolución, jugador de la semana.
+  // Gamificación (pública): rating+puesto, movimiento de la semana, evolución, jugador de la semana.
   const [standing, ratingEvolution, playerOfWeek, movement, ranking] = userId
     ? await Promise.all([
         getMemberStanding(userId),
         getRatingEvolution(userId),
         getPlayerOfTheWeek(),
-        getMonthlyPositionMovement(),
+        getWeeklyPositionMovement(),
         getLadderRanking(),
       ])
     : [null, [], null, new Map<string, number>(), []]

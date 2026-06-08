@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
-import { getPlayerOfTheWeek, getFeaturedMatches, getMonthlyPositionMovement, getLadderWinStreaks } from '@/services/ladder-stats-service'
+import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks } from '@/services/ladder-stats-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { FeaturedMatches } from '@/components/featured-matches'
@@ -26,7 +26,7 @@ export default async function HomePage() {
     getActiveTournament(),
     getPlayerOfTheWeek(),
     getFeaturedMatches(),
-    getMonthlyPositionMovement(),
+    getWeeklyPositionMovement(),
     getLadderWinStreaks(),
   ])
   const { rows, canChallenge } = view
