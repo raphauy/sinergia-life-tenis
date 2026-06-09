@@ -6,6 +6,7 @@ import {
   TrendingUp,
   Swords,
   CalendarClock,
+  Shield,
   Star,
   LineChart,
   Mail,
@@ -17,7 +18,7 @@ import { DocSection } from '@/components/escalera-doc'
 export const metadata: Metadata = {
   title: 'Cómo funciona La Escalera - Life Tenis',
   description:
-    'Guía de jugador de La Escalera: cómo se calculan los puntos, los retos y sus plazos, el compromiso mensual, el jugador de la semana y las notificaciones que recibís.',
+    'Guía de jugador de La Escalera: cómo se calculan los puntos, los retos y sus plazos, el compromiso mensual, el ranking protegido por lesión o viaje, el jugador de la semana y las notificaciones que recibís.',
 }
 
 /** Resalta un valor de config dentro del texto. */
@@ -188,6 +189,36 @@ export default async function EscaleraDocPage() {
           </p>
         </DocSection>
 
+        <DocSection icon={<Shield className="h-5 w-5" />} title="Ranking protegido (lesión o viaje)">
+          <p>
+            ¿Te lesionaste o te vas de viaje y no vas a poder jugar un tiempo? Pedile a{' '}
+            <Hl>Mati</Hl> que te ponga en <Hl>Ranking protegido</Hl> por ese período.
+          </p>
+          <p>Mientras estás protegido:</p>
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li>
+              <Hl>Nadie te puede retar</Hl> y vos tampoco retás ni jugás: quedás afuera un tiempo, pero{' '}
+              <Hl>conservás tu puesto</Hl> en la lista.
+            </li>
+            <li>
+              En tu fila y en tu perfil aparece un <Hl>ícono con el motivo</Hl> (lesión, viaje u otro),
+              así el resto sabe por qué no estás disponible.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">No te penaliza</span> el compromiso mensual
+              si estuviste protegido <Hl>más de la mitad del mes</Hl>.
+            </li>
+            <li>
+              Al activarse, tus retos y partidos pendientes se <Hl>cancelan solos</Hl> (no afecta los
+              puntos) y se les avisa a los rivales.
+            </li>
+          </ul>
+          <p>
+            Cuando termina el período <Hl>volvés solo</Hl> al juego y ya te pueden retar de nuevo. Si no
+            sabés cuánto vas a estar afuera, Mati lo deja abierto y lo cierra cuando volvés.
+          </p>
+        </DocSection>
+
         <DocSection icon={<Star className="h-5 w-5" />} title="Jugador de la semana">
           <p>
             Cada semana (de <Hl>lunes a domingo</Hl>) se elige al jugador que más{' '}
@@ -239,6 +270,10 @@ export default async function EscaleraDocPage() {
             <li>
               <span className="font-medium text-foreground">Recordatorio para coordinar</span> — el
               día antes de que venza el plazo para agendar.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Un rival entró en Ranking protegido</span>{' '}
+              — se canceló tu reto o partido con él; podés retarlo cuando vuelva.
             </li>
             <li>
               <span className="font-medium text-foreground">Partido cancelado por no coordinarse a tiempo</span>{' '}
