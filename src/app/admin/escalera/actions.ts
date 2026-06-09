@@ -6,8 +6,10 @@ import type { ActionResult } from '@/lib/action-types'
 import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
 import { adminCancelChallenge } from '@/services/challenge-service'
 import { closeLadderMonth, runLadderDailyTasks } from '@/services/ladder-cron-service'
+import { setProtection, endProtection, deleteProtection } from '@/services/ladder-protection-service'
 import { ladderConfigSchema } from '@/lib/validations/ladder'
 import { seedCommitSchema } from '@/lib/validations/ladder'
+import { protectionSchema } from '@/lib/validations/ladder-protection'
 
 async function requireAdmin() {
   const session = await auth()
@@ -108,11 +110,68 @@ export async function runDailyTasksAction(): Promise<ActionResult> {
     revalidatePath('/admin/escalera')
     return {
       success: true,
-      message: `Tareas diarias: ${r.matchesWarned} avisados, ${r.matchesCancelled} cancelados, ${r.monthWarnings} avisos de cierre.`,
+      message: `Tareas diarias: ${r.matchesWarned} avisados, ${r.matchesCancelled} cancelados, ${r.monthWarnings} avisos de cierre, ${r.protectionsReconciled} protecciones reconciliadas.`,
     }
   } catch (error) {
     console.error('Error corriendo tareas diarias:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error al correr las tareas diarias' }
+  }
+}
+
+export async function setProtectionAction(data: Record<string, unknown>): Promise<ActionResult> {
+  try {
+    const admin = await requireAdmin()
+    if (!admin) return { success: false, error: 'No autorizado' }
+
+    const validated = protectionSchema.safeParse(data)
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message || 'Datos inválidos' }
+    }
+
+    await setProtection({
+      protectionId: validated.data.protectionId,
+      userId: validated.data.userId,
+      reason: validated.data.reason,
+      note: validated.data.note,
+      startDate: validated.data.startDate,
+      endDate: validated.data.endDate,
+      adminId: admin.id,
+    })
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return {
+      success: true,
+      message: validated.data.protectionId ? 'Protección actualizada.' : 'Jugador protegido.',
+    }
+  } catch (error) {
+    console.error('Error al proteger jugador:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al guardar la protección' }
+  }
+}
+
+export async function endProtectionAction(protectionId: string): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+    await endProtection(protectionId)
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return { success: true, message: 'Protección terminada.' }
+  } catch (error) {
+    console.error('Error al terminar la protección:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al terminar la protección' }
+  }
+}
+
+export async function deleteProtectionAction(protectionId: string): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+    await deleteProtection(protectionId)
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return { success: true, message: 'Protección eliminada.' }
+  } catch (error) {
+    console.error('Error al eliminar la protección:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al eliminar la protección' }
   }
 }
 

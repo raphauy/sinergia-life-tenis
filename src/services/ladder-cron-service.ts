@@ -4,6 +4,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { differenceInCalendarDays } from 'date-fns'
 import { getLadder } from '@/services/ladder-service'
 import { expireStaleChallenges } from '@/services/challenge-service'
+import { coveredDaysInMonth, reconcileProtections } from '@/services/ladder-protection-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { fullName } from '@/lib/format-name'
 import { TIMEZONE } from '@/lib/constants'
@@ -43,6 +44,43 @@ export interface CloseResult {
 }
 
 /**
+ * Miembros exentos de multa por Ranking protegido: los que estuvieron protegidos
+ * más de la mitad de los días del mes UY [startUTC, endUTC]. Pre-cargado fuera de
+ * la transacción del cierre (una sola query) para no consultar por miembro dentro.
+ */
+async function getProtectionExemptMemberIds(
+  ladderId: string,
+  startUTC: Date,
+  endUTC: Date,
+  year: number,
+  month: number
+): Promise<Set<string>> {
+  const protections = await prisma.ladderProtection.findMany({
+    where: {
+      member: { ladderId },
+      startDate: { lte: endUTC },
+      OR: [{ endDate: null }, { endDate: { gte: startUTC } }],
+    },
+    select: { ladderMemberId: true, startDate: true, endDate: true },
+  })
+  if (protections.length === 0) return new Set()
+
+  const byMember = new Map<string, { startDate: Date; endDate: Date | null }[]>()
+  for (const p of protections) {
+    const list = byMember.get(p.ladderMemberId) ?? []
+    list.push({ startDate: p.startDate, endDate: p.endDate })
+    byMember.set(p.ladderMemberId, list)
+  }
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const half = daysInMonth / 2
+  const exempt = new Set<string>()
+  for (const [memberId, periods] of byMember) {
+    if (coveredDaysInMonth(periods, startUTC, endUTC) > half) exempt.add(memberId)
+  }
+  return exempt
+}
+
+/**
  * Cierra un mes calendario UY (idempotente vía LadderPeriodClose): cuenta los
  * partidos jugados de cada miembro activo y, si no llega al mínimo, le descuenta
  * monthlyPenalty puntos (con piso ratingFloor). La multa es solo puntos: no toca
@@ -54,6 +92,7 @@ export async function closeLadderMonth(year: number, month: number): Promise<Clo
   if (!ladder) return { alreadyClosed: false, processed: 0, penalized: [] }
 
   const { startUTC, endUTC } = monthRangeUY(year, month)
+  const exemptMemberIds = await getProtectionExemptMemberIds(ladder.id, startUTC, endUTC, year, month)
 
   let processed = 0
   const penalized: { userId: string; email: string | null; name: string; points: number; newRating: number }[] = []
@@ -91,6 +130,8 @@ export async function closeLadderMonth(year: number, month: number): Promise<Clo
           count++
           // Gracia de alta: se incorporó dentro del mes que se cierra → no se penaliza.
           if (m.joinedAt >= startUTC && m.joinedAt <= endUTC) continue
+          // Exención por Ranking protegido (> la mitad del mes).
+          if (exemptMemberIds.has(m.id)) continue
 
           const played = countPlayedForMember(matches, m.userId)
           if (played >= ladder.minMatchesPerMonth) continue
@@ -172,10 +213,11 @@ export interface DailyResult {
   matchesWarned: number
   matchesCancelled: number
   monthWarnings: number
+  protectionsReconciled: number
 }
 
 export async function runLadderDailyTasks(): Promise<DailyResult> {
-  const result: DailyResult = { matchesWarned: 0, matchesCancelled: 0, monthWarnings: 0 }
+  const result: DailyResult = { matchesWarned: 0, matchesCancelled: 0, monthWarnings: 0, protectionsReconciled: 0 }
   const ladder = await getLadder()
   if (!ladder) return result
 
@@ -184,6 +226,14 @@ export async function runLadderDailyTasks(): Promise<DailyResult> {
     await expireStaleChallenges(ladder.id)
   } catch (e) {
     console.error('[CRON] expirar retos:', e)
+  }
+
+  // 1b. Reconciliar protecciones: cancela ítems vivos de protegidos recién activados
+  // (p.ej. una protección de inicio futuro). En régimen no hace nada.
+  try {
+    result.protectionsReconciled = await reconcileProtections(ladder.id)
+  } catch (e) {
+    console.error('[CRON] reconciliar protecciones:', e)
   }
 
   // 2. Avisar / auto-cancelar partidos PENDING sin reserva.
@@ -303,12 +353,15 @@ async function sendMonthClosingWarnings(ladder: NonNullable<LadderRow>): Promise
   if (daysUntilEndOfMonthUY() !== ladder.monthlyWarningLeadDays) return 0
 
   const nowUY = toZonedTime(new Date(), TIMEZONE)
-  const { startUTC, endUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
+  const year = nowUY.getFullYear()
+  const month = nowUY.getMonth() + 1
+  const { startUTC, endUTC } = monthRangeUY(year, month)
 
-  const [members, matches] = await Promise.all([
+  const [members, matches, exemptMemberIds] = await Promise.all([
     prisma.ladderMember.findMany({
       where: { ladderId: ladder.id, isActive: true },
       select: {
+        id: true,
         userId: true,
         joinedAt: true,
         user: { select: { email: true, firstName: true, lastName: true } },
@@ -318,12 +371,23 @@ async function sendMonthClosingWarnings(ladder: NonNullable<LadderRow>): Promise
       where: { ladderId: ladder.id, status: 'PLAYED', playedAt: { gte: startUTC, lte: endUTC } },
       select: { player1Id: true, player2Id: true, result: { select: { walkover: true, winnerId: true } } },
     }),
+    getProtectionExemptMemberIds(ladder.id, startUTC, endUTC, year, month),
   ])
+
+  // No avisamos a quien está protegido ahora (ya está afuera) ni a quien va a quedar exento.
+  const now = new Date()
+  const protectedNow = await prisma.ladderProtection.findMany({
+    where: { member: { ladderId: ladder.id }, startDate: { lte: now }, OR: [{ endDate: null }, { endDate: { gte: now } }] },
+    select: { ladderMemberId: true },
+  })
+  const protectedNowIds = new Set(protectedNow.map((p) => p.ladderMemberId))
 
   const candidates = members.filter((m) => {
     if (!m.user.email) return false
     // Gracia de alta: no avisamos a quien se incorporó este mes (no se penalizará).
     if (m.joinedAt >= startUTC && m.joinedAt <= endUTC) return false
+    // Protegido ahora o exento por protección (> mitad del mes): no se penalizará.
+    if (exemptMemberIds.has(m.id) || protectedNowIds.has(m.id)) return false
     return countPlayedForMember(matches, m.userId) < ladder.minMatchesPerMonth
   })
   if (candidates.length === 0) return 0

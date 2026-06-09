@@ -65,6 +65,12 @@ enum PlayerRegistrationStatus {
   REJECTED
 }
 
+enum ProtectionReason {
+  INJURY
+  TRAVEL
+  OTHER
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -94,6 +100,7 @@ model User {
   challengesAsChallenger  Challenge[]   @relation("ChallengeChallenger")
   challengesAsChallenged  Challenge[]   @relation("ChallengeChallenged")
   registrationsReviewed   PlayerRegistration[] @relation("RegistrationReviewer")
+  protectionsCreated      LadderProtection[]   @relation("ProtectionCreator")
 
   @@index([email])
   @@index([role])
@@ -415,6 +422,7 @@ model LadderMember {
   ladder        Ladder          @relation(fields: [ladderId], references: [id], onDelete: Cascade)
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   ratingHistory RatingHistory[]
+  protections   LadderProtection[]
 
   @@unique([ladderId, userId])
   @@index([ladderId])
@@ -474,4 +482,29 @@ model LadderPeriodClose {
   ladder Ladder @relation(fields: [ladderId], references: [id], onDelete: Cascade)
 
   @@unique([ladderId, year, month])
+}
+
+// Período de Ranking protegido de un Miembro (lesión/viaje/otro). Varios por
+// miembro (historial). endDate null = abierta (sin fin). "Protegido ahora" =
+// existe una fila con startDate <= now y (endDate null o now <= endDate).
+// Mientras dura: no se lo puede retar y queda fuera del mercado; el cierre de mes
+// lo exime de la multa si cubrió > la mitad de los días del mes (ver
+// ladder-protection-service.ts). Fechas como límites de día UY en UTC.
+model LadderProtection {
+  id             String           @id @default(cuid())
+  ladderMemberId String
+  reason         ProtectionReason
+  note           String?
+  startDate      DateTime
+  endDate        DateTime?
+  createdById    String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  member    LadderMember @relation(fields: [ladderMemberId], references: [id], onDelete: Cascade)
+  createdBy User         @relation("ProtectionCreator", fields: [createdById], references: [id])
+
+  @@index([ladderMemberId])
+  @@index([startDate])
+  @@index([endDate])
 }

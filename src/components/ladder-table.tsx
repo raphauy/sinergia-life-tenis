@@ -6,6 +6,7 @@ import { PositionDelta } from '@/components/position-delta'
 import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
 import { IconTooltip } from '@/components/icon-tooltip'
 import { WinStreakBadge } from '@/components/win-streak-badge'
+import { ProtectionBadge } from '@/components/protection-badge'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
 
@@ -42,10 +43,13 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
           const isSelf = e.state === 'self'
           const isPlayerOfWeek = e.userId === playerOfWeekUserId
           const streak = winStreaks?.get(e.userId) ?? 0
+          const isProtected = !!e.protection
           // El control (acción del viewer) solo para estados accionables; 'sent' no
           // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
+          // Un protegido no es retable: sin control.
           const showControl =
-            !!canChallenge && !isSelf && (e.state === 'none' || e.state === 'received' || e.state === 'playing')
+            !!canChallenge && !isSelf && !isProtected &&
+            (e.state === 'none' || e.state === 'received' || e.state === 'playing')
           // Mostrar toda la actividad del jugador (incluido el reto que involucra al
           // propio viewer, con etiqueta "ti"), igual que en la vista pública. El
           // control aporta la acción; la línea, el contexto.
@@ -119,6 +123,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
                 )}
               </div>
 
+              {isProtected && <ProtectionBadge protection={e.protection} className="shrink-0" />}
               <span className="shrink-0 text-base font-bold tabular-nums">{e.rating}</span>
             </div>
           )

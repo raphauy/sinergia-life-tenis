@@ -11,6 +11,7 @@ import {
   SEED_STEP,
 } from '@/services/ladder-service'
 import { getLadderChallenges, getLadderView } from '@/services/challenge-service'
+import { getMembersForProtectionAdmin } from '@/services/ladder-protection-service'
 import { getWeeklyPositionMovement } from '@/services/ladder-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { auth } from '@/lib/auth'
@@ -22,6 +23,7 @@ import { ResetLadderButton } from './reset-ladder-button'
 import { LadderConfigForm } from './ladder-config-form'
 import { AdminLadderMonitor } from './admin-ladder-monitor'
 import { LadderPeriodControls } from './ladder-period-controls'
+import { MemberProtectionManager } from './member-protection-manager'
 
 export const metadata: Metadata = { title: 'La Escalera - Admin' }
 
@@ -33,13 +35,14 @@ export default async function AdminEscaleraPage() {
   if (ladder && ranking.length > 0) {
     const session = await auth()
     const viewerUserId = session?.user?.id ?? null
-    const [locked, challenges, matches, lastPeriodClose, view, movement] = await Promise.all([
+    const [locked, challenges, matches, lastPeriodClose, view, movement, protectionMembers] = await Promise.all([
       hasLadderMatches(ladder.id),
       getLadderChallenges(ladder.id),
       getLadderMatchesForAdmin(ladder.id),
       getLastPeriodClose(),
       getLadderView(viewerUserId),
       getWeeklyPositionMovement(),
+      getMembersForProtectionAdmin(),
     ])
     const currentPlayerSlug =
       view.canChallenge && viewerUserId ? await getActivePlayerSlugByUserId(viewerUserId) : null
@@ -78,6 +81,7 @@ export default async function AdminEscaleraPage() {
           <TabsList className="w-full">
             <TabsTrigger value="ranking">Ranking</TabsTrigger>
             <TabsTrigger value="actividad">Actividad</TabsTrigger>
+            <TabsTrigger value="miembros">Miembros</TabsTrigger>
             <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
           </TabsList>
 
@@ -109,6 +113,10 @@ export default async function AdminEscaleraPage() {
               monthOptions={monthOptions}
               defaultMonth={`${prevY}-${prevM}`}
             />
+          </TabsContent>
+
+          <TabsContent value="miembros" className="mt-4">
+            <MemberProtectionManager members={protectionMembers} />
           </TabsContent>
 
           <TabsContent value="ajustes" className="mt-4">

@@ -11,6 +11,7 @@ import ChallengeReceivedEmail from '@/components/emails/challenge-received-email
 import ChallengeAcceptedEmail from '@/components/emails/challenge-accepted-email'
 import ChallengeRejectedEmail from '@/components/emails/challenge-rejected-email'
 import LadderMatchCancelledEmail from '@/components/emails/ladder-match-cancelled-email'
+import LadderProtectionCancelledEmail from '@/components/emails/ladder-protection-cancelled-email'
 import LadderPenaltyAppliedEmail from '@/components/emails/ladder-penalty-applied-email'
 import LadderMonthClosingWarningEmail from '@/components/emails/ladder-month-closing-warning-email'
 import LadderMatchExpiryWarningEmail from '@/components/emails/ladder-match-expiry-warning-email'
@@ -334,6 +335,31 @@ export async function sendLadderMatchCancelledEmail(input: {
       recipientName: input.recipientName,
       otherName: input.otherName,
       cancelledByName: input.cancelledByName,
+    }),
+  })
+}
+
+export async function sendLadderProtectionCancelledEmail(input: {
+  to: string
+  recipientName: string
+  protectedName: string
+  reasonLabel: string
+  kind: 'reto' | 'partido'
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder protection cancelled ${input.kind} -> ${input.to} (${input.protectedName} protegido)`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `${input.protectedName} entró en Ranking protegido - Life Tenis`,
+    react: LadderProtectionCancelledEmail({
+      recipientName: input.recipientName,
+      protectedName: input.protectedName,
+      reasonLabel: input.reasonLabel,
+      kind: input.kind,
+      actionUrl: input.actionUrl,
     }),
   })
 }

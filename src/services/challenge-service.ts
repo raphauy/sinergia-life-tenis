@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getLadder, getLadderRanking, type LadderEntry } from '@/services/ladder-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
+import { isCurrentlyProtected } from '@/services/ladder-protection-service'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { eloPreview } from '@/lib/elo'
@@ -139,6 +140,13 @@ export async function createChallenge(challengerId: string, challengedId: string
     if (!challenger || !challenger.isActive) throw new Error('No sos miembro activo de La Escalera.')
     if (!challenged || !challenged.isActive) throw new Error('Ese jugador no es miembro activo de La Escalera.')
 
+    if (await isCurrentlyProtected(challengerId, tx)) {
+      throw new Error('No podés retar mientras estás en Ranking protegido.')
+    }
+    if (await isCurrentlyProtected(challengedId, tx)) {
+      throw new Error('Ese jugador está en Ranking protegido; no se lo puede retar ahora.')
+    }
+
     if (await hasActiveChallengeBetween(ladder.id, challengerId, challengedId, tx)) {
       throw new Error('Ya tienen un reto o partido pendiente entre ustedes.')
     }
@@ -172,6 +180,12 @@ export async function acceptChallenge(challengeId: string, actorId: string): Pro
     if (challenge.respondByAt < new Date()) {
       await tx.challenge.update({ where: { id: challengeId }, data: { status: 'EXPIRED' } })
       throw new Error('El reto venció.')
+    }
+    if (await isCurrentlyProtected(challenge.challengedId, tx)) {
+      throw new Error('Estás en Ranking protegido; no podés aceptar retos ahora.')
+    }
+    if (await isCurrentlyProtected(challenge.challengerId, tx)) {
+      throw new Error('Quien te retó entró en Ranking protegido; el reto ya no está disponible.')
     }
 
     const match = await tx.match.create({
@@ -567,6 +581,18 @@ export async function getLadderView(
     }
   }
 
+  // Viewer en Ranking protegido: fuera del mercado (no inicia retos), pero ve la actividad.
+  if (await isCurrentlyProtected(viewerUserId)) {
+    return {
+      rows: ranking.map((e) => ({
+        ...toPlainRow(e),
+        state: e.userId === viewerUserId ? 'self' : 'none',
+        activities: activitiesOf(e.userId),
+      })),
+      canChallenge: false,
+    }
+  }
+
   // Estado viewer-relativo (para la acción del viewer), derivado de allActive.
   const stateByRival = new Map<string, { state: Exclude<LadderRowState, 'none' | 'self'>; matchId: string | null }>()
   for (const c of allActive) {
@@ -702,6 +728,8 @@ export async function getChallengeState(viewerUserId: string, rivalUserId: strin
     }),
   ])
   if (!viewer?.isActive || !rival?.isActive) return null
+  // Protegido (viewer o rival) → no retable: sin control en el perfil.
+  if ((await isCurrentlyProtected(viewerUserId)) || (await isCurrentlyProtected(rivalUserId))) return null
 
   await expireStaleChallenges(ladder.id)
 

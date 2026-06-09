@@ -7,7 +7,7 @@ import { monthRangeUY } from '@/lib/date-utils'
 import { computeRanking } from './ranking-service'
 import { getBracketByCategory } from './bracket-service'
 import { getPlayerSlugsByUserIds } from './player-service'
-import type { MatchFormat, MatchStatus, Prisma } from '@prisma/client'
+import type { MatchFormat, MatchStatus, Prisma, ProtectionReason } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
 
@@ -34,19 +34,31 @@ export interface LadderEntry {
   image: string | null
   rating: number
   playerSlug: string | null
+  /** Ranking protegido vigente del miembro (lesión/viaje/otro), o null. */
+  protection: { reason: ProtectionReason; note: string | null; endDate: Date | null } | null
 }
 
 export async function getLadderRanking(): Promise<LadderEntry[]> {
   const ladder = await getLadder()
   if (!ladder) return []
 
+  const now = new Date()
   const members = await prisma.ladderMember.findMany({
     where: { ladderId: ladder.id, isActive: true },
     // `id` final como desempate determinista: los miembros sembrados comparten
     // joinedAt (CURRENT_TIMESTAMP se congela por transacción), así que sin esto el
     // orden entre ratings iguales sería no determinista.
     orderBy: [{ rating: 'desc' }, { joinedAt: 'asc' }, { id: 'asc' }],
-    include: { user: { select: { id: true, firstName: true, lastName: true, image: true } } },
+    include: {
+      user: { select: { id: true, firstName: true, lastName: true, image: true } },
+      // Protección vigente (la más reciente que cubre ahora), para el ícono.
+      protections: {
+        where: { startDate: { lte: now }, OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        orderBy: { startDate: 'desc' },
+        take: 1,
+        select: { reason: true, note: true, endDate: true },
+      },
+    },
   })
 
   const slugMap = await getPlayerSlugsByUserIds(members.map((m) => m.userId))
@@ -58,6 +70,9 @@ export async function getLadderRanking(): Promise<LadderEntry[]> {
     image: blobUrl(m.user.image) || null,
     rating: m.rating,
     playerSlug: slugMap.get(m.userId) ?? null,
+    protection: m.protections[0]
+      ? { reason: m.protections[0].reason, note: m.protections[0].note, endDate: m.protections[0].endDate }
+      : null,
   }))
 }
 
@@ -83,9 +98,11 @@ export async function hasLadderMatches(ladderId: string, tx?: Tx): Promise<boole
 export interface MonthlyActivity {
   played: number
   min: number
-  status: 'al-dia' | 'en-riesgo'
+  status: 'al-dia' | 'en-riesgo' | 'protegido'
   /** Puntos perdidos en el cierre más reciente (positivo), o null si no lo penalizaron. */
   lastPenalty: number | null
+  /** Fin del Ranking protegido vigente (o null si abierto / no protegido). */
+  protectedUntil: Date | null
 }
 
 /**
@@ -101,6 +118,18 @@ export async function getMonthlyActivity(userId: string): Promise<MonthlyActivit
     select: { id: true },
   })
   if (!member) return null
+
+  // Protección vigente: el estado pasa a 'protegido' (sin multa este mes).
+  const now = new Date()
+  const protection = await prisma.ladderProtection.findFirst({
+    where: {
+      ladderMemberId: member.id,
+      startDate: { lte: now },
+      OR: [{ endDate: null }, { endDate: { gte: now } }],
+    },
+    orderBy: { startDate: 'desc' },
+    select: { endDate: true },
+  })
 
   const nowUY = toZonedTime(new Date(), TIMEZONE)
   const { startUTC, endUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
@@ -125,11 +154,13 @@ export async function getMonthlyActivity(userId: string): Promise<MonthlyActivit
     select: { delta: true },
   })
 
+  const isProtected = protection != null
   return {
     played,
     min: ladder.minMatchesPerMonth,
-    status: played >= ladder.minMatchesPerMonth ? 'al-dia' : 'en-riesgo',
+    status: isProtected ? 'protegido' : played >= ladder.minMatchesPerMonth ? 'al-dia' : 'en-riesgo',
     lastPenalty: penaltyRow ? Math.abs(penaltyRow.delta) : null,
+    protectedUntil: isProtected ? protection.endDate : null,
   }
 }
 

@@ -29,6 +29,8 @@ import { PositionDelta } from '@/components/position-delta'
 import { RatingEvolutionChart } from '@/components/rating-evolution-chart'
 import { PublicChallenges } from '@/components/public-challenges'
 import { fullName, initials } from '@/lib/format-name'
+import { formatDateUY } from '@/lib/date-utils'
+import { PROTECTION_META } from '@/components/protection-meta'
 import { Flame, Trophy } from 'lucide-react'
 
 export async function generateMetadata({
@@ -149,6 +151,9 @@ export default async function JugadorProfilePage({ params }: Props) {
       ])
     : [null, [], null, new Map<string, number>(), [], 0]
   const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
+  // Ranking protegido vigente (lesión/viaje/otro): badge público en el header.
+  const myProtection = userId ? ranking.find((e) => e.userId === userId)?.protection ?? null : null
+  const protectionMeta = myProtection ? PROTECTION_META[myProtection.reason] : null
   // Puesto en La Escalera (#N) por usuario; solo se muestra en partidos de escalera.
   const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
   const rankFor = (m: { ladderId: string | null }, playerId: string | null) =>
@@ -188,6 +193,12 @@ export default async function JugadorProfilePage({ params }: Props) {
                 {winStreak >= 1 && (
                   <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                     <Flame className="h-3 w-3 fill-red-500/25" /> Racha de {winStreak} {winStreak === 1 ? 'victoria' : 'victorias'}
+                  </span>
+                )}
+                {myProtection && protectionMeta && (
+                  <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${protectionMeta.pill}`}>
+                    <protectionMeta.Icon className="h-3 w-3" /> Protegido · {protectionMeta.label}
+                    {myProtection.endDate ? ` hasta ${formatDateUY(myProtection.endDate)}` : ''}
                   </span>
                 )}
               </div>

@@ -177,3 +177,20 @@ Curva del **Rating** de un **Miembro** en el tiempo (desde `RatingHistory`, desd
 **Actividad de la escalera (en la fila)**:
 A partir de Fase 4, la tabla de La Escalera muestra la actividad de **Retos** y **Partidos de escalera** vivos de **todos** los miembros (global y pública), no solo los del viewer. Cada reto/partido vivo aparece en las **dos** filas implicadas, desde la perspectiva de cada dueño de fila ("Retó a Fulano" / "Retado por Fulano" / "vs Fulano · fecha") con los puntos en juego (preview ELO, dos valores asimétricos según quién gana). Una fila con varios retos crece en alto (una línea por reto). El viewer conserva su acción ("Retar" con preview) sobre filas retables, aun si el rival ya está ocupado con terceros.
 _Nota_: esto **relaja** la regla de Fase 2 de "no mostrar preview en partido ya agendado" para el tablero — se muestran los puntos aunque puedan moverse antes de jugarse (se aclarará en ayuda al usuario).
+
+### Ranking protegido (extensión post-Fase 4)
+
+> Términos cerrados en grill-me 2026-06-08. Diseño en `docs/PRPs/ranking-protegido-prp.md`.
+
+**Ranking protegido**:
+Estado temporal de un **Miembro**, otorgado por un **admin** por un **Período de protección** `[inicio, fin]`. Mientras hoy ∈ [inicio, fin]: no se lo puede **retar** y queda **fuera del mercado** (tampoco reta/acepta/juega), pero **sigue rankeado** (conserva su puesto, visible en la tabla con un ícono por **Motivo de protección**). Queda **exento de la Penalización mensual** si estuvo protegido **más de la mitad de los días** del mes calendario UY que se cierra. El regreso al mercado es automático al pasar el fin (protección **acotada**) o cuando el admin la **termina** (protección **abierta**, sin fin). Lo que se protege es el **puesto/standing** (de ahí "ranking" = puesto, coherente con **Rating**).
+_Código_: `LadderProtection` (uno o varios períodos por miembro; "protegido ahora" = existe un período que cubre el instante).
+_Evitar_: usar `isActive` para esto — un Miembro **inactivo sale** del ranking; uno **protegido permanece**. Son estados distintos.
+
+**Período de protección**:
+Tramo de **Ranking protegido** de un **Miembro**, con `startDate` y `endDate` **opcional** (`null` = **abierta**, sin fin), **Motivo** y nota opcional. Granularidad de día UY. El inicio puede ser **pasado** (backdateable: proteger a alguien que se lesionó hace días) y ambas fechas son **editables** (extender/modificar). Otorgarlo cubriendo el presente **cancela** (avisando por email) los retos y partidos vivos del miembro. Dos salidas: **Terminar** (fin = ahora, conserva el historial) o **Eliminar** (borra, para errores).
+_Código_: `LadderProtection` (`startDate`/`endDate?` como límites de día UY en UTC).
+
+**Motivo de protección**:
+Categoría **pública** del **Ranking protegido**: Lesión / Viaje / Otro, con nota opcional. Es público a propósito: el objetivo de la feature es que el resto **sepa por qué** un jugador no es retable. Define el ícono de la fila/perfil (vendaje / avión / escudo).
+_Código_: `ProtectionReason` (`INJURY` / `TRAVEL` / `OTHER`).
