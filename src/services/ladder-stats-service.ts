@@ -6,6 +6,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { TIMEZONE } from '@/lib/constants'
 import { previousWeekRangeUY, weekRangeUY, monthRangeUY } from '@/lib/date-utils'
 import { eloPreview } from '@/lib/elo'
+import { formatMatchScore } from '@/lib/format-score'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
 import { getReservationsByMatchIds } from './reservation-service'
@@ -175,14 +176,59 @@ export async function getLadderWinStreak(userId: string): Promise<number> {
 // Partidos jugados en el mes corriente (pelotitas)
 // ============================================================================
 
+/** Un partido de escalera jugado este mes, desde la perspectiva de un jugador. */
+export interface MonthlyMatchDetail {
+  matchId: string
+  rivalName: string
+  rivalSlug: string | null
+  /** Puesto actual del rival en La Escalera (#N). */
+  rivalRank: number | null
+  won: boolean
+  walkover: boolean
+  /** Marcador desde la perspectiva del jugador (sus games primero), o 'W/O'. */
+  score: string
+  playedAt: Date
+}
+
+type ScoreFields = {
+  set1Player1: number
+  set1Player2: number
+  tb1Player1: number | null
+  tb1Player2: number | null
+  set2Player1: number | null
+  set2Player2: number | null
+  tb2Player1: number | null
+  tb2Player2: number | null
+  superTbPlayer1: number | null
+  superTbPlayer2: number | null
+}
+
+/** Marcador desde la perspectiva de un jugador: sus games primero (espeja si es player2). */
+function scoreFromPerspective(r: ScoreFields, viewerIsP1: boolean): string {
+  if (viewerIsP1) return formatMatchScore(r)
+  return formatMatchScore({
+    set1Player1: r.set1Player2,
+    set1Player2: r.set1Player1,
+    tb1Player1: r.tb1Player2,
+    tb1Player2: r.tb1Player1,
+    set2Player1: r.set2Player2,
+    set2Player2: r.set2Player1,
+    tb2Player1: r.tb2Player2,
+    tb2Player2: r.tb2Player1,
+    superTbPlayer1: r.superTbPlayer2,
+    superTbPlayer2: r.superTbPlayer1,
+  })
+}
+
 /**
- * Partidos de escalera jugados por cada usuario en el mes calendario UY corriente.
- * Mismo criterio que el cierre mensual (ladder-cron-service): cuenta los PLAYED por
- * `playedAt` dentro del mes y el ausente del walkover NO suma (el ganador por
- * walkover sí). Map<userId, cantidad>; solo usuarios con ≥ 1. Para la "pelotita" de
- * actividad mensual en la tabla de La Escalera (proxy del compromiso del mes).
+ * Partidos de escalera jugados por cada usuario en el mes calendario UY corriente,
+ * con el detalle de cada uno (rival, ganó/perdió, marcador desde su perspectiva).
+ * Mismo criterio de inclusión que el cierre mensual (ladder-cron-service): PLAYED por
+ * `playedAt` dentro del mes y el ausente del walkover NO cuenta (el ganador por
+ * walkover sí) — así la cantidad de "pelotitas" == largo de la lista. Map<userId,
+ * partidos> ordenados del más reciente al más viejo; solo usuarios con ≥ 1.
  */
-export async function getLadderMonthlyMatchesPlayed(): Promise<Map<string, number>> {
+export async function getLadderMonthlyMatches(): Promise<Map<string, MonthlyMatchDetail[]>> {
   const ladder = await getLadder()
   if (!ladder) return new Map()
 
@@ -191,23 +237,66 @@ export async function getLadderMonthlyMatchesPlayed(): Promise<Map<string, numbe
 
   const matches = await prisma.match.findMany({
     where: { ladderId: ladder.id, status: 'PLAYED', playedAt: { gte: startUTC, lte: endUTC } },
+    orderBy: { playedAt: 'desc' },
     select: {
+      id: true,
+      playedAt: true,
       player1Id: true,
       player2Id: true,
-      result: { select: { walkover: true, winnerId: true } },
+      player1: { select: { firstName: true, lastName: true } },
+      player2: { select: { firstName: true, lastName: true } },
+      result: {
+        select: {
+          walkover: true,
+          winnerId: true,
+          set1Player1: true,
+          set1Player2: true,
+          tb1Player1: true,
+          tb1Player2: true,
+          set2Player1: true,
+          set2Player2: true,
+          tb2Player1: true,
+          tb2Player2: true,
+          superTbPlayer1: true,
+          superTbPlayer2: true,
+        },
+      },
     },
   })
 
-  const counts = new Map<string, number>()
+  const userIds = [
+    ...new Set(matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)),
+  ]
+  const [slugMap, ranking] = await Promise.all([getPlayerSlugsByUserIds(userIds), getLadderRanking()])
+  const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
+
+  const byUser = new Map<string, MonthlyMatchDetail[]>()
   for (const m of matches) {
-    const isWalkover = m.result?.walkover ?? false
-    for (const uid of [m.player1Id, m.player2Id]) {
-      if (!uid) continue
-      if (isWalkover && uid !== m.result?.winnerId) continue
-      counts.set(uid, (counts.get(uid) ?? 0) + 1)
+    if (!m.result || !m.player1Id || !m.player2Id) continue
+    const isWalkover = m.result.walkover
+    // playedAt no es null: el where filtra por playedAt dentro del mes.
+    const playedAt = m.playedAt as Date
+    for (const viewerIsP1 of [true, false]) {
+      const uid = viewerIsP1 ? m.player1Id : m.player2Id
+      const rivalId = viewerIsP1 ? m.player2Id : m.player1Id
+      // El ausente del walkover no suma (igual criterio que el conteo y el cierre).
+      if (isWalkover && uid !== m.result.winnerId) continue
+      const rival = viewerIsP1 ? m.player2 : m.player1
+      const list = byUser.get(uid) ?? []
+      list.push({
+        matchId: m.id,
+        rivalName: fullName(rival?.firstName ?? null, rival?.lastName ?? null) || 'Jugador',
+        rivalSlug: slugMap.get(rivalId) ?? null,
+        rivalRank: positionByUser.get(rivalId) ?? null,
+        won: m.result.winnerId === uid,
+        walkover: isWalkover,
+        score: isWalkover ? 'W/O' : scoreFromPerspective(m.result, viewerIsP1),
+        playedAt,
+      })
+      byUser.set(uid, list)
     }
   }
-  return counts
+  return byUser
 }
 
 // ============================================================================
