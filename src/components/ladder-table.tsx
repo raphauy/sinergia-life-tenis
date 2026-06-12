@@ -6,6 +6,7 @@ import { PositionDelta } from '@/components/position-delta'
 import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
 import { IconTooltip } from '@/components/icon-tooltip'
 import { WinStreakBadge } from '@/components/win-streak-badge'
+import { MonthlyMatchesBadge } from '@/components/monthly-matches-badge'
 import { ProtectionBadge } from '@/components/protection-badge'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
@@ -22,9 +23,11 @@ interface Props {
   playerOfWeekUserId?: string | null
   /** Racha de victorias consecutivas por userId: muestra fueguitos al lado del nombre. */
   winStreaks?: Map<string, number>
+  /** Partidos jugados en el mes corriente por userId: muestra pelotitas abajo a la derecha. */
+  monthlyMatches?: Map<string, number>
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks }: Props) {
+export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -43,6 +46,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
           const isSelf = e.state === 'self'
           const isPlayerOfWeek = e.userId === playerOfWeekUserId
           const streak = winStreaks?.get(e.userId) ?? 0
+          const monthly = monthlyMatches?.get(e.userId) ?? 0
           const isProtected = !!e.protection
           // El control (acción del viewer) solo para estados accionables; 'sent' no
           // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
@@ -58,8 +62,18 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
           return (
             <div
               key={e.userId}
-              className={cn('relative flex items-center gap-3 px-3 py-1.5 sm:px-4', isSelf && 'bg-primary/5')}
+              className={cn(
+                'relative flex items-center gap-3 px-3 py-1.5 sm:px-4',
+                isSelf && 'bg-primary/5',
+                // Con pelotita: el alto reserva el lugar del fueguito (arriba) y de la
+                // pelotita (abajo) aunque no haya fueguito, para que avatar/nombre/puntos
+                // queden siempre centrados verticalmente entre ambas zonas, con margen
+                // entre los puntos y la pelotita.
+                monthly >= 1 && 'min-h-[5.5rem]'
+              )}
             >
+              {/* Fueguito / trofeo arriba a la derecha. Su lugar queda reservado por el
+                  alto mínimo de la fila aunque no haya fueguito (puntos centrados). */}
               {(isPlayerOfWeek || streak >= 1) && (
                 <div className="absolute right-3 top-1 flex items-center gap-3 sm:right-4">
                   {isPlayerOfWeek && (
@@ -125,6 +139,12 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
 
               {isProtected && <ProtectionBadge protection={e.protection} className="shrink-0" />}
               <span className="shrink-0 text-base font-bold tabular-nums">{e.rating}</span>
+              {/* Pelotita abajo a la derecha. Su lugar queda reservado por el alto. */}
+              {monthly >= 1 && (
+                <div className="absolute bottom-1 right-3 sm:right-4">
+                  <MonthlyMatchesBadge played={monthly} />
+                </div>
+              )}
             </div>
           )
         })}

@@ -2,7 +2,9 @@ import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { subDays } from 'date-fns'
-import { previousWeekRangeUY, weekRangeUY } from '@/lib/date-utils'
+import { toZonedTime } from 'date-fns-tz'
+import { TIMEZONE } from '@/lib/constants'
+import { previousWeekRangeUY, weekRangeUY, monthRangeUY } from '@/lib/date-utils'
 import { eloPreview } from '@/lib/elo'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
@@ -167,6 +169,45 @@ export async function getLadderWinStreak(userId: string): Promise<number> {
   let streak = 0
   for (let i = list.length - 1; i >= 0 && list[i].won; i--) streak++
   return streak
+}
+
+// ============================================================================
+// Partidos jugados en el mes corriente (pelotitas)
+// ============================================================================
+
+/**
+ * Partidos de escalera jugados por cada usuario en el mes calendario UY corriente.
+ * Mismo criterio que el cierre mensual (ladder-cron-service): cuenta los PLAYED por
+ * `playedAt` dentro del mes y el ausente del walkover NO suma (el ganador por
+ * walkover sí). Map<userId, cantidad>; solo usuarios con ≥ 1. Para la "pelotita" de
+ * actividad mensual en la tabla de La Escalera (proxy del compromiso del mes).
+ */
+export async function getLadderMonthlyMatchesPlayed(): Promise<Map<string, number>> {
+  const ladder = await getLadder()
+  if (!ladder) return new Map()
+
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const { startUTC, endUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
+
+  const matches = await prisma.match.findMany({
+    where: { ladderId: ladder.id, status: 'PLAYED', playedAt: { gte: startUTC, lte: endUTC } },
+    select: {
+      player1Id: true,
+      player2Id: true,
+      result: { select: { walkover: true, winnerId: true } },
+    },
+  })
+
+  const counts = new Map<string, number>()
+  for (const m of matches) {
+    const isWalkover = m.result?.walkover ?? false
+    for (const uid of [m.player1Id, m.player2Id]) {
+      if (!uid) continue
+      if (isWalkover && uid !== m.result?.winnerId) continue
+      counts.set(uid, (counts.get(uid) ?? 0) + 1)
+    }
+  }
+  return counts
 }
 
 // ============================================================================
