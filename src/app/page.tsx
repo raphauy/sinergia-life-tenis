@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
-import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches } from '@/services/ladder-stats-service'
+import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas } from '@/services/ladder-stats-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { FeaturedMatches } from '@/components/featured-matches'
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await auth()
 
-  const [view, tournament, playerOfWeek, featured, movement, winStreaks, monthlyMatches] = await Promise.all([
+  const [view, tournament, playerOfWeek, featured, movement, winStreaks, monthlyMatches, monthDeltas] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
     getActiveTournament(),
     getPlayerOfTheWeek(),
@@ -29,6 +29,7 @@ export default async function HomePage() {
     getWeeklyPositionMovement(),
     getLadderWinStreaks(),
     getLadderMonthlyMatches(),
+    getMonthlyRatingDeltas(),
   ])
   const { rows, canChallenge } = view
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -82,6 +83,7 @@ export default async function HomePage() {
               playerOfWeekUserId={playerOfWeek?.userId ?? null}
               winStreaks={winStreaks}
               monthlyMatches={monthlyMatches}
+              monthDeltas={monthDeltas}
             />
             {tournament && (
               <Link

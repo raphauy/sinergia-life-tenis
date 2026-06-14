@@ -20,12 +20,17 @@ import {
   getLadderChallengerPreviews,
   getLadderResultDeltas,
   getLadderWinStreak,
+  getMonthlyRatingDeltas,
+  getLadderMonthlyMatches,
+  type MonthlyMatchDetail,
 } from '@/services/ladder-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ChallengeInbox } from '@/components/challenge-inbox'
 import { LadderMonthlyStatus } from '@/components/ladder-monthly-status'
 import { PositionDelta } from '@/components/position-delta'
+import { RatingMonthDelta } from '@/components/rating-month-delta'
+import { MonthlyMatchesBadge } from '@/components/monthly-matches-badge'
 import { RatingEvolutionChart } from '@/components/rating-evolution-chart'
 import { PublicChallenges } from '@/components/public-challenges'
 import { fullName, initials } from '@/lib/format-name'
@@ -140,7 +145,7 @@ export default async function JugadorProfilePage({ params }: Props) {
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
 
   // Gamificación (pública): rating+puesto, movimiento de la semana, evolución, jugador de la semana.
-  const [standing, ratingEvolution, playerOfWeek, movement, ranking, winStreak] = userId
+  const [standing, ratingEvolution, playerOfWeek, movement, ranking, winStreak, monthDeltas, monthlyMatches] = userId
     ? await Promise.all([
         getMemberStanding(userId),
         getRatingEvolution(userId),
@@ -148,8 +153,10 @@ export default async function JugadorProfilePage({ params }: Props) {
         getWeeklyPositionMovement(),
         getLadderRanking(),
         getLadderWinStreak(userId),
+        getMonthlyRatingDeltas(),
+        getLadderMonthlyMatches(),
       ])
-    : [null, [], null, new Map<string, number>(), [], 0]
+    : [null, [], null, new Map<string, number>(), [], 0, new Map<string, number>(), new Map<string, MonthlyMatchDetail[]>()]
   const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
   // Ranking protegido vigente (lesión/viaje/otro): badge público en el header.
   const myProtection = userId ? ranking.find((e) => e.userId === userId)?.protection ?? null : null
@@ -170,9 +177,9 @@ export default async function JugadorProfilePage({ params }: Props) {
 
   return (
     <div>
-      {/* Profile header */}
-      <div className="flex items-center gap-4 mb-8">
-        <Avatar className="h-20 w-20">
+      {/* Profile header — avatar al tope (items-start) para que no se descentre con los badges */}
+      <div className="flex items-start gap-4 mb-8">
+        <Avatar className="h-20 w-20 shrink-0">
           <AvatarImage src={image || undefined} />
           <AvatarFallback className="text-2xl">
             {initials(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)}
@@ -181,30 +188,47 @@ export default async function JugadorProfilePage({ params }: Props) {
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold">{displayName}</h1>
           {standing && (
-            <div className="mt-2 space-y-0.5">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <div className="mt-1.5 space-y-1">
+              {/* Ranking + movimiento de puesto de la semana (igual que la home) */}
+              <div className="flex items-center gap-x-2 text-sm">
                 <span className="font-semibold tabular-nums">Ranking #{standing.position}</span>
                 <PositionDelta value={userId ? movement.get(userId) : undefined} />
-                {isPlayerOfWeek && (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                    <Trophy className="h-3 w-3" /> Jugador de la semana
-                  </span>
-                )}
-                {winStreak >= 1 && (
-                  <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-                    <Flame className="h-3 w-3 fill-red-500/25" /> Racha de {winStreak} {winStreak === 1 ? 'victoria' : 'victorias'}
-                  </span>
-                )}
-                {myProtection && protectionMeta && (
-                  <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${protectionMeta.pill}`}>
-                    <protectionMeta.Icon className="h-3 w-3" /> Protegido · {protectionMeta.label}
-                    {myProtection.endDate ? ` hasta ${formatDateUY(myProtection.endDate)}` : ''}
-                  </span>
-                )}
               </div>
-              <p className="text-sm text-muted-foreground">
-                <span className="tabular-nums">{standing.rating}</span> puntos en La Escalera
-              </p>
+
+              {/* Puntos + variación del mes + pelotitas de partidos del mes */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                <span className="inline-flex items-center gap-x-1.5">
+                  <span className="text-muted-foreground">Puntos</span>
+                  <span className="font-semibold tabular-nums">{standing.rating}</span>
+                  <RatingMonthDelta value={userId ? monthDeltas.get(userId) : undefined} />
+                </span>
+                <MonthlyMatchesBadge
+                  matches={userId ? monthlyMatches.get(userId) ?? [] : []}
+                  playerName={displayName}
+                />
+              </div>
+
+              {/* Distintivos: apilados debajo de Puntos, alineados a la izquierda */}
+              {(isPlayerOfWeek || winStreak >= 1 || (myProtection && protectionMeta)) && (
+                <div className="flex flex-col items-start gap-1.5 pt-1">
+                  {isPlayerOfWeek && (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                      <Trophy className="h-3 w-3" /> Jugador de la semana
+                    </span>
+                  )}
+                  {winStreak >= 1 && (
+                    <span className="inline-flex items-center gap-1 rounded-md border border-red-300 bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                      <Flame className="h-3 w-3 fill-red-500/25" /> Racha de {winStreak} {winStreak === 1 ? 'victoria' : 'victorias'}
+                    </span>
+                  )}
+                  {myProtection && protectionMeta && (
+                    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${protectionMeta.pill}`}>
+                      <protectionMeta.Icon className="h-3 w-3" /> Protegido · {protectionMeta.label}
+                      {myProtection.endDate ? ` hasta ${formatDateUY(myProtection.endDate)}` : ''}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

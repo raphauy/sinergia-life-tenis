@@ -300,6 +300,41 @@ export async function getLadderMonthlyMatches(): Promise<Map<string, MonthlyMatc
 }
 
 // ============================================================================
+// Variación de puntos del mes (flecha al lado del puntaje)
+// ============================================================================
+
+/**
+ * Variación NETA de puntos (Rating) por usuario en sus Partidos de escalera del
+ * mes calendario UY corriente: suma de los `delta` de `RatingHistory` reason MATCH
+ * cuyo partido tiene `playedAt` dentro del mes (mismo universo que las "pelotitas",
+ * ver getLadderMonthlyMatches). Una victoria por walkover suma 0. Las penalizaciones
+ * por inactividad NO cuentan (solo partidos). Map<userId, neto>; incluye también los
+ * netos en 0 (el componente no dibuja flecha para 0).
+ */
+export async function getMonthlyRatingDeltas(): Promise<Map<string, number>> {
+  const ladder = await getLadder()
+  if (!ladder) return new Map()
+
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const { startUTC, endUTC } = monthRangeUY(nowUY.getFullYear(), nowUY.getMonth() + 1)
+
+  const rows = await prisma.ratingHistory.findMany({
+    where: {
+      reason: 'MATCH',
+      member: { ladderId: ladder.id },
+      match: { status: 'PLAYED', playedAt: { gte: startUTC, lte: endUTC } },
+    },
+    select: { delta: true, member: { select: { userId: true } } },
+  })
+
+  const net = new Map<string, number>()
+  for (const r of rows) {
+    net.set(r.member.userId, (net.get(r.member.userId) ?? 0) + r.delta)
+  }
+  return net
+}
+
+// ============================================================================
 // Partidos destacados de la semana (home)
 // ============================================================================
 
@@ -556,7 +591,7 @@ export async function getLadderMatches(): Promise<{ upcoming: LadderMatchItem[];
 }
 
 // ============================================================================
-// Movimiento de puesto del mes
+// Movimiento de puesto de la semana
 // ============================================================================
 
 /**

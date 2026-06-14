@@ -1,15 +1,18 @@
 import Link from 'next/link'
+import { IconTooltip } from '@/components/icon-tooltip'
 import { friendlyDateTimeUY } from '@/lib/date-utils'
 import type { LadderActivity } from '@/services/challenge-service'
 
-/** Puntos en juego: +gana / pierde (ifLose ya viene negativo). */
+/** Puntos en juego: +gana / pierde (ifLose ya viene negativo). Tooltip (shadcn) apto mobile. */
 export function PointsPair({ ifWin, ifLose }: { ifWin: number; ifLose: number }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs" title={`Ganás ${ifWin}, perdés ${Math.abs(ifLose)}`}>
-      <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{ifWin}</span>
-      <span className="text-muted-foreground/40">/</span>
-      <span className="font-semibold text-red-600 tabular-nums dark:text-red-500">{ifLose}</span>
-    </span>
+    <IconTooltip label={`Ganás ${ifWin}, perdés ${Math.abs(ifLose)}`}>
+      <span className="inline-flex items-center gap-1 text-xs">
+        <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{ifWin}</span>
+        <span className="text-muted-foreground/40">/</span>
+        <span className="font-semibold text-red-600 tabular-nums dark:text-red-500">{ifLose}</span>
+      </span>
+    </IconTooltip>
   )
 }
 

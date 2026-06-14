@@ -7,6 +7,7 @@ import { ActivityLine, PointsPair } from '@/components/ladder-activity-line'
 import { IconTooltip } from '@/components/icon-tooltip'
 import { WinStreakBadge } from '@/components/win-streak-badge'
 import { MonthlyMatchesBadge } from '@/components/monthly-matches-badge'
+import { RatingMonthDelta } from '@/components/rating-month-delta'
 import { ProtectionBadge } from '@/components/protection-badge'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
@@ -26,9 +27,11 @@ interface Props {
   winStreaks?: Map<string, number>
   /** Partidos jugados en el mes corriente por userId: muestra pelotitas abajo a la derecha. */
   monthlyMatches?: Map<string, MonthlyMatchDetail[]>
+  /** Variación neta de puntos del mes por userId: flecha ↑/↓ al lado del puntaje. */
+  monthDeltas?: Map<string, number>
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches }: Props) {
+export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches, monthDeltas }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -139,7 +142,10 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
               </div>
 
               {isProtected && <ProtectionBadge protection={e.protection} className="shrink-0" />}
-              <span className="shrink-0 text-base font-bold tabular-nums">{e.rating}</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <RatingMonthDelta value={monthDeltas?.get(e.userId)} />
+                <span className="text-base font-bold tabular-nums">{e.rating}</span>
+              </span>
               {/* Pelotita abajo a la derecha. Su lugar queda reservado por el alto. */}
               {monthly.length >= 1 && (
                 <div className="absolute bottom-1 right-3 sm:right-4">
