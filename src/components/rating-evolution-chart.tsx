@@ -3,9 +3,11 @@ import type { RatingPoint } from '@/services/ladder-stats-service'
 
 /**
  * Curva de evolución de Rating (SVG liviano, sin librería de charts). Mobile-first:
- * ancho 100%, alto fijo. No renderiza con menos de 2 puntos.
+ * ancho 100%, alto fijo. No renderiza con menos de 2 puntos. `framed` (default true)
+ * envuelve en una card con borde; en false va sin borde (p. ej. dentro de un Dialog,
+ * que ya aporta el contenedor).
  */
-export function RatingEvolutionChart({ points }: { points: RatingPoint[] }) {
+export function RatingEvolutionChart({ points, framed = true }: { points: RatingPoint[]; framed?: boolean }) {
   if (points.length < 2) return null
 
   const W = 320
@@ -27,7 +29,7 @@ export function RatingEvolutionChart({ points }: { points: RatingPoint[] }) {
   const diff = current - first
 
   return (
-    <div className="rounded-lg border p-4">
+    <div className={cn(framed && 'rounded-lg border p-4')}>
       <div className="mb-2 flex items-baseline justify-between">
         <span className="text-sm text-muted-foreground">Evolución de puntos</span>
         <span className="text-sm">

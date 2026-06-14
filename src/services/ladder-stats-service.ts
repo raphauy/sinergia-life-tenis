@@ -687,3 +687,23 @@ export async function getRatingEvolution(userId: string): Promise<RatingPoint[]>
   })
   return rows.map((r) => ({ at: r.createdAt, rating: r.ratingAfter }))
 }
+
+/**
+ * Curvas de Rating de todos los miembros de La Escalera en una sola query (batch de
+ * getRatingEvolution). Para mostrar la gráfica de cada jugador en la tabla del ranking
+ * (Dialog al tocar los puntos). Map<userId, RatingPoint[]> en orden cronológico.
+ */
+export async function getLadderRatingEvolutions(): Promise<Map<string, RatingPoint[]>> {
+  const ladder = await getLadder()
+  if (!ladder) return new Map()
+  const members = await prisma.ladderMember.findMany({
+    where: { ladderId: ladder.id },
+    select: {
+      userId: true,
+      ratingHistory: { orderBy: { createdAt: 'asc' }, select: { createdAt: true, ratingAfter: true } },
+    },
+  })
+  return new Map(
+    members.map((m) => [m.userId, m.ratingHistory.map((r) => ({ at: r.createdAt, rating: r.ratingAfter }))])
+  )
+}
