@@ -8,11 +8,15 @@ export function expectedScore(ratingA: number, ratingB: number): number {
 }
 
 /**
- * Delta de rating que GANA el ganador (entero ≥ 0). El perdedor recibe el
+ * Delta de rating que GANA el ganador (entero ≥ 1). El perdedor recibe el
  * negativo exacto de este valor (suma-cero exacto). `score = 1` para el ganador.
+ *
+ * Piso de 1: ganarle a alguien muy por debajo redondearía a 0; forzamos ≥ 1 para
+ * que todo reto/partido mueva algo (ganar nunca da 0, perder nunca cuesta 0). El
+ * walkover (ELO-neutral, delta 0) no pasa por acá, así que mantiene su 0.
  */
 export function eloWinnerDelta(kFactor: number, winnerRating: number, loserRating: number): number {
-  return Math.round(kFactor * (1 - expectedScore(winnerRating, loserRating)))
+  return Math.max(1, Math.round(kFactor * (1 - expectedScore(winnerRating, loserRating))))
 }
 
 /**
