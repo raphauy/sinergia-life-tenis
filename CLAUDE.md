@@ -71,7 +71,7 @@ Para cada **feature nueva** (post-MVP):
 1. (Opcional) Borrador en `docs/new-features/<feature>.md`.
 2. `/grill-me` para cerrar decisiones de alto nivel → escribir `docs/PRPs/<feature>-prp.md` (diseño completo) + `docs/PRPs/<feature>-roadmap.md` (fases en prosa).
 3. Por cada fase: `/grill-me` (cierra decisiones de implementación) → plan mode → implementar → validar con el usuario antes de la siguiente.
-4. Antes de cerrar una fase: `/revisar` + `pnpm typecheck` + `pnpm build`.
+4. Antes de cerrar una fase: `pnpm typecheck` + `pnpm build`.
 
 El glosario del dominio (`docs/context.md`) se llena inline durante `grill-me`.
 
