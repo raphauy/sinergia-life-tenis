@@ -209,9 +209,19 @@ export async function rejectChallenge(challengeId: string, actorId: string): Pro
   if (!challenge) throw new Error('Reto no encontrado.')
   if (challenge.challengedId !== actorId) throw new Error('Solo el retado puede rechazar.')
   if (challenge.status !== 'PROPOSED') throw new Error('Este reto ya fue respondido.')
+
+  // Snapshot del gap de puestos al rechazar (para la Sección Gallina). Se evalúa la
+  // "parejura" del reto en el momento del rechazo; null si alguno no es miembro activo.
+  const ranking = await getLadderRanking()
+  const pos = new Map(ranking.map((e) => [e.userId, e.position]))
+  const challengerPos = pos.get(challenge.challengerId)
+  const challengedPos = pos.get(challenge.challengedId)
+  const rankGapAtReject =
+    challengerPos != null && challengedPos != null ? challengerPos - challengedPos : null
+
   return prisma.challenge.update({
     where: { id: challengeId },
-    data: { status: 'REJECTED', respondedAt: new Date() },
+    data: { status: 'REJECTED', respondedAt: new Date(), rankGapAtReject },
   })
 }
 

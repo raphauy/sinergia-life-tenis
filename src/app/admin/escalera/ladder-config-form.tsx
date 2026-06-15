@@ -7,6 +7,7 @@ import { Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ const formatItems: { value: LadderMatchFormat; label: string }[] = [
 export interface LadderConfig {
   kFactor: number
   matchFormat: string
+  gallinaEnabled: boolean
   maxOpenChallenges: number
   maxChallengesPerMonth: number
   acceptanceWindowDays: number
@@ -68,6 +70,7 @@ type FormState = Record<string, string> & { matchFormat: string }
 export function LadderConfigForm({ config }: { config: LadderConfig }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [gallinaEnabled, setGallinaEnabled] = useState(config.gallinaEnabled)
   const [form, setForm] = useState<FormState>(() => {
     const base: FormState = { matchFormat: config.matchFormat }
     for (const f of NUM_FIELDS) base[f.key] = String(config[f.key as keyof LadderConfig])
@@ -89,6 +92,7 @@ export function LadderConfigForm({ config }: { config: LadderConfig }) {
       }
       payload[f.key] = n
     }
+    payload.gallinaEnabled = gallinaEnabled
     startTransition(async () => {
       const res = await updateLadderConfigAction(payload)
       if (res.success) {
@@ -147,6 +151,26 @@ export function LadderConfigForm({ config }: { config: LadderConfig }) {
           </div>
         </div>
       ))}
+
+      {/* Sección Gallina */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-muted-foreground">Sección Gallina</h3>
+        <div className="flex items-center justify-between gap-4 rounded-md border p-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="gallinaEnabled" className="cursor-pointer">
+              Mostrar la Sección Gallina
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Card pública en el home con quienes rechazaron un reto parejo en los últimos 7 días.
+            </p>
+          </div>
+          <Switch
+            id="gallinaEnabled"
+            checked={gallinaEnabled}
+            onCheckedChange={(checked) => setGallinaEnabled(checked === true)}
+          />
+        </div>
+      </div>
 
       {/* Siembra: read-only (ya no aplica con la escalera sembrada) */}
       <div className="space-y-2 rounded-md border border-dashed bg-muted/30 p-3">

@@ -396,6 +396,8 @@ model Ladder {
   reservationLeadDays   Int      @default(7)
   rematchCooldownDays   Int      @default(3)    // días para re-retar al mismo rival tras jugar
   matchScheduleDeadlineDays Int  @default(3)    // días para concretar el partido aceptado
+  gallinaEnabled        Boolean  @default(true)  // muestra/oculta la Sección Gallina (home + doc)
+  gallinaPositionRange  Int      @default(10)   // ±N puestos para que un rechazo cuente como "gallina"
   matchFormat           MatchFormat @default(SINGLE_SET) // formato de los partidos de escalera
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -439,6 +441,10 @@ model Challenge {
   proposedAt   DateTime        @default(now())
   respondByAt  DateTime
   respondedAt  DateTime?
+  // Snapshot del gap de puestos al RECHAZAR (puestoRetador − puestoRetado), para la
+  // Sección Gallina. Solo se setea en rejectChallenge. null = sin snapshot (legacy o
+  // algún participante no era miembro activo) → la gallina cae a puestos en vivo.
+  rankGapAtReject Int?
   matchId      String?         @unique
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt

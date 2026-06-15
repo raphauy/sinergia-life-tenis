@@ -105,6 +105,7 @@ Liga permanente de desafíos sobre un ranking ELO único. Diseño completo en [`
 ## Extensiones post-Fase 4
 
 - **Ranking protegido** (lesión / viaje / otro): el admin protege a un miembro por un período `[inicio, fin]`; queda fuera del mercado de retos (no se lo reta ni reta), conserva su puesto, muestra un ícono por motivo (público) y queda exento de la multa si cubrió > la mitad del mes. Diseño completo en [`ranking-protegido-prp.md`](./ranking-protegido-prp.md).
+- **Sección Gallina**: card pública en el home (debajo de "Jugador de la semana") que expone, por 7 días, a quienes rechazaron un reto parejo (rival dentro de ±N puestos) en los últimos 7 días. Snapshot del gap al rechazar + knob `gallinaPositionRange`; excluye protegidos. Diseño completo en [`gallina-de-la-semana-prp.md`](./gallina-de-la-semana-prp.md).
 
 ---
 

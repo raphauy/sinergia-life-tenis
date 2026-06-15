@@ -33,6 +33,7 @@ const intField = (min: number, max: number) =>
 export const ladderConfigSchema = z.object({
   kFactor: intField(1, 100),
   matchFormat: z.enum(['SINGLE_SET', 'TWO_SETS_SUPERTB']),
+  gallinaEnabled: z.boolean(),
   maxOpenChallenges: intField(1, 20),
   maxChallengesPerMonth: intField(1, 50),
   acceptanceWindowDays: intField(1, 30),

@@ -194,3 +194,13 @@ _Código_: `LadderProtection` (`startDate`/`endDate?` como límites de día UY e
 **Motivo de protección**:
 Categoría **pública** del **Ranking protegido**: Lesión / Viaje / Otro, con nota opcional. Es público a propósito: el objetivo de la feature es que el resto **sepa por qué** un jugador no es retable. Define el ícono de la fila/perfil (vendaje / avión / escudo).
 _Código_: `ProtectionReason` (`INJURY` / `TRAVEL` / `OTHER`).
+
+### Sección Gallina (extensión post-Fase 4)
+
+> Términos cerrados en grill-me 2026-06-15. Diseño en `docs/PRPs/gallina-de-la-semana-prp.md`.
+
+**Gallina**:
+**Miembro** de **La Escalera** que **rechazó** (rechazo **explícito**, no vencimiento) un **Reto parejo** en los **últimos 7 días**; queda **expuesto** públicamente durante 7 días desde el rechazo (ventana **móvil** por rechazo, no semana calendario). Reto parejo = retador y retado dentro de **±`gallinaPositionRange` puestos** (default 10) medido **al momento del rechazo** (snapshot). Rechazar a alguien a **más de N puestos** —muy abajo (daría poquitos puntos) o muy arriba (rechazo justificado)— **no** hace gallina. Un Miembro en **Ranking protegido** ahora **no** se muestra aunque haya gallineado. Se ve en el **home**, card "Sección Gallina" desplegable (`Collapsible`) debajo de **Jugador de la semana**.
+_Código_: no es modelo nuevo; se deriva de `Challenge` `REJECTED` + snapshot del gap de puestos al rechazar (`Challenge.rankGapAtReject`) + `Ladder.gallinaPositionRange`. La ventana usa `Challenge.respondedAt`.
+_UI_: card pública; cada gallina = una línea (nombre + **#N** del puesto **actual**), agrupada (rival más reciente al que rechazó + "(+N)" si hubo varios), 2ª línea chica "hace X días" (del rechazo más reciente). Mobile-first.
+_Evitar_: incluir retos **EXPIRADOS** (dejar vencer no cuenta, solo el rechazo explícito); usar el puesto del snapshot para **mostrar** (el snapshot es solo para la **regla** ±N; el #N visible es el actual).

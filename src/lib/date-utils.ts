@@ -32,6 +32,14 @@ export function friendlyDateTimeUY(date: Date): string {
   return `${format(dateUY, 'dd/MM')} ${time}`
 }
 
+/** Antigüedad en días de calendario UY: "hoy", "ayer", "hace N días". */
+export function relativeDaysAgoUY(date: Date): string {
+  const days = differenceInCalendarDays(toZonedTime(new Date(), TIMEZONE), toZonedTime(date, TIMEZONE))
+  if (days <= 0) return 'hoy'
+  if (days === 1) return 'ayer'
+  return `hace ${days} días`
+}
+
 /** Formatea fecha en español como "Sábado 9 de mayo" (sin año) */
 export function longDateUY(date: Date): string {
   const dateUY = toZonedTime(date, TIMEZONE)

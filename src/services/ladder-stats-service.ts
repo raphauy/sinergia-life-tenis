@@ -707,3 +707,90 @@ export async function getLadderRatingEvolutions(): Promise<Map<string, RatingPoi
     members.map((m) => [m.userId, m.ratingHistory.map((r) => ({ at: r.createdAt, rating: r.ratingAfter }))])
   )
 }
+
+// ============================================================================
+// Sección Gallina (rechazos de retos parejos en los últimos 7 días)
+// ============================================================================
+
+export interface Gallina {
+  userId: string
+  name: string
+  image: string | null
+  playerSlug: string | null
+  /** Puesto actual en La Escalera (#N). */
+  position: number | null
+  /** Total de rechazos válidos en la ventana de 7 días. */
+  rejectedCount: number
+  /** Rival del rechazo más reciente que calificó. */
+  rival: { name: string; position: number | null; playerSlug: string | null }
+  /** Fecha del rechazo más reciente (para "hace X días"). */
+  lastRejectedAt: Date
+}
+
+/**
+ * Gallinas: miembros que RECHAZARON explícitamente un reto "parejo" (rival dentro de
+ * ±`ladder.gallinaPositionRange` puestos) en los últimos 7 días. La parejura usa el
+ * snapshot del gap al rechazar (`Challenge.rankGapAtReject`); si no hay snapshot (legacy),
+ * cae a los puestos actuales. Excluye a quien hoy está en Ranking protegido o ya no es
+ * miembro activo. Agrupa por gallina (una entrada con el rival más reciente + contador),
+ * ordenadas de la más reciente a la más vieja. Pública (home).
+ */
+export async function getGallinas(): Promise<Gallina[]> {
+  const ladder = await getLadder()
+  if (!ladder || !ladder.gallinaEnabled) return []
+
+  const since = subDays(new Date(), 7)
+  const [rejections, ranking] = await Promise.all([
+    prisma.challenge.findMany({
+      where: { ladderId: ladder.id, status: 'REJECTED', respondedAt: { gte: since } },
+      orderBy: { respondedAt: 'desc' },
+      select: {
+        challengerId: true,
+        challengedId: true,
+        respondedAt: true,
+        rankGapAtReject: true,
+        challenger: { select: { firstName: true, lastName: true } },
+      },
+    }),
+    getLadderRanking(),
+  ])
+  if (rejections.length === 0) return []
+
+  const entryByUser = new Map(ranking.map((e) => [e.userId, e]))
+
+  // Las rejections vienen desc por respondedAt: el primero visto de cada gallina es su
+  // rechazo más reciente; el Map preserva ese orden (lista por recencia descendente).
+  const byGallina = new Map<string, Gallina>()
+  for (const r of rejections) {
+    const entry = entryByUser.get(r.challengedId)
+    if (!entry || entry.protection) continue // solo miembros activos y no protegidos hoy
+
+    const challengerEntry = entryByUser.get(r.challengerId)
+    // Gap: snapshot del rechazo o, si falta (legacy), puestos en vivo (necesita ambos).
+    const liveGap = challengerEntry ? challengerEntry.position - entry.position : null
+    const gap = r.rankGapAtReject ?? liveGap
+    if (gap == null || Math.abs(gap) > ladder.gallinaPositionRange) continue
+
+    const existing = byGallina.get(r.challengedId)
+    if (existing) {
+      existing.rejectedCount++
+      continue
+    }
+    byGallina.set(r.challengedId, {
+      userId: r.challengedId,
+      name: entry.name,
+      image: entry.image,
+      playerSlug: entry.playerSlug,
+      position: entry.position,
+      rejectedCount: 1,
+      rival: {
+        name: fullName(r.challenger.firstName, r.challenger.lastName) || 'Jugador',
+        position: challengerEntry?.position ?? null,
+        playerSlug: challengerEntry?.playerSlug ?? null,
+      },
+      lastRejectedAt: r.respondedAt as Date,
+    })
+  }
+
+  return [...byGallina.values()]
+}

@@ -448,6 +448,7 @@ export async function resetSeed(): Promise<void> {
 export interface LadderConfigData {
   kFactor: number
   matchFormat: MatchFormat
+  gallinaEnabled: boolean
   maxOpenChallenges: number
   maxChallengesPerMonth: number
   acceptanceWindowDays: number

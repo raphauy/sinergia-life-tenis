@@ -124,6 +124,7 @@ export default async function AdminEscaleraPage() {
               config={{
                 kFactor: ladder.kFactor,
                 matchFormat: ladder.matchFormat,
+                gallinaEnabled: ladder.gallinaEnabled,
                 maxOpenChallenges: ladder.maxOpenChallenges,
                 maxChallengesPerMonth: ladder.maxChallengesPerMonth,
                 acceptanceWindowDays: ladder.acceptanceWindowDays,

@@ -5,9 +5,10 @@ import { auth } from '@/lib/auth'
 import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
-import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas, getLadderRatingEvolutions } from '@/services/ladder-stats-service'
+import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas, getLadderRatingEvolutions, getGallinas } from '@/services/ladder-stats-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
+import { GallinaCard } from '@/components/gallina-card'
 import { FeaturedMatches } from '@/components/featured-matches'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
@@ -21,10 +22,11 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await auth()
 
-  const [view, tournament, playerOfWeek, featured, movement, winStreaks, monthlyMatches, monthDeltas, evolutions] = await Promise.all([
+  const [view, tournament, playerOfWeek, gallinas, featured, movement, winStreaks, monthlyMatches, monthDeltas, evolutions] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
     getActiveTournament(),
     getPlayerOfTheWeek(),
+    getGallinas(),
     getFeaturedMatches(),
     getWeeklyPositionMovement(),
     getLadderWinStreaks(),
@@ -71,6 +73,11 @@ export default async function HomePage() {
             {playerOfWeek && (
               <div className="mb-6">
                 <PlayerOfTheWeekCard player={playerOfWeek} />
+              </div>
+            )}
+            {gallinas.length > 0 && (
+              <div className="mb-6">
+                <GallinaCard gallinas={gallinas} />
               </div>
             )}
             <FeaturedMatches matches={featured} />

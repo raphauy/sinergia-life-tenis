@@ -52,6 +52,7 @@ export default async function EscaleraDocPage() {
     reservationLeadDays: ladder?.reservationLeadDays ?? 7,
     rematchCooldownDays: ladder?.rematchCooldownDays ?? 3,
     matchScheduleDeadlineDays: ladder?.matchScheduleDeadlineDays ?? 3,
+    gallinaPositionRange: ladder?.gallinaPositionRange ?? 10,
     matchFormat: ladder?.matchFormat ?? 'SINGLE_SET',
   }
 
@@ -236,6 +237,32 @@ export default async function EscaleraDocPage() {
             Aparece destacado en la portada y con un distintivo en su perfil durante toda la semana.
           </p>
         </DocSection>
+
+        {(ladder?.gallinaEnabled ?? true) && (
+        <DocSection icon={<span className="text-lg leading-none" aria-hidden>🐔</span>} title="Sección Gallina">
+          <p>
+            Rechazar un reto es libre, pero si rechazás uno <Hl>parejo</Hl> el resto se entera: aparecés
+            en la <Hl>Sección Gallina</Hl> de la portada durante <Hl>7 días</Hl>.
+          </p>
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li>
+              Cuenta como parejo si quien te retó está dentro de <Hl>{cfg.gallinaPositionRange} puestos</Hl>{' '}
+              tuyos (para arriba o para abajo) en la tabla.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">No cuenta</span> si está más lejos: rechazar a
+              alguien <Hl>mucho más abajo</Hl> (te daría muy pocos puntos) o <Hl>mucho más arriba</Hl> (otro
+              nivel) está justificado.
+            </li>
+            <li>
+              Solo cuenta el rechazo <Hl>explícito</Hl>: dejar que el reto venza solo no te hace gallina.
+            </li>
+            <li>
+              Si estás en <Hl>Ranking protegido</Hl>, no aparecés.
+            </li>
+          </ul>
+        </DocSection>
+        )}
 
         <DocSection icon={<LineChart className="h-5 w-5" />} title="Tu evolución y movimiento de puesto">
           <p>En tu perfil tenés dos cosas para seguir tu camino en La Escalera:</p>
