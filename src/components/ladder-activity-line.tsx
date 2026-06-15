@@ -3,10 +3,17 @@ import { IconTooltip } from '@/components/icon-tooltip'
 import { friendlyDateTimeUY } from '@/lib/date-utils'
 import type { LadderActivity } from '@/services/challenge-service'
 
-/** Puntos en juego: +gana / pierde (ifLose ya viene negativo). Tooltip (shadcn) apto mobile. */
-export function PointsPair({ ifWin, ifLose }: { ifWin: number; ifLose: number }) {
+/**
+ * Puntos en juego: +gana / pierde (ifLose ya viene negativo). Tooltip (shadcn) apto mobile.
+ * Con `subjectName` el tooltip es en 3ra persona ("{nombre} gana X, pierde Y") — para los
+ * puntos del dueño de otra fila; sin él, 2da persona ("Ganás…") — para el preview del viewer.
+ */
+export function PointsPair({ ifWin, ifLose, subjectName }: { ifWin: number; ifLose: number; subjectName?: string | null }) {
+  const label = subjectName
+    ? `${subjectName} gana ${ifWin}, pierde ${Math.abs(ifLose)}`
+    : `Ganás ${ifWin}, perdés ${Math.abs(ifLose)}`
   return (
-    <IconTooltip label={`Ganás ${ifWin}, perdés ${Math.abs(ifLose)}`}>
+    <IconTooltip label={label}>
       <span className="inline-flex items-center gap-1 text-xs">
         <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{ifWin}</span>
         <span className="text-muted-foreground/40">/</span>
@@ -16,8 +23,12 @@ export function PointsPair({ ifWin, ifLose }: { ifWin: number; ifLose: number })
   )
 }
 
-/** Una línea de actividad de reto/partido, desde la perspectiva del dueño de la fila/perfil. */
-export function ActivityLine({ a, viewerUserId }: { a: LadderActivity; viewerUserId?: string | null }) {
+/**
+ * Una línea de actividad de reto/partido, desde la perspectiva del dueño de la fila/perfil.
+ * `ownerName`: nombre del dueño para el tooltip de puntos (3ra persona). Null/omitido cuando
+ * el dueño es el propio viewer (su fila), donde corresponde 2da persona ("Ganás…").
+ */
+export function ActivityLine({ a, viewerUserId, ownerName }: { a: LadderActivity; viewerUserId?: string | null; ownerName?: string | null }) {
   const isViewer = !!viewerUserId && a.rivalUserId === viewerUserId
 
   // Condición del encuentro (solo partidos a jugar): fecha/hora si está confirmado,
@@ -56,7 +67,7 @@ export function ActivityLine({ a, viewerUserId }: { a: LadderActivity; viewerUse
       <div className="flex items-center gap-2">
         <span className="min-w-0 truncate">{subject}</span>
         <span className="shrink-0">
-          <PointsPair ifWin={a.ifWin} ifLose={a.ifLose} />
+          <PointsPair ifWin={a.ifWin} ifLose={a.ifLose} subjectName={ownerName} />
         </span>
       </div>
       {condition && <div className="mt-0.5 pl-4 text-muted-foreground/80">{condition}</div>}

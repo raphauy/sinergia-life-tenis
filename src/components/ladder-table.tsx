@@ -122,7 +122,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
                 {infoActivities.length > 0 && (
                   <div className="mt-1 space-y-1.5 pl-10">
                     {infoActivities.map((a, i) => (
-                      <ActivityLine key={i} a={a} viewerUserId={viewerUserId} />
+                      <ActivityLine key={i} a={a} viewerUserId={viewerUserId} ownerName={isSelf ? null : e.name} />
                     ))}
                   </div>
                 )}
