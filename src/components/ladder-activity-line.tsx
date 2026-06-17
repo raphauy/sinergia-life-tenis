@@ -33,16 +33,15 @@ export function PointsPair({ ifWin, ifLose, subjectName }: { ifWin: number; ifLo
 export function ActivityLine({ a, viewerUserId, ownerName, isSelf, rowOwnerName }: { a: LadderActivity; viewerUserId?: string | null; ownerName?: string | null; isSelf?: boolean; rowOwnerName?: string }) {
   const isViewer = !!viewerUserId && a.rivalUserId === viewerUserId
 
-  // Link "Agendar" (Google Calendar) en cualquier partido confirmado: público. El título
-  // depende de si el viewer juega ese partido: participante → "Tenis vs {su rival}",
-  // espectador → "{dueño de la fila} vs {rival}". El court va en la ubicación del evento.
+  // Link "Agendar" (Google Calendar) en cualquier partido confirmado: público. El
+  // tratamiento "tu partido" (título "Tenis vs {rival}" + invitar al rival al evento)
+  // es solo en tu propia fila; en las demás, título neutro "{dueño} vs {rival}" sin
+  // invitados (un espectador no debe invitar a los jugadores). El court va en la ubicación.
   const showCalendar = a.kind === 'playing' && !!a.scheduledAt
-  // Si isViewer, el rival del viewer es el dueño de la fila (el partido es dueño-vs-viewer).
-  const viewerRival = isSelf ? a.rivalName : rowOwnerName
-  const calendarTitle =
-    (isSelf || isViewer) && viewerRival
-      ? `Tenis vs ${viewerRival}`
-      : `${rowOwnerName ?? ''} vs ${a.rivalName}`
+  const calendarTitle = isSelf
+    ? `Tenis vs ${a.rivalName}`
+    : `${rowOwnerName ?? ''} vs ${a.rivalName}`
+  const calendarGuests = isSelf && a.rivalEmail ? [a.rivalEmail] : undefined
   const courtName = COURTS.find((c) => c.number === a.courtNumber)?.name
 
   // Condición del encuentro (solo partidos a jugar): fecha/hora si está confirmado,
@@ -92,6 +91,7 @@ export function ActivityLine({ a, viewerUserId, ownerName, isSelf, rowOwnerName 
               start={a.scheduledAt!}
               title={calendarTitle}
               location={courtName ? `Life Montevideo · ${courtName}` : 'Life Montevideo'}
+              guestEmails={calendarGuests}
             />
           )}
         </div>

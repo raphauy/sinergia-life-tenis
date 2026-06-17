@@ -20,8 +20,8 @@ interface FixtureMatchCardProps {
     stage?: string
     scheduledAt: Date | null
     courtNumber: number | null
-    player1: { firstName: string | null; lastName: string | null } | null
-    player2: { firstName: string | null; lastName: string | null } | null
+    player1: { firstName: string | null; lastName: string | null; email?: string | null } | null
+    player2: { firstName: string | null; lastName: string | null; email?: string | null } | null
     player1Id: string | null
     player2Id: string | null
     player1SourceGroup?: { number: number } | null
@@ -195,6 +195,11 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   // Link "Agendar" (Google Calendar) en todo partido confirmado sin resultado y con
   // fecha/hora: público. El título depende del viewer: participante → "Tenis vs {su rival}",
   // espectador → "{p1} vs {p2}". El court va en la ubicación del evento.
+  // Invitar al rival solo si el viewer es participante (un espectador no debe invitar a
+  // los jugadores). El rival es el otro jugador del partido.
+  const rivalEmail = isParticipant
+    ? (currentUserId === match.player1Id ? match.player2?.email : match.player1?.email) ?? null
+    : null
   const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt ? (
     <span onClick={(e) => e.stopPropagation()}>
       <AddToCalendarLink
@@ -205,6 +210,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
             : `${p1Name} vs ${p2Name}`
         }
         location={court ? `Life Montevideo · ${court.name}` : 'Life Montevideo'}
+        guestEmails={rivalEmail ? [rivalEmail] : undefined}
       />
     </span>
   ) : null

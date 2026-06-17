@@ -31,6 +31,7 @@ export interface LadderEntry {
   position: number
   userId: string
   name: string
+  email: string | null
   image: string | null
   rating: number
   playerSlug: string | null
@@ -50,7 +51,7 @@ export async function getLadderRanking(): Promise<LadderEntry[]> {
     // orden entre ratings iguales sería no determinista.
     orderBy: [{ rating: 'desc' }, { joinedAt: 'asc' }, { id: 'asc' }],
     include: {
-      user: { select: { id: true, firstName: true, lastName: true, image: true } },
+      user: { select: { id: true, firstName: true, lastName: true, email: true, image: true } },
       // Protección vigente (la más reciente que cubre ahora), para el ícono.
       protections: {
         where: { startDate: { lte: now }, OR: [{ endDate: null }, { endDate: { gte: now } }] },
@@ -67,6 +68,7 @@ export async function getLadderRanking(): Promise<LadderEntry[]> {
     position: i + 1,
     userId: m.userId,
     name: fullName(m.user.firstName, m.user.lastName) || 'Jugador',
+    email: m.user.email ?? null,
     image: blobUrl(m.user.image) || null,
     rating: m.rating,
     playerSlug: slugMap.get(m.userId) ?? null,

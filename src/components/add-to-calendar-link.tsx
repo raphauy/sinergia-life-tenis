@@ -12,17 +12,20 @@ export function AddToCalendarLink({
   title,
   details,
   location,
+  guestEmails,
   className,
 }: {
   start: Date
   title: string
   details?: string
   location?: string
+  /** Emails a invitar al evento (solo el rival cuando el viewer es participante). */
+  guestEmails?: string[]
   className?: string
 }) {
   return (
     <a
-      href={googleCalendarUrl({ start, title, details, location })}
+      href={googleCalendarUrl({ start, title, details, location, guests: guestEmails })}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(

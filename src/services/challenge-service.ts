@@ -431,6 +431,7 @@ export interface LadderActivity {
   kind: 'sent' | 'received' | 'playing' // retó a / retado por / partido agendado
   rivalUserId: string
   rivalName: string
+  rivalEmail: string | null // para invitar al rival al evento de Calendar (solo en tu propia fila)
   rivalSlug: string | null
   rivalPosition: number // puesto del rival en la escalera
   ifWin: number
@@ -543,6 +544,7 @@ export async function getLadderView(
       kind,
       rivalUserId: rivalId,
       rivalName: rival.name,
+      rivalEmail: rival.email,
       rivalSlug: rival.playerSlug,
       rivalPosition: rival.position,
       ifWin,

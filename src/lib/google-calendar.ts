@@ -9,9 +9,11 @@ export function googleCalendarUrl(input: {
   title: string
   details?: string
   location?: string
+  /** Emails a invitar (param `add`). Al guardar, Google les manda la invitación. */
+  guests?: string[]
   durationMinutes?: number
 }): string {
-  const { start, title, details, location, durationMinutes = 60 } = input
+  const { start, title, details, location, guests, durationMinutes = 60 } = input
   const end = new Date(start.getTime() + durationMinutes * 60_000)
   // Formato yyyymmddThhmmssZ exigido por Google.
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
@@ -23,6 +25,7 @@ export function googleCalendarUrl(input: {
   })
   if (details) params.set('details', details)
   if (location) params.set('location', location)
+  if (guests && guests.length > 0) params.set('add', guests.join(','))
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }

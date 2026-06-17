@@ -347,8 +347,8 @@ const featuredSelect = {
   courtNumber: true,
   player1Id: true,
   player2Id: true,
-  player1: { select: { firstName: true, lastName: true } },
-  player2: { select: { firstName: true, lastName: true } },
+  player1: { select: { firstName: true, lastName: true, email: true } },
+  player2: { select: { firstName: true, lastName: true, email: true } },
   result: {
     select: {
       walkover: true,
