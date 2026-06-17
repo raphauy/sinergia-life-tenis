@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { IconTooltip } from '@/components/icon-tooltip'
+import { AddToCalendarLink } from '@/components/add-to-calendar-link'
 import { friendlyDateTimeUY } from '@/lib/date-utils'
+import { COURTS } from '@/lib/constants'
 import type { LadderActivity } from '@/services/challenge-service'
 
 /**
@@ -28,8 +30,20 @@ export function PointsPair({ ifWin, ifLose, subjectName }: { ifWin: number; ifLo
  * `ownerName`: nombre del dueño para el tooltip de puntos (3ra persona). Null/omitido cuando
  * el dueño es el propio viewer (su fila), donde corresponde 2da persona ("Ganás…").
  */
-export function ActivityLine({ a, viewerUserId, ownerName }: { a: LadderActivity; viewerUserId?: string | null; ownerName?: string | null }) {
+export function ActivityLine({ a, viewerUserId, ownerName, isSelf, rowOwnerName }: { a: LadderActivity; viewerUserId?: string | null; ownerName?: string | null; isSelf?: boolean; rowOwnerName?: string }) {
   const isViewer = !!viewerUserId && a.rivalUserId === viewerUserId
+
+  // Link "Agendar" (Google Calendar) en cualquier partido confirmado: público. El título
+  // depende de si el viewer juega ese partido: participante → "Tenis vs {su rival}",
+  // espectador → "{dueño de la fila} vs {rival}". El court va en la ubicación del evento.
+  const showCalendar = a.kind === 'playing' && !!a.scheduledAt
+  // Si isViewer, el rival del viewer es el dueño de la fila (el partido es dueño-vs-viewer).
+  const viewerRival = isSelf ? a.rivalName : rowOwnerName
+  const calendarTitle =
+    (isSelf || isViewer) && viewerRival
+      ? `Tenis vs ${viewerRival}`
+      : `${rowOwnerName ?? ''} vs ${a.rivalName}`
+  const courtName = COURTS.find((c) => c.number === a.courtNumber)?.name
 
   // Condición del encuentro (solo partidos a jugar): fecha/hora si está confirmado,
   // "reservado" si hay reserva pedida, "a coordinar" si falta agendar. Los retos no llevan.
@@ -70,7 +84,18 @@ export function ActivityLine({ a, viewerUserId, ownerName }: { a: LadderActivity
           <PointsPair ifWin={a.ifWin} ifLose={a.ifLose} subjectName={ownerName} />
         </span>
       </div>
-      {condition && <div className="mt-0.5 pl-4 text-muted-foreground/80">{condition}</div>}
+      {condition && (
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 pl-4 text-muted-foreground/80">
+          <span>{condition}</span>
+          {showCalendar && (
+            <AddToCalendarLink
+              start={a.scheduledAt!}
+              title={calendarTitle}
+              location={courtName ? `Life Montevideo · ${courtName}` : 'Life Montevideo'}
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }

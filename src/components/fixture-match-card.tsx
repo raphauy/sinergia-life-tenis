@@ -9,6 +9,7 @@ import { formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY } from '@/li
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
+import { AddToCalendarLink } from '@/components/add-to-calendar-link'
 import { blobUrl } from '@/lib/blob-url'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -191,6 +192,23 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       )
     })() : null
 
+  // Link "Agendar" (Google Calendar) en todo partido confirmado sin resultado y con
+  // fecha/hora: público. El título depende del viewer: participante → "Tenis vs {su rival}",
+  // espectador → "{p1} vs {p2}". El court va en la ubicación del evento.
+  const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt ? (
+    <span onClick={(e) => e.stopPropagation()}>
+      <AddToCalendarLink
+        start={match.scheduledAt}
+        title={
+          isParticipant
+            ? `Tenis vs ${currentUserId === match.player1Id ? p2Name : p1Name}`
+            : `${p1Name} vs ${p2Name}`
+        }
+        location={court ? `Life Montevideo · ${court.name}` : 'Life Montevideo'}
+      />
+    </span>
+  ) : null
+
   return (
     <div
       role="link"
@@ -296,9 +314,10 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         </div>
       )}
 
-      {/* Action link */}
-      {actionLink && (
-        <div className="flex justify-center mt-2 pt-2 border-t border-border/50">
+      {/* Action links: agendar (participante, confirmado) + cargar resultado / coordinar */}
+      {(calendarLink || actionLink) && (
+        <div className="flex justify-center items-center gap-4 mt-2 pt-2 border-t border-border/50">
+          {calendarLink}
           {actionLink}
         </div>
       )}
