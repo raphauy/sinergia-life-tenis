@@ -63,12 +63,47 @@ async function countOpenChallenges(challengerId: string, tx?: Tx): Promise<numbe
   return client.challenge.count({ where: openChallengeWhere(challengerId) })
 }
 
+// Retos iniciados este mes que "valen" para el cupo: los que siguen vivos o se
+// concretaron (PROPOSED, o ACCEPTED con partido no cancelado). Excluye los que no
+// prosperaron —REJECTED / CANCELLED / EXPIRED, y ACCEPTED con el partido cancelado
+// después—: un rechazo del rival, un vencimiento o una cancelación liberan cupo.
 async function countMonthlyChallenges(ladderId: string, challengerId: string, tx?: Tx): Promise<number> {
   const client = tx ?? prisma
   const { startUTC, endUTC } = await currentMonthRangeUY()
   return client.challenge.count({
-    where: { ladderId, challengerId, proposedAt: { gte: startUTC, lte: endUTC } },
+    where: {
+      ladderId,
+      challengerId,
+      proposedAt: { gte: startUTC, lte: endUTC },
+      OR: [
+        { status: 'PROPOSED' },
+        { status: 'ACCEPTED', match: { status: { in: ['PENDING', 'CONFIRMED', 'PLAYED'] } } },
+      ],
+    },
   })
+}
+
+/**
+ * Motivo por el que el viewer no puede INICIAR un reto nuevo ahora (caps globales),
+ * o null si puede. Mismo orden y copy que createChallenge, para mostrarlo de antemano
+ * (botón "Retar" deshabilitado) en vez de dejar tocar y fallar. No bloquea aceptar ni jugar.
+ */
+async function viewerChallengeBlock(
+  ladder: { id: string; maxOpenChallenges: number; maxChallengesPerMonth: number },
+  viewerUserId: string,
+  tx?: Tx
+): Promise<string | null> {
+  const [open, monthly] = await Promise.all([
+    countOpenChallenges(viewerUserId, tx),
+    countMonthlyChallenges(ladder.id, viewerUserId, tx),
+  ])
+  if (open >= ladder.maxOpenChallenges) {
+    return `Tenés ${ladder.maxOpenChallenges} retos abiertos. Cerrá alguno antes de iniciar otro.`
+  }
+  if (monthly >= ladder.maxChallengesPerMonth) {
+    return `Llegaste al máximo de ${ladder.maxChallengesPerMonth} retos este mes.`
+  }
+  return null
 }
 
 /** ¿Hay un reto vivo (PROPOSED o ACCEPTED-sin-jugar) entre A y B en cualquier dirección? */
@@ -488,12 +523,12 @@ function toPlainRow(e: LadderEntry): LadderRow {
  */
 export async function getLadderView(
   viewerUserId: string | null
-): Promise<{ rows: LadderRow[]; canChallenge: boolean }> {
+): Promise<{ rows: LadderRow[]; canChallenge: boolean; challengeBlock: string | null }> {
   const ranking = await getLadderRanking()
-  if (ranking.length === 0) return { rows: [], canChallenge: false }
+  if (ranking.length === 0) return { rows: [], canChallenge: false, challengeBlock: null }
 
   const ladder = await getLadder()
-  if (!ladder) return { rows: ranking.map(toPlainRow), canChallenge: false }
+  if (!ladder) return { rows: ranking.map(toPlainRow), canChallenge: false, challengeBlock: null }
 
   // Lectura pública (también anónima): NO escribir acá. Filtramos los PROPOSED
   // vencidos por respondByAt en vez de expirarlos (que sería un updateMany en cada
@@ -574,6 +609,7 @@ export async function getLadderView(
     return {
       rows: ranking.map((e) => ({ ...toPlainRow(e), activities: activitiesOf(e.userId) })),
       canChallenge: false,
+      challengeBlock: null,
     }
   }
 
@@ -590,6 +626,7 @@ export async function getLadderView(
         activities: activitiesOf(e.userId),
       })),
       canChallenge: false,
+      challengeBlock: null,
     }
   }
 
@@ -602,6 +639,7 @@ export async function getLadderView(
         activities: activitiesOf(e.userId),
       })),
       canChallenge: false,
+      challengeBlock: null,
     }
   }
 
@@ -631,7 +669,10 @@ export async function getLadderView(
     return { ...e, state: 'none', matchId: null, ifWin, ifLose, activities }
   })
 
-  return { rows, canChallenge: true }
+  // Caps globales del viewer: si no puede iniciar más retos, la tabla deshabilita
+  // los botones "Retar" y muestra el motivo (no afecta responder/jugar).
+  const challengeBlock = await viewerChallengeBlock(ladder, viewerUserId)
+  return { rows, canChallenge: true, challengeBlock }
 }
 
 export interface MemberChallengeCard {
@@ -716,6 +757,8 @@ export interface ChallengeStateInfo {
   state: LadderRowState
   matchId: string | null
   preview: { ifWin: number; ifLose: number } | null
+  // Solo en state 'none': motivo por el que el viewer no puede retar ahora (caps), o null.
+  disabledReason: string | null
 }
 
 /**
@@ -724,7 +767,7 @@ export interface ChallengeStateInfo {
  * viewer no puede retar (alguno no es miembro activo).
  */
 export async function getChallengeState(viewerUserId: string, rivalUserId: string): Promise<ChallengeStateInfo | null> {
-  if (viewerUserId === rivalUserId) return { state: 'self', matchId: null, preview: null }
+  if (viewerUserId === rivalUserId) return { state: 'self', matchId: null, preview: null, disabledReason: null }
 
   const ladder = await getLadder()
   if (!ladder) return null
@@ -763,12 +806,13 @@ export async function getChallengeState(viewerUserId: string, rivalUserId: strin
   })
 
   if (active) {
-    if (active.status === 'ACCEPTED') return { state: 'playing', matchId: active.matchId, preview: null }
-    return { state: active.challengerId === viewerUserId ? 'sent' : 'received', matchId: null, preview: null }
+    if (active.status === 'ACCEPTED') return { state: 'playing', matchId: active.matchId, preview: null, disabledReason: null }
+    return { state: active.challengerId === viewerUserId ? 'sent' : 'received', matchId: null, preview: null, disabledReason: null }
   }
 
   const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, rival.rating)
-  return { state: 'none', matchId: null, preview: { ifWin, ifLose } }
+  const disabledReason = await viewerChallengeBlock(ladder, viewerUserId)
+  return { state: 'none', matchId: null, preview: { ifWin, ifLose }, disabledReason }
 }
 
 export interface ChallengePreview {

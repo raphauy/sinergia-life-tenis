@@ -100,6 +100,7 @@ export default async function AdminEscaleraPage() {
             <LadderTable
               rows={view.rows}
               canChallenge={view.canChallenge}
+              challengeBlock={view.challengeBlock}
               currentPlayerSlug={currentPlayerSlug}
               viewerUserId={viewerUserId}
               movement={movement}

@@ -23,9 +23,11 @@ interface Props {
   className?: string
   /** Preview ya calculado (p. ej. desde la tabla). Si se pasa, no se pide al servidor. */
   preview?: { ifWin: number; ifLose: number }
+  /** Deshabilita el botón (p. ej. el viewer llegó al tope de retos). No abre el diálogo. */
+  disabled?: boolean
 }
 
-export function ChallengeButton({ rivalUserId, rivalName, size = 'sm', variant = 'outline', className, preview: initialPreview }: Props) {
+export function ChallengeButton({ rivalUserId, rivalName, size = 'sm', variant = 'outline', className, preview: initialPreview, disabled = false }: Props) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [preview, setPreview] = useState<{ ifWin: number; ifLose: number } | null>(initialPreview ?? null)
@@ -57,7 +59,7 @@ export function ChallengeButton({ rivalUserId, rivalName, size = 'sm', variant =
 
   return (
     <>
-      <Button size={size} variant={variant} className={className} onClick={openDialog}>
+      <Button size={size} variant={variant} className={className} onClick={openDialog} disabled={disabled}>
         <Swords className="h-4 w-4" />
         Retar
       </Button>

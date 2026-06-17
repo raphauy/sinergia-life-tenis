@@ -242,12 +242,18 @@ export default async function JugadorProfilePage({ params }: Props) {
               matchId={challengeState.matchId}
               panelHref={viewerPanelSlug ? `/jugador/${viewerPanelSlug}` : '/'}
               size="default"
+              disabledReason={challengeState.disabledReason}
             />
             {challengeState.state === 'none' && challengeState.preview && (
               <span className="inline-flex items-center gap-1.5 text-xs">
                 <span className="font-semibold text-green-600 tabular-nums dark:text-green-500">+{challengeState.preview.ifWin}</span>
                 <span className="text-muted-foreground/40">/</span>
                 <span className="font-semibold text-red-600 tabular-nums dark:text-red-500">{challengeState.preview.ifLose}</span>
+              </span>
+            )}
+            {challengeState.state === 'none' && challengeState.disabledReason && (
+              <span className="max-w-[12rem] text-right text-[11px] text-muted-foreground">
+                {challengeState.disabledReason}
               </span>
             )}
           </div>

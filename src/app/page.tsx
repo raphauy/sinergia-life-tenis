@@ -34,7 +34,7 @@ export default async function HomePage() {
     getMonthlyRatingDeltas(),
     getLadderRatingEvolutions(),
   ])
-  const { rows, canChallenge } = view
+  const { rows, canChallenge, challengeBlock } = view
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
   // Slug del viewer para los links de "Responder" / "A jugar" en la tabla.
   const currentPlayerSlug = canChallenge && session?.user?.id ? await getActivePlayerSlugByUserId(session.user.id) : null
@@ -85,6 +85,7 @@ export default async function HomePage() {
             <LadderTable
               rows={rows}
               canChallenge={canChallenge}
+              challengeBlock={challengeBlock}
               currentPlayerSlug={currentPlayerSlug}
               viewerUserId={session?.user?.id ?? null}
               movement={movement}

@@ -138,9 +138,10 @@ export default async function EscaleraDocPage() {
               puntos ni penaliza… pero no está bueno, ¡y la comunidad se va a enterar! 🙂
             </li>
             <li>
-              Podés tener hasta <Hl>{cfg.maxOpenChallenges}</Hl> retos abiertos a la vez, y empezar
-              hasta <Hl>{cfg.maxChallengesPerMonth}</Hl> retos por mes. Aunque llegues al tope, seguís
-              pudiendo <Hl>aceptar</Hl> retos que te manden.
+              Podés tener hasta <Hl>{cfg.maxOpenChallenges}</Hl> retos abiertos a la vez, y hasta{' '}
+              <Hl>{cfg.maxChallengesPerMonth}</Hl> por mes (solo cuentan los que siguen en pie o
+              terminan en partido; si te rechazan, vence o lo cancelás, se libera el cupo). Aunque
+              llegues al tope, seguís pudiendo <Hl>aceptar</Hl> retos que te manden.
             </li>
             {cfg.rematchCooldownDays > 0 && (
               <li>

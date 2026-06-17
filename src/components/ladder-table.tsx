@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Trophy } from 'lucide-react'
+import { Trophy, Info } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChallengeControl } from '@/components/challenge-control'
 import { PositionDelta } from '@/components/position-delta'
@@ -17,6 +17,8 @@ import type { MonthlyMatchDetail, RatingPoint } from '@/services/ladder-stats-se
 interface Props {
   rows: LadderRow[]
   canChallenge?: boolean
+  /** Si el viewer (miembro activo) llegó a un tope de retos: motivo a mostrar; deshabilita los "Retar". */
+  challengeBlock?: string | null
   currentPlayerSlug?: string | null
   /** userId del viewer logueado: para no duplicar su propio reto (ya lo cubre el control). */
   viewerUserId?: string | null
@@ -34,15 +36,22 @@ interface Props {
   evolutions?: Map<string, RatingPoint[]>
 }
 
-export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches, monthDeltas, evolutions }: Props) {
+export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches, monthDeltas, evolutions }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
 
   const panelHref = currentPlayerSlug ? `/jugador/${currentPlayerSlug}` : '/'
+  const blocked = !!canChallenge && !!challengeBlock
 
   return (
     <div className="overflow-hidden rounded-md border">
+      {blocked && (
+        <div className="flex items-start gap-2 border-b bg-amber-50 px-3 py-2 text-xs text-amber-900 sm:px-4 dark:bg-amber-950/30 dark:text-amber-200">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{challengeBlock} Igual podés aceptar retos que te manden y jugar los pactados.</span>
+        </div>
+      )}
       <div className="flex items-center gap-3 border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground sm:px-4">
         <span className="w-7 text-center">#</span>
         <span className="flex-1">Jugador</span>
@@ -140,6 +149,7 @@ export function LadderTable({ rows, canChallenge, currentPlayerSlug, viewerUserI
                       preview={e.ifWin != null && e.ifLose != null ? { ifWin: e.ifWin, ifLose: e.ifLose } : null}
                       matchId={e.matchId}
                       panelHref={panelHref}
+                      disabledReason={challengeBlock}
                     />
                   </div>
                 )}
