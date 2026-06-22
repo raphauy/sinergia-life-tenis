@@ -176,12 +176,17 @@ export async function getTodayMatches(tournamentId: string) {
 }
 
 export async function getMatchesByPlayer(userId: string) {
+  // Orden por fecha del partido (scheduledAt) desc → el más reciente arriba. En
+  // escalera createdAt es cuándo se aceptó el reto, no cuándo se jugó, así que
+  // ordenar por createdAt descoloca el historial. Los sin fecha (algún partido de
+  // torneo) caen al final, desempatados por createdAt. Los consumidores re-ordenan
+  // los próximos partidos por su cuenta; este orden gobierna el historial jugado.
   return prisma.match.findMany({
     where: {
       OR: [{ player1Id: userId }, { player2Id: userId }],
     },
     include: matchIncludes,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ scheduledAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   })
 }
 
