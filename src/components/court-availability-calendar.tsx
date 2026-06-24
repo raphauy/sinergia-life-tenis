@@ -96,29 +96,41 @@ export function CourtAvailabilityCalendar({
     return counts
   }, [currentMatches, currentReservations])
 
+  const loadMonth = useCallback((y: number, m: number) => {
+    const key = `${y}-${m.toString().padStart(2, '0')}`
+    if (matchesByMonth.has(key)) return
+    startTransition(async () => {
+      const [matches, reservations] = await Promise.all([
+        fetchAction(tournamentId, y, m),
+        fetchReservationsAction ? fetchReservationsAction(tournamentId, y, m) : Promise.resolve([]),
+      ])
+      setMatchesByMonth((prev) => new Map(prev).set(key, matches))
+      setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
+    })
+  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
+
   const handleMonthChange = useCallback((month: Date) => {
     setCurrentMonth(month)
     setSelectedDay(null)
-    const y = month.getFullYear()
-    const m = month.getMonth() + 1
-    const key = `${y}-${m.toString().padStart(2, '0')}`
-    if (!matchesByMonth.has(key)) {
-      startTransition(async () => {
-        const [matches, reservations] = await Promise.all([
-          fetchAction(tournamentId, y, m),
-          fetchReservationsAction ? fetchReservationsAction(tournamentId, y, m) : Promise.resolve([]),
-        ])
-        setMatchesByMonth((prev) => new Map(prev).set(key, matches))
-        setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
-      })
-    }
-  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
+    loadMonth(month.getFullYear(), month.getMonth() + 1)
+  }, [loadMonth])
 
   const handleDayClick = useCallback((day: Date) => {
+    // Día "fuera de mes": mover el calendario a ese mes y cargar sus datos, para
+    // que la grilla diaria use la disponibilidad de ese día y no la del mes a la vista.
+    if (
+      day.getFullYear() !== currentMonth.getFullYear() ||
+      day.getMonth() !== currentMonth.getMonth()
+    ) {
+      setCurrentMonth(new Date(day.getFullYear(), day.getMonth(), 1))
+      loadMonth(day.getFullYear(), day.getMonth() + 1)
+      setSelectedDay(day)
+      return
+    }
     setSelectedDay((prev) =>
       prev && prev.toDateString() === day.toDateString() ? null : day
     )
-  }, [])
+  }, [currentMonth, loadMonth])
 
   // Matches + reservations for selected day
   const dayMatches = useMemo(() => {

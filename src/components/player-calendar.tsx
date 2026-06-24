@@ -60,6 +60,9 @@ export function PlayerCalendar({
   const currentKey = `${currentMonth.getFullYear()}-${(currentMonth.getMonth() + 1).toString().padStart(2, '0')}`
   const currentMatches = matchesByMonth.get(currentKey) || []
   const currentReservations = reservationsByMonth.get(currentKey) || []
+  // ¿Ya cargó la disponibilidad del mes a la vista? Si no, no mostramos la grilla
+  // diaria (se vería vacía/“libre” mientras llega el fetch del mes recién abierto).
+  const currentMonthLoaded = matchesByMonth.has(currentKey)
 
   // Tope de anticipación (escalera): los días posteriores quedan deshabilitados
   // (no clickeables). null en torneo → sin tope.
@@ -95,29 +98,43 @@ export function PlayerCalendar({
     })
   }, [currentMonth, currentKey, tournamentId, matchId, fetchAction, fetchReservationsAction])
 
+  const loadMonth = useCallback((y: number, m: number) => {
+    const key = `${y}-${m.toString().padStart(2, '0')}`
+    if (matchesByMonth.has(key)) return
+    startTransition(async () => {
+      const [matches, reservations] = await Promise.all([
+        fetchAction(tournamentId, y, m),
+        fetchReservationsAction(tournamentId, y, m),
+      ])
+      setMatchesByMonth((prev) => new Map(prev).set(key, matches))
+      setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
+    })
+  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
+
   const handleMonthChange = useCallback((month: Date) => {
     setCurrentMonth(month)
     setSelectedDay(null)
-    const y = month.getFullYear()
-    const m = month.getMonth() + 1
-    const key = `${y}-${m.toString().padStart(2, '0')}`
-    if (!matchesByMonth.has(key)) {
-      startTransition(async () => {
-        const [matches, reservations] = await Promise.all([
-          fetchAction(tournamentId, y, m),
-          fetchReservationsAction(tournamentId, y, m),
-        ])
-        setMatchesByMonth((prev) => new Map(prev).set(key, matches))
-        setReservationsByMonth((prev) => new Map(prev).set(key, reservations))
-      })
-    }
-  }, [tournamentId, matchesByMonth, fetchAction, fetchReservationsAction])
+    loadMonth(month.getFullYear(), month.getMonth() + 1)
+  }, [loadMonth])
 
   const handleDayClick = useCallback((day: Date) => {
+    // Día "fuera de mes" (de un mes distinto al que está a la vista): hay que
+    // mover el calendario a ese mes y cargar sus datos. Si no, la grilla diaria
+    // filtra los datos del mes mostrado y un slot ya reservado se ve libre
+    // (el server después lo rechaza como "ya ocupado o reservado").
+    if (
+      day.getFullYear() !== currentMonth.getFullYear() ||
+      day.getMonth() !== currentMonth.getMonth()
+    ) {
+      setCurrentMonth(new Date(day.getFullYear(), day.getMonth(), 1))
+      loadMonth(day.getFullYear(), day.getMonth() + 1)
+      setSelectedDay(day)
+      return
+    }
     setSelectedDay((prev) =>
       prev && prev.toDateString() === day.toDateString() ? null : day
     )
-  }, [])
+  }, [currentMonth, loadMonth])
 
   const dayMatches = useMemo(() => {
     if (!selectedDay) return []
@@ -232,17 +249,23 @@ export function PlayerCalendar({
       )}
 
       {selectedDay && (
-        <PlayerDailySchedule
-          matches={dayMatches}
-          reservations={dayReservations}
-          day={selectedDay}
-          matchId={matchId}
-          currentReservation={currentReservation}
-          reservationLeadDays={reservationLeadDays}
-          createAction={createReservationAction}
-          cancelAction={cancelReservationAction}
-          onChanged={refreshAll}
-        />
+        currentMonthLoaded ? (
+          <PlayerDailySchedule
+            matches={dayMatches}
+            reservations={dayReservations}
+            day={selectedDay}
+            matchId={matchId}
+            currentReservation={currentReservation}
+            reservationLeadDays={reservationLeadDays}
+            createAction={createReservationAction}
+            cancelAction={cancelReservationAction}
+            onChanged={refreshAll}
+          />
+        ) : (
+          <p className="mt-4 text-sm text-muted-foreground text-center py-4">
+            Cargando disponibilidad…
+          </p>
+        )
       )}
     </div>
   )
