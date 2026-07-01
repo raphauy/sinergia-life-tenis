@@ -82,17 +82,17 @@ export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerS
               className={cn(
                 'relative flex items-center gap-3 px-3 py-1.5 sm:px-4',
                 isSelf && 'bg-primary/5',
-                // Con pelotita: el alto reserva el lugar del fueguito (arriba) y de la
-                // pelotita (abajo) aunque no haya fueguito, para que avatar/nombre/puntos
-                // queden siempre centrados verticalmente entre ambas zonas, con margen
-                // entre los puntos y la pelotita.
-                monthly.length >= 1 && 'min-h-[5.5rem]'
+                // Reservamos alto mínimo cuando hay badges en las esquinas (fueguito/
+                // trofeo arriba, pelotita abajo) para que el puntaje quede centrado en
+                // el medio sin encimarse, aunque la fila no tenga actividad que la eleve.
+                (isPlayerOfWeek || streak >= 1 || monthly.length >= 1) && 'min-h-[5.5rem]'
               )}
             >
-              {/* Fueguito / trofeo arriba a la derecha. Su lugar queda reservado por el
-                  alto mínimo de la fila aunque no haya fueguito (puntos centrados). */}
+              {/* Esquina superior derecha: trofeo (jugador de la semana) + fueguitos
+                  (racha). El puntaje va centrado en el medio; su lugar queda reservado
+                  por el alto mínimo. */}
               {(isPlayerOfWeek || streak >= 1) && (
-                <div className="absolute right-3 top-1 flex items-center gap-3 sm:right-4">
+                <div className="absolute right-3 top-1 flex items-center gap-2 sm:right-4">
                   {isPlayerOfWeek && (
                     <IconTooltip label="Jugador de la semana">
                       <Trophy className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
@@ -120,11 +120,6 @@ export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerS
                       <span className="min-w-0 truncate font-medium">{e.name}</span>
                     )}
                   </span>
-                  {isSelf && (
-                    <span className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      tu puesto
-                    </span>
-                  )}
                 </div>
 
                 {/* Actividad pública del jugador (una línea por reto vivo) */}
@@ -155,6 +150,11 @@ export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerS
                 )}
               </div>
 
+              {isSelf && (
+                <span className="shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  tu puesto
+                </span>
+              )}
               {isProtected && <ProtectionBadge protection={e.protection} className="shrink-0" />}
               <span className="flex shrink-0 items-center gap-2">
                 <RatingMonthDelta value={monthDeltas?.get(e.userId)} />
