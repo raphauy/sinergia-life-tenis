@@ -3,10 +3,14 @@
 import { auth } from '@/lib/auth'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
+import { prisma } from '@/lib/prisma'
 import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
 import { adminCancelChallenge } from '@/services/challenge-service'
 import { closeLadderMonth, runLadderDailyTasks } from '@/services/ladder-cron-service'
 import { setProtection, endProtection, deleteProtection } from '@/services/ladder-protection-service'
+import { getActivePlayerSlugByUserId } from '@/services/player-service'
+import { sendChallengeCancelledEmail, generatePlayerPanelUrl } from '@/services/email-service'
+import { fullName } from '@/lib/format-name'
 import { ladderConfigSchema } from '@/lib/validations/ladder'
 import { seedCommitSchema } from '@/lib/validations/ladder'
 import { protectionSchema } from '@/lib/validations/ladder-protection'
@@ -179,7 +183,27 @@ export async function cancelChallengeAdminAction(challengeId: string): Promise<A
   try {
     if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
 
-    await adminCancelChallenge(challengeId)
+    const challenge = await adminCancelChallenge(challengeId)
+
+    // Avisar al retado que el reto ya no está (evita el "me desapareció el reto").
+    try {
+      const [challenger, challenged, slug] = await Promise.all([
+        prisma.user.findUnique({ where: { id: challenge.challengerId }, select: { firstName: true, lastName: true } }),
+        prisma.user.findUnique({ where: { id: challenge.challengedId }, select: { email: true, firstName: true, lastName: true } }),
+        getActivePlayerSlugByUserId(challenge.challengedId),
+      ])
+      if (challenged?.email) {
+        await sendChallengeCancelledEmail({
+          to: challenged.email,
+          challengedName: fullName(challenged.firstName, challenged.lastName) || 'Jugador',
+          challengerName: fullName(challenger?.firstName, challenger?.lastName) || 'Tu rival',
+          actionUrl: generatePlayerPanelUrl(slug),
+        })
+      }
+    } catch (e) {
+      console.error('[EMAIL] challenge cancelled (admin):', e)
+    }
+
     revalidatePath('/')
     revalidatePath('/admin/escalera')
     return { success: true, message: 'Reto cancelado.' }

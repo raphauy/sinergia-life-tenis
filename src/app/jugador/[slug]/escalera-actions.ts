@@ -16,6 +16,7 @@ import {
   sendChallengeReceivedEmail,
   sendChallengeAcceptedEmail,
   sendChallengeRejectedEmail,
+  sendChallengeCancelledEmail,
   sendLadderMatchCancelledEmail,
   generatePlayerPanelUrl,
   generatePlayerMatchUrl,
@@ -156,7 +157,26 @@ export async function cancelChallengeAction(challengeId: string): Promise<Action
     const session = await auth()
     if (!session?.user?.id) return { success: false, error: 'No autenticado' }
 
-    await cancelChallenge(challengeId, session.user.id)
+    const challenge = await cancelChallenge(challengeId, session.user.id)
+
+    // Avisar al retado que el reto ya no está (evita el "me desapareció el reto").
+    try {
+      const [challenger, challenged, slug] = await Promise.all([
+        userBrief(challenge.challengerId),
+        userBrief(challenge.challengedId),
+        getActivePlayerSlugByUserId(challenge.challengedId),
+      ])
+      if (challenged?.email) {
+        await sendChallengeCancelledEmail({
+          to: challenged.email,
+          challengedName: fullName(challenged.firstName, challenged.lastName) || 'Jugador',
+          challengerName: fullName(challenger?.firstName, challenger?.lastName) || 'Tu rival',
+          actionUrl: generatePlayerPanelUrl(slug),
+        })
+      }
+    } catch (e) {
+      console.error('[EMAIL] challenge cancelled:', e)
+    }
 
     revalidatePath('/')
     return { success: true }

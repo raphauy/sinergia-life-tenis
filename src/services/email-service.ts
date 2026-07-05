@@ -10,6 +10,7 @@ import MatchResultEditedEmail from '@/components/emails/match-result-edited-emai
 import ChallengeReceivedEmail from '@/components/emails/challenge-received-email'
 import ChallengeAcceptedEmail from '@/components/emails/challenge-accepted-email'
 import ChallengeRejectedEmail from '@/components/emails/challenge-rejected-email'
+import ChallengeCancelledEmail from '@/components/emails/challenge-cancelled-email'
 import LadderMatchCancelledEmail from '@/components/emails/ladder-match-cancelled-email'
 import LadderProtectionCancelledEmail from '@/components/emails/ladder-protection-cancelled-email'
 import LadderPenaltyAppliedEmail from '@/components/emails/ladder-penalty-applied-email'
@@ -314,6 +315,27 @@ export async function sendChallengeRejectedEmail(input: {
     react: ChallengeRejectedEmail({
       challengerName: input.challengerName,
       challengedName: input.challengedName,
+    }),
+  })
+}
+
+export async function sendChallengeCancelledEmail(input: {
+  to: string
+  challengedName: string
+  challengerName: string
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Challenge cancelled -> ${input.to} (reto de ${input.challengerName})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Un reto en La Escalera se canceló - Life Tenis`,
+    react: ChallengeCancelledEmail({
+      challengedName: input.challengedName,
+      challengerName: input.challengerName,
+      actionUrl: input.actionUrl,
     }),
   })
 }

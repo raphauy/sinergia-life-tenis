@@ -6,12 +6,14 @@ import { isCurrentlyProtected } from '@/services/ladder-protection-service'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { eloPreview } from '@/lib/elo'
+import { endOfDayInDaysUY } from '@/lib/date-utils'
 import type { Prisma, Challenge, ChallengeStatus } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
 
 // Suma/resta días sobre un instante UTC. Sumar días enteros es timezone-agnóstico
-// (no nos importa el wall-clock UY para "+N días" de una ventana/cooldown).
+// (no nos importa el wall-clock UY para el cooldown de revancha). La ventana para
+// responder un reto NO usa esto: vence a fin del día UY (ver endOfDayInDaysUY).
 function addDays(date: Date, days: number): Date {
   const d = new Date(date)
   d.setDate(d.getDate() + days)
@@ -200,7 +202,7 @@ export async function createChallenge(challengerId: string, challengedId: string
         ladderId: ladder.id,
         challengerId,
         challengedId,
-        respondByAt: addDays(new Date(), ladder.acceptanceWindowDays),
+        respondByAt: endOfDayInDaysUY(ladder.acceptanceWindowDays),
       },
     })
   })
@@ -862,14 +864,14 @@ export async function getLadderChallenges(ladderId: string): Promise<AdminChalle
 }
 
 /** Cancela un reto PROPOSED por intervención del admin (sin chequear el actor). */
-export async function adminCancelChallenge(challengeId: string): Promise<void> {
+export async function adminCancelChallenge(challengeId: string): Promise<Challenge> {
   const challenge = await prisma.challenge.findUnique({
     where: { id: challengeId },
     select: { status: true },
   })
   if (!challenge) throw new Error('Reto no encontrado.')
   if (challenge.status !== 'PROPOSED') throw new Error('Solo se pueden cancelar retos pendientes.')
-  await prisma.challenge.update({
+  return prisma.challenge.update({
     where: { id: challengeId },
     data: { status: 'CANCELLED', respondedAt: new Date() },
   })

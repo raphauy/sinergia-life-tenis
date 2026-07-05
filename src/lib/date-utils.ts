@@ -1,4 +1,4 @@
-import { format, differenceInCalendarDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks } from 'date-fns'
+import { format, differenceInCalendarDays, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks, addDays, endOfDay } from 'date-fns'
 import { toZonedTime, fromZonedTime } from 'date-fns-tz'
 import { TIMEZONE } from './constants'
 
@@ -46,6 +46,18 @@ export function longDateUY(date: Date): string {
   const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
   const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
   return `${days[dateUY.getDay()]} ${dateUY.getDate()} de ${months[dateUY.getMonth()]}`
+}
+
+/**
+ * Fin del día UY (23:59:59.999) que cae `days` días de calendario UY después de
+ * `from`, devuelto en UTC. Para ventanas "hasta el día X" (p.ej. aceptar/rechazar un
+ * reto): el vencimiento es el final de ese día en UY, no un corte exacto de N×24h.
+ * Así el email/tabla que muestran solo la fecha ("hasta el 05/07") son honestos: el
+ * reto vale todo ese día.
+ */
+export function endOfDayInDaysUY(days: number, from: Date = new Date()): Date {
+  const target = addDays(toZonedTime(from, TIMEZONE), days)
+  return fromZonedTime(endOfDay(target), TIMEZONE)
 }
 
 /** Convertir input UY → UTC para guardar en BD */
