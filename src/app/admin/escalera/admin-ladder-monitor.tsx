@@ -141,7 +141,11 @@ export function AdminLadderMonitor({ challenges, active, played }: Props) {
                     <Pencil className="h-4 w-4" />
                     Editar
                   </Button>
-                  <CancelControl id={m.id} action={() => cancelLadderMatchAction(m.id)} okMsg="Partido cancelado" />
+                  <CancelControl
+                    id={m.id}
+                    action={() => cancelLadderMatchAction(m.id)}
+                    okMsg={m.status === 'CONFIRMED' ? 'Partido cancelado. Vuelven a coordinar.' : 'Partido cancelado'}
+                  />
                 </div>
               </div>
             ))}

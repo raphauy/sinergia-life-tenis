@@ -14,7 +14,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cancelLadderMatchAction } from '@/app/jugador/[slug]/escalera-actions'
 
-export function CancelLadderMatchButton({ matchId }: { matchId: string }) {
+export function CancelLadderMatchButton({
+  matchId,
+  // Partido confirmado: al cancelarlo el reto no se cierra, vuelve a "a coordinar".
+  willReopen = false,
+}: {
+  matchId: string
+  willReopen?: boolean
+}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -23,7 +30,7 @@ export function CancelLadderMatchButton({ matchId }: { matchId: string }) {
     startTransition(async () => {
       const result = await cancelLadderMatchAction(matchId)
       if (result.success) {
-        toast.success('Partido cancelado')
+        toast.success(willReopen ? 'Partido cancelado. Coordinen una nueva fecha.' : 'Partido cancelado')
         setOpen(false)
         router.refresh()
       } else {
@@ -42,7 +49,9 @@ export function CancelLadderMatchButton({ matchId }: { matchId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Cancelar el partido</AlertDialogTitle>
             <AlertDialogDescription>
-              Se cancela el partido de La Escalera y se libera la reserva si la había. No afecta los puntos. Pueden volver a retarse cuando quieran.
+              {willReopen
+                ? 'Se cancela el partido y se libera la reserva. El reto sigue en pie: van a poder coordinar una nueva fecha y reservar de nuevo, sin volver a retarse. No afecta los puntos.'
+                : 'Se cancela el partido de La Escalera y se libera la reserva si la había. No afecta los puntos. Pueden volver a retarse cuando quieran.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

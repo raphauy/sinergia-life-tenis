@@ -14,12 +14,15 @@ interface LadderMatchCancelledEmailProps {
   recipientName: string
   otherName: string
   cancelledByName: string
+  // Partido confirmado que se suspendió: el reto sigue vivo y vuelven a coordinar.
+  reopened?: boolean
 }
 
 export default function LadderMatchCancelledEmail({
   recipientName,
   otherName,
   cancelledByName,
+  reopened,
 }: LadderMatchCancelledEmailProps) {
   return (
     <Html>
@@ -34,7 +37,15 @@ export default function LadderMatchCancelledEmail({
             Hola {recipientName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Se canceló el partido pendiente de <strong>La Escalera</strong> contra <strong>{otherName}</strong> (cancelado por {cancelledByName}). No afecta los puntos. Si quieren, pueden volver a retarse.
+            {reopened ? (
+              <>
+                Se suspendió el partido de <strong>La Escalera</strong> contra <strong>{otherName}</strong> (cancelado por {cancelledByName}) y se liberó la reserva. El reto sigue en pie: no hace falta volver a retarse, solo coordinen una nueva fecha y reserven cuando puedan. No afecta los puntos.
+              </>
+            ) : (
+              <>
+                Se canceló el partido pendiente de <strong>La Escalera</strong> contra <strong>{otherName}</strong> (cancelado por {cancelledByName}). No afecta los puntos. Si quieren, pueden volver a retarse.
+              </>
+            )}
           </Text>
           <Hr style={{ borderColor: theme.colors.border, margin: '16px 0 0' }} />
           <Text style={{ fontSize: '12px', color: theme.colors.textMuted, margin: '16px 0 0' }}>

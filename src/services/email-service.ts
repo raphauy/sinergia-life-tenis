@@ -345,18 +345,24 @@ export async function sendLadderMatchCancelledEmail(input: {
   recipientName: string
   otherName: string
   cancelledByName: string
+  // true si el partido estaba confirmado y se suspendió: el reto sigue en pie y
+  // vuelven a coordinar (no se cerró el reto).
+  reopened?: boolean
 }) {
-  console.log(`[EMAIL] Ladder match cancelled -> ${input.to} (por ${input.cancelledByName})`)
+  console.log(`[EMAIL] Ladder match cancelled -> ${input.to} (por ${input.cancelledByName}${input.reopened ? ', reto reabierto' : ''})`)
   if (isDev) return
 
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: `Partido de La Escalera cancelado - Life Tenis`,
+    subject: input.reopened
+      ? `Se suspendió tu partido de La Escalera - Life Tenis`
+      : `Partido de La Escalera cancelado - Life Tenis`,
     react: LadderMatchCancelledEmail({
       recipientName: input.recipientName,
       otherName: input.otherName,
       cancelledByName: input.cancelledByName,
+      reopened: input.reopened,
     }),
   })
 }

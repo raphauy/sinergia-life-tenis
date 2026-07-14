@@ -273,11 +273,31 @@ export async function cancelChallenge(challengeId: string, actorId: string): Pro
   })
 }
 
-/** Cancela un partido de escalera pendiente/confirmado. No mueve ELO; libera el cupo. */
-export async function cancelLadderMatch(matchId: string, actorId: string, isAdmin: boolean): Promise<void> {
+/**
+ * Cancela un partido de escalera pendiente/confirmado. No mueve ELO; libera la reserva.
+ *
+ * Si el partido estaba CONFIRMADO (ya habían coordinado, reservado y Mati confirmó) y el
+ * reto sigue vivo, cancelarlo NO mata el reto: el partido vuelve a "recién aceptado"
+ * (PENDING, sin fecha/cancha/reserva) con reloj fresco, para que coordinen y reserven de
+ * nuevo sin volver a retarse ni re-aceptar. Es el caso "llegó la fecha y hay que suspender
+ * (lluvia / alguno no puede)". Si no reservan dentro del plazo, el cron diario lo vence
+ * igual que siempre (no queda zombie). Reiniciamos `createdAt` porque es el ancla del plazo
+ * de coordinación (lo usan el cron y el aviso de la página).
+ *
+ * Cancelar un partido PENDING (aún sin coordinar) sí cierra el reto y libera el cupo, como
+ * antes. Devuelve `reopened` para que el aviso por email diga lo correcto.
+ */
+export async function cancelLadderMatch(matchId: string, actorId: string, isAdmin: boolean): Promise<{ reopened: boolean }> {
   const match = await prisma.match.findUnique({
     where: { id: matchId },
-    select: { id: true, ladderId: true, player1Id: true, player2Id: true, status: true },
+    select: {
+      id: true,
+      ladderId: true,
+      player1Id: true,
+      player2Id: true,
+      status: true,
+      challenge: { select: { status: true } },
+    },
   })
   if (!match) throw new Error('Partido no encontrado.')
   if (!match.ladderId) throw new Error('No es un partido de La Escalera.')
@@ -287,13 +307,21 @@ export async function cancelLadderMatch(matchId: string, actorId: string, isAdmi
   const isParticipant = match.player1Id === actorId || match.player2Id === actorId
   if (!isParticipant && !isAdmin) throw new Error('No autorizado para este partido.')
 
+  // Suspender un partido ya confirmado de un reto vivo → reabrir la coordinación en
+  // lugar de cerrar el reto.
+  const reopen = match.status === 'CONFIRMED' && match.challenge?.status === 'ACCEPTED'
+
   await prisma.$transaction(async (tx) => {
     await tx.slotReservation.deleteMany({ where: { matchId } })
     await tx.match.update({
       where: { id: matchId },
-      data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
+      data: reopen
+        ? { status: 'PENDING', scheduledAt: null, courtNumber: null, confirmedAt: null, createdAt: new Date() }
+        : { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
     })
   })
+
+  return { reopened: reopen }
 }
 
 // ============================================================================

@@ -251,7 +251,7 @@ export default async function MatchDetailPage({ params }: Props) {
               <p className="text-sm text-muted-foreground">¿No llegan a coordinar? Pueden cancelar el partido.</p>
             )}
           </div>
-          <CancelLadderMatchButton matchId={matchId} />
+          <CancelLadderMatchButton matchId={matchId} willReopen={match.status === 'CONFIRMED'} />
         </div>
       )}
 

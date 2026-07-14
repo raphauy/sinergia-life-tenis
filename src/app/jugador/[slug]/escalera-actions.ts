@@ -196,7 +196,7 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
       select: { player1Id: true, player2Id: true },
     })
 
-    await cancelLadderMatch(matchId, session.user.id, isAdmin)
+    const { reopened } = await cancelLadderMatch(matchId, session.user.id, isAdmin)
 
     // Avisar al otro jugador (o a ambos si lo canceló un admin).
     try {
@@ -215,6 +215,7 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
               recipientName: fullName(recipient.firstName, recipient.lastName) || 'Jugador',
               otherName: fullName(other?.firstName, other?.lastName) || 'Tu rival',
               cancelledByName,
+              reopened,
             })
           }
         }
