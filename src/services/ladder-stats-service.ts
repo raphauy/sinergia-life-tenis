@@ -10,7 +10,7 @@ import { formatMatchScore } from '@/lib/format-score'
 import { getLadder, getLadderRanking } from './ladder-service'
 import { getPlayerSlugsByUserIds } from './player-service'
 import { getReservationsByMatchIds } from './reservation-service'
-import type { Prisma } from '@prisma/client'
+import type { Prisma, RatingChangeReason } from '@prisma/client'
 
 // ============================================================================
 // Jugador de la semana
@@ -669,6 +669,46 @@ export async function getMemberStanding(userId: string): Promise<MemberStanding 
 export interface RatingPoint {
   at: Date
   rating: number
+  /** Hito detrás del punto, para el tooltip de la gráfica. */
+  delta: number
+  reason: RatingChangeReason
+  /** Nombre del rival (solo MATCH con partido vigente). */
+  rival: string | null
+  /** Solo MATCH: si este miembro ganó. null si no se pudo determinar. */
+  won: boolean | null
+  walkover: boolean
+}
+
+const ratingPointSelect = {
+  createdAt: true,
+  ratingAfter: true,
+  delta: true,
+  reason: true,
+  match: {
+    select: {
+      player1Id: true,
+      player2Id: true,
+      player1: { select: { firstName: true, lastName: true } },
+      player2: { select: { firstName: true, lastName: true } },
+      result: { select: { winnerId: true, walkover: true } },
+    },
+  },
+} satisfies Prisma.RatingHistorySelect
+
+type RatingPointRow = Prisma.RatingHistoryGetPayload<{ select: typeof ratingPointSelect }>
+
+function toRatingPoint(row: RatingPointRow, userId: string): RatingPoint {
+  const m = row.reason === 'MATCH' ? row.match : null
+  const rivalUser = m ? (m.player1Id === userId ? m.player2 : m.player1) : null
+  return {
+    at: row.createdAt,
+    rating: row.ratingAfter,
+    delta: row.delta,
+    reason: row.reason,
+    rival: rivalUser ? fullName(rivalUser.firstName, rivalUser.lastName) : null,
+    won: m?.result ? m.result.winnerId === userId : null,
+    walkover: m?.result?.walkover ?? false,
+  }
 }
 
 /** Curva de Rating del miembro en el tiempo (ratingAfter por evento, desde la siembra). */
@@ -683,30 +723,11 @@ export async function getRatingEvolution(userId: string): Promise<RatingPoint[]>
   const rows = await prisma.ratingHistory.findMany({
     where: { ladderMemberId: member.id },
     orderBy: { createdAt: 'asc' },
-    select: { createdAt: true, ratingAfter: true },
+    select: ratingPointSelect,
   })
-  return rows.map((r) => ({ at: r.createdAt, rating: r.ratingAfter }))
+  return rows.map((r) => toRatingPoint(r, userId))
 }
 
-/**
- * Curvas de Rating de todos los miembros de La Escalera en una sola query (batch de
- * getRatingEvolution). Para mostrar la gráfica de cada jugador en la tabla del ranking
- * (Dialog al tocar los puntos). Map<userId, RatingPoint[]> en orden cronológico.
- */
-export async function getLadderRatingEvolutions(): Promise<Map<string, RatingPoint[]>> {
-  const ladder = await getLadder()
-  if (!ladder) return new Map()
-  const members = await prisma.ladderMember.findMany({
-    where: { ladderId: ladder.id },
-    select: {
-      userId: true,
-      ratingHistory: { orderBy: { createdAt: 'asc' }, select: { createdAt: true, ratingAfter: true } },
-    },
-  })
-  return new Map(
-    members.map((m) => [m.userId, m.ratingHistory.map((r) => ({ at: r.createdAt, rating: r.ratingAfter }))])
-  )
-}
 
 // ============================================================================
 // Sección Gallina (rechazos de retos parejos en los últimos 7 días)

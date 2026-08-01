@@ -22,6 +22,7 @@ import {
   generatePlayerMatchUrl,
 } from '@/services/email-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
+import { getRatingEvolution, type RatingPoint } from '@/services/ladder-stats-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY } from '@/lib/date-utils'
 import { createChallengeSchema } from '@/lib/validations/challenge'
@@ -229,5 +230,20 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
     return { success: true }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Error al cancelar el partido' }
+  }
+}
+
+/**
+ * Evolución de puntos de un miembro, para el Dialog de la gráfica en la tabla del
+ * ranking. Se carga al abrir el Dialog (lazy) en vez de embeber las curvas de
+ * todos los miembros en el payload de la home. Dato público (misma info que el
+ * perfil público): sin auth.
+ */
+export async function getRatingEvolutionAction(userId: string): Promise<RatingPoint[]> {
+  try {
+    return await getRatingEvolution(userId)
+  } catch (error) {
+    console.error('[escalera] Error al cargar la evolución de puntos:', error)
+    return []
   }
 }

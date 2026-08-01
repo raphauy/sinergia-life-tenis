@@ -167,7 +167,9 @@ export async function approvePlayerRegistration(registrationId: string, reviewed
         rating: initialRating,
         ratingHistory: {
           create: {
-            reason: 'ADJUSTMENT',
+            // SEED: es el alta del miembro (mismo significado que la siembra
+            // original), y la gráfica de evolución lo etiqueta como tal.
+            reason: 'SEED',
             ratingBefore: initialRating,
             ratingAfter: initialRating,
             delta: 0,

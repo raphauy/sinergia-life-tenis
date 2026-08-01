@@ -12,7 +12,7 @@ import { ProtectionBadge } from '@/components/protection-badge'
 import { PlayerChartDialog } from '@/components/player-chart-dialog'
 import { cn } from '@/lib/utils'
 import type { LadderRow } from '@/services/challenge-service'
-import type { MonthlyMatchDetail, RatingPoint } from '@/services/ladder-stats-service'
+import type { MonthlyMatchDetail } from '@/services/ladder-stats-service'
 
 interface Props {
   rows: LadderRow[]
@@ -32,11 +32,9 @@ interface Props {
   monthlyMatches?: Map<string, MonthlyMatchDetail[]>
   /** Variación neta de puntos del mes por userId: flecha ↑/↓ al lado del puntaje. */
   monthDeltas?: Map<string, number>
-  /** Curva de evolución de puntos por userId: al tocar el puntaje abre un Dialog con la gráfica. */
-  evolutions?: Map<string, RatingPoint[]>
 }
 
-export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches, monthDeltas, evolutions }: Props) {
+export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerSlug, viewerUserId, movement, playerOfWeekUserId, winStreaks, monthlyMatches, monthDeltas }: Props) {
   if (rows.length === 0) {
     return <p className="text-sm text-muted-foreground py-4">La Escalera todavía no fue sembrada.</p>
   }
@@ -63,7 +61,6 @@ export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerS
           const isPlayerOfWeek = e.userId === playerOfWeekUserId
           const streak = winStreaks?.get(e.userId) ?? 0
           const monthly = monthlyMatches?.get(e.userId) ?? []
-          const evo = evolutions?.get(e.userId) ?? []
           const isProtected = !!e.protection
           // El control (acción del viewer) solo para estados accionables; 'sent' no
           // lleva control (el "Retó a X" ya aparece en la fila propia del viewer).
@@ -158,13 +155,9 @@ export function LadderTable({ rows, canChallenge, challengeBlock, currentPlayerS
               {isProtected && <ProtectionBadge protection={e.protection} className="shrink-0" />}
               <span className="flex shrink-0 items-center gap-2">
                 <RatingMonthDelta value={monthDeltas?.get(e.userId)} />
-                {evo.length >= 2 ? (
-                  <PlayerChartDialog playerName={e.name} points={evo} className="text-base font-bold tabular-nums">
-                    {e.rating}
-                  </PlayerChartDialog>
-                ) : (
-                  <span className="text-base font-bold tabular-nums">{e.rating}</span>
-                )}
+                <PlayerChartDialog playerName={e.name} userId={e.userId} className="text-base font-bold tabular-nums">
+                  {e.rating}
+                </PlayerChartDialog>
               </span>
               {/* Pelotita abajo a la derecha. Su lugar queda reservado por el alto. */}
               {monthly.length >= 1 && (
