@@ -190,7 +190,7 @@ export interface MonthlyMatchDetail {
   playedAt: Date
 }
 
-type ScoreFields = {
+export type ScoreFields = {
   set1Player1: number
   set1Player2: number
   tb1Player1: number | null
@@ -204,7 +204,7 @@ type ScoreFields = {
 }
 
 /** Marcador desde la perspectiva de un jugador: sus games primero (espeja si es player2). */
-function scoreFromPerspective(r: ScoreFields, viewerIsP1: boolean): string {
+export function scoreFromPerspective(r: ScoreFields, viewerIsP1: boolean): string {
   if (viewerIsP1) return formatMatchScore(r)
   return formatMatchScore({
     set1Player1: r.set1Player2,

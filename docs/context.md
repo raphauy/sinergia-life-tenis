@@ -200,6 +200,35 @@ _Código_: `LadderProtection` (`startDate`/`endDate?` como límites de día UY e
 Categoría **pública** del **Ranking protegido**: Lesión / Viaje / Otro, con nota opcional. Es público a propósito: el objetivo de la feature es que el resto **sepa por qué** un jugador no es retable. Define el ícono de la fila/perfil (vendaje / avión / escudo).
 _Código_: `ProtectionReason` (`INJURY` / `TRAVEL` / `OTHER`).
 
+### Estadísticas del jugador (extensión post-Fase 4)
+
+> Términos cerrados en grill-me 2026-08-01. La tab **Estadísticas** del perfil se alimenta **solo** de **Partidos de escalera** (el 1er Torneo no entra; el ELO ya lo resume vía la **Siembra**).
+
+**Estadísticas (del jugador)**:
+Vista analítica pública de un **Miembro**: tiles numéricos + secciones (evolución, rivales, retos). Convive con la tab **Partidos** (lo operativo: bandeja, actividad mensual, próximos, historial). El criterio de walkover es **siempre** el de las pelotitas: la victoria por walkover cuenta como V; el ausente no suma partido (ni derrota).
+_Evitar_: mezclar partidos de torneo en estas métricas.
+
+**Racha récord**:
+La racha de victorias consecutivas más larga de la **historia** del Miembro. Distinta de la racha **actual** (el fueguito del header, que se corta con la última derrota). **Excepción al criterio de las pelotitas**: usa el criterio del fueguito — la derrota por W/O ausente también corta la racha, aunque ese partido no cuente en el W-L.
+
+**Pico de puntos**:
+Máximo **Rating** histórico del Miembro (desde `RatingHistory`).
+
+**Mejor puesto**:
+Mejor posición histórica en La Escalera. No se almacena: se **reconstruye** replayando el `RatingHistory` de todos los miembros. La misma reconstrucción alimenta la **Mejor victoria**.
+
+**Mejor victoria**:
+La victoria (no walkover) contra el rival con mejor **puesto al momento de jugar** (del replay histórico, no el puesto actual). Empate → la más reciente. Sin victorias → no se muestra.
+
+**Frecuencia de partidos**:
+Ritmo de juego del Miembro: partidos jugados ÷ meses calendario UY **completos** desde su alta (el mes en curso no divide). Alta en el mes corriente → se muestra el total con label "este mes".
+
+**Rivales frecuentes**:
+Head-to-head del Miembro contra cada rival enfrentado (≥1 partido), ordenados por cantidad de cruces (empate → más reciente), expandibles al detalle de cada partido (marcador, fecha, delta).
+
+**Balance de retos**:
+Números públicos del mercado de **Retos** del Miembro: enviados y recibidos con desglose por desenlace (aceptado/rechazado/expirado/cancelado) y % de respuesta positiva. Es público **a conciencia**: expone rechazos sin la ventana de 7 días ni el filtro ±N de la **Gallina** (la Gallina "perdona"; el balance es historial).
+
 ### Sección Gallina (extensión post-Fase 4)
 
 > Términos cerrados en grill-me 2026-06-15. Diseño en `docs/PRPs/gallina-de-la-semana-prp.md`.

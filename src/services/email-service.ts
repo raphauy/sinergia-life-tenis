@@ -543,10 +543,14 @@ export async function sendPlayerWelcomeEmail(input: {
 
 // ===================== URL Helpers =====================
 
-/** Panel del jugador (bandeja de retos). Cae a la home si no tiene slug. */
+/**
+ * Panel del jugador (bandeja de retos). Apunta a la tab Partidos: la default
+ * del perfil es Estadísticas y los CTAs de email vienen a operar (responder un
+ * reto, ver su actividad). Cae a la home si no tiene slug.
+ */
 export function generatePlayerPanelUrl(playerSlug: string | null): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  return playerSlug ? `${baseUrl}/jugador/${playerSlug}` : baseUrl
+  return playerSlug ? `${baseUrl}/jugador/${playerSlug}?tab=partidos` : baseUrl
 }
 
 /** Detalle de un partido en el panel del jugador. */

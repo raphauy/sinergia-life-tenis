@@ -37,8 +37,9 @@ export function ChallengeControl({ state, rivalUserId, rivalName, preview, match
         </span>
       )
     case 'received':
+      // ?tab=partidos: la bandeja vive en la tab Partidos (la default es Estadísticas).
       return (
-        <Button size={size} variant="outline" render={<Link href={panelHref} />}>
+        <Button size={size} variant="outline" render={<Link href={`${panelHref}?tab=partidos`} />}>
           Responder
         </Button>
       )
@@ -47,7 +48,7 @@ export function ChallengeControl({ state, rivalUserId, rivalName, preview, match
         <Button
           size={size}
           variant="outline"
-          render={<Link href={matchId ? `${panelHref}/partidos/${matchId}` : panelHref} />}
+          render={<Link href={matchId ? `${panelHref}/partidos/${matchId}` : `${panelHref}?tab=partidos`} />}
         >
           A jugar →
         </Button>

@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
 import { fullName } from '@/lib/format-name'
@@ -22,10 +23,13 @@ export const SEED_STEP = 20
 // Lectura
 // ============================================================================
 
-export async function getLadder(tx?: Tx) {
+// Memoizada por request (React cache): la piden muchos services en un mismo
+// render y cada llamada era un round-trip real a Neon. Las llamadas con tx no
+// comparten memo (la identidad del objeto tx es parte de la clave).
+export const getLadder = cache(async (tx?: Tx) => {
   const client = tx ?? prisma
   return client.ladder.findFirst({ where: { isActive: true } })
-}
+})
 
 export interface LadderEntry {
   position: number
@@ -39,7 +43,9 @@ export interface LadderEntry {
   protection: { reason: ProtectionReason; note: string | null; endDate: Date | null } | null
 }
 
-export async function getLadderRanking(): Promise<LadderEntry[]> {
+// Memoizada por request (React cache): el perfil y sus services la piden varias
+// veces por render (ranking, inbox, stats) y es la query más pesada de lectura.
+export const getLadderRanking = cache(async (): Promise<LadderEntry[]> => {
   const ladder = await getLadder()
   if (!ladder) return []
 
@@ -76,7 +82,7 @@ export async function getLadderRanking(): Promise<LadderEntry[]> {
       ? { reason: m.protections[0].reason, note: m.protections[0].note, endDate: m.protections[0].endDate }
       : null,
   }))
-}
+})
 
 export async function getMember(userId: string, tx?: Tx) {
   const client = tx ?? prisma

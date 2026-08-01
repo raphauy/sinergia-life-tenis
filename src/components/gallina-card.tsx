@@ -43,7 +43,7 @@ export function GallinaCard({ gallinas }: { gallinas: Gallina[] }) {
             · {n} {n === 1 ? 'gallina' : 'gallinas'}
           </span>
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[open]:rotate-180" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pb-4">
         <ul className="space-y-3 pt-1">

@@ -24,7 +24,7 @@ export function DocSection({
       <CollapsibleTrigger className="group flex w-full items-center gap-3 rounded-lg px-4 py-3.5 text-left cursor-pointer transition-colors hover:bg-muted/50">
         <span className="shrink-0 text-primary">{icon}</span>
         <span className="flex-1 font-semibold">{title}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[open]:rotate-180" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-4 pb-4">
         <div className="space-y-3 pt-1 text-sm leading-relaxed text-muted-foreground">

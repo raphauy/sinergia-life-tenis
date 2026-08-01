@@ -66,6 +66,12 @@ interface FixtureMatchCardProps {
   /** Puesto en La Escalera (#N) de cada jugador; se muestra junto al nombre si viene. */
   player1Rank?: number | null
   player2Rank?: number | null
+  /**
+   * Dueño del perfil en cuyo contexto se muestra la card: en partidos jugados
+   * el badge "Jugado" pasa a "Ganado" (verde) / "Perdido" (rojo) según cómo le
+   * fue a él. Sin este prop la card queda neutral (fixture público).
+   */
+  perspectiveUserId?: string | null
 }
 
 function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number): string {
@@ -122,7 +128,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank, perspectiveUserId }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
@@ -149,8 +155,18 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
     : null
 
   const badgeClass = "text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold"
+  // Con perspectiva (perfil de un jugador) el "Jugado" se vuelve Ganado/Perdido.
+  const hasPerspective =
+    perspectiveUserId != null &&
+    (perspectiveUserId === match.player1Id || perspectiveUserId === match.player2Id) &&
+    match.result != null
+  const perspectiveWon = hasPerspective && match.result!.winnerId === perspectiveUserId
   const statusBadge = match.status === 'PLAYED'
-    ? <Badge variant="success" className={badgeClass}>Jugado</Badge>
+    ? hasPerspective
+      ? perspectiveWon
+        ? <Badge variant="success" className={badgeClass}>Ganado</Badge>
+        : <Badge variant="destructive" className={`${badgeClass} border-destructive/30 dark:border-destructive/40`}>Perdido</Badge>
+      : <Badge variant="success" className={badgeClass}>Jugado</Badge>
     : match.status === 'CONFIRMED'
       ? <Badge variant="default" className={badgeClass}>Confirmado</Badge>
       : <Badge variant="warning" className={badgeClass}>Pendiente</Badge>

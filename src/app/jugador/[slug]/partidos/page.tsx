@@ -106,6 +106,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
                 player1Rank={rankFor(m, m.player1Id)}
                 player2Rank={rankFor(m, m.player2Id)}
+                perspectiveUserId={userId}
               />
             ))}
           </div>

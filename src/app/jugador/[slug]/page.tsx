@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/lib/auth'
 import { SITE_URL } from '@/lib/site-url'
@@ -24,8 +25,20 @@ import {
   getLadderMonthlyMatches,
   type MonthlyMatchDetail,
 } from '@/services/ladder-stats-service'
+import {
+  getMemberLadderStats,
+  getMemberPositionHistory,
+  getChallengeBalance,
+} from '@/services/ladder-player-stats-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
+import { ProfileTabs } from '@/components/profile-tabs'
+import { StatTiles } from '@/components/stat-tiles'
+import { MonthlyActivityChart } from '@/components/monthly-activity-chart'
+import { BestWinCard } from '@/components/best-win-card'
+import { FrequentRivals } from '@/components/frequent-rivals'
+import { ChallengeBalanceCard } from '@/components/challenge-balance-card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChallengeInbox } from '@/components/challenge-inbox'
 import { LadderMonthlyStatus } from '@/components/ladder-monthly-status'
 import { PositionDelta } from '@/components/position-delta'
@@ -77,10 +90,12 @@ export async function generateMetadata({
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
-export default async function JugadorProfilePage({ params }: Props) {
+export default async function JugadorProfilePage({ params, searchParams }: Props) {
   const { slug } = await params
+  const { tab } = await searchParams
 
   const player = await prisma.player.findUnique({
     where: { slug },
@@ -103,7 +118,7 @@ export default async function JugadorProfilePage({ params }: Props) {
   // Fetch matches if player has a linked user
   const upcomingRaw = userId ? await getUpcomingMatches(userId) : []
   const allMatches = userId ? await getMatchesByPlayer(userId) : []
-  const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED').slice(0, 5)
+  const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED').slice(0, 20)
 
   // Sort upcoming: confirmed first, then by date
   const upcoming = [...upcomingRaw].sort((a, b) => {
@@ -144,11 +159,11 @@ export default async function JugadorProfilePage({ params }: Props) {
   // Estado de actividad mensual: solo para el dueño/admin y si es miembro de la escalera.
   const monthlyActivity = canAct && userId ? await getMonthlyActivity(userId) : null
 
-  // Gamificación (pública): rating+puesto, movimiento de la semana, evolución, jugador de la semana.
-  const [standing, ratingEvolution, playerOfWeek, movement, ranking, winStreak, monthDeltas, monthlyMatches] = userId
+  // Gamificación (pública): rating+puesto, movimiento de la semana, jugador de la semana.
+  // Las estadísticas de la tab Estadísticas van aparte, en <StatsPanel> con Suspense.
+  const [standing, playerOfWeek, movement, ranking, winStreak, monthDeltas, monthlyMatches] = userId
     ? await Promise.all([
         getMemberStanding(userId),
-        getRatingEvolution(userId),
         getPlayerOfTheWeek(),
         getWeeklyPositionMovement(),
         getLadderRanking(),
@@ -156,7 +171,7 @@ export default async function JugadorProfilePage({ params }: Props) {
         getMonthlyRatingDeltas(),
         getLadderMonthlyMatches(),
       ])
-    : [null, [], null, new Map<string, number>(), [], 0, new Map<string, number>(), new Map<string, MonthlyMatchDetail[]>()]
+    : [null, null, new Map<string, number>(), [], 0, new Map<string, number>(), new Map<string, MonthlyMatchDetail[]>()]
   const isPlayerOfWeek = !!playerOfWeek && playerOfWeek.userId === userId
   // Ranking protegido vigente (lesión/viaje/otro): badge público en el header.
   const myProtection = userId ? ranking.find((e) => e.userId === userId)?.protection ?? null : null
@@ -260,16 +275,114 @@ export default async function JugadorProfilePage({ params }: Props) {
         )}
       </div>
 
-      {/* Estado de actividad mensual (solo dueño/admin, si es miembro) */}
-      {monthlyActivity && <LadderMonthlyStatus activity={monthlyActivity} />}
+      {/* Tabs: Estadísticas (default, pública) | Partidos (lo operativo). ?tab=partidos
+          deep-linkea; un perfil sin membresía en La Escalera cae directo en Partidos. */}
+      <ProfileTabs
+        defaultTab={!standing || tab === 'partidos' ? 'partidos' : 'estadisticas'}
+        pendingCount={inbox?.received.length ?? 0}
+        statsPanel={
+          userId && standing ? (
+            <Suspense fallback={<StatsPanelSkeleton />}>
+              <StatsPanel userId={userId} />
+            </Suspense>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin estadísticas de La Escalera todavía.</p>
+          )
+        }
+        matchesPanel={
+          <>
+            {/* Estado de actividad mensual (solo dueño/admin, si es miembro) */}
+            {monthlyActivity && <LadderMonthlyStatus activity={monthlyActivity} />}
 
-      {/* Bandeja de retos (solo el dueño, con acciones) */}
-      {inbox && <ChallengeInbox received={inbox.received} sent={inbox.sent} />}
+            {/* Bandeja de retos (solo el dueño, con acciones) */}
+            {inbox && <ChallengeInbox received={inbox.received} sent={inbox.sent} />}
 
-      {/* Retos del jugador (vista pública, read-only) — para quien no es el dueño */}
-      {publicChallenges.length > 0 && <PublicChallenges challenges={publicChallenges} viewerUserId={viewerId} />}
+            {/* Retos del jugador (vista pública, read-only) — para quien no es el dueño */}
+            {publicChallenges.length > 0 && <PublicChallenges challenges={publicChallenges} viewerUserId={viewerId} />}
 
-      {/* Evolución de rating (pública, si es miembro con historial) */}
+            {/* Upcoming matches */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold">Próximos partidos</h2>
+                {userId && (
+                  <Button variant="ghost" size="sm" render={<Link href={`/jugador/${slug}/partidos`} />}>
+                    Ver todos
+                  </Button>
+                )}
+              </div>
+              {upcoming.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay partidos próximos.</p>
+              ) : (
+                <div className="space-y-2">
+                  {upcoming.map((m) => (
+                    <FixtureMatchCard
+                      key={m.id}
+                      match={m}
+                      showDate
+                      player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                      player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                      player1Rank={rankFor(m, m.player1Id)}
+                      player2Rank={rankFor(m, m.player2Id)}
+                      currentUserId={canAct ? userId ?? undefined : undefined}
+                      currentPlayerSlug={canAct ? slug : undefined}
+                      reservation={reservationMap.get(m.id)}
+                      ladderPreview={ladderPreviews.get(m.id) ?? null}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Recent history */}
+            <section>
+              <h2 className="text-lg font-semibold mb-3">Historial reciente</h2>
+              {recentPlayed.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No hay partidos jugados.</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentPlayed.map((m) => (
+                    <FixtureMatchCard
+                      key={m.id}
+                      match={m}
+                      showDate
+                      player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
+                      player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
+                      player1Rank={rankFor(m, m.player1Id)}
+                      player2Rank={rankFor(m, m.player2Id)}
+                      ladderResultDeltas={resultDeltas.get(m.id) ?? null}
+                      perspectiveUserId={userId}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        }
+      />
+    </div>
+  )
+}
+
+// ============================================================================
+// Panel de Estadísticas (Suspense): el replay de puestos y los agregados son lo
+// más caro de la página — se streamean con skeleton sin bloquear el perfil.
+// ============================================================================
+
+async function StatsPanel({ userId }: { userId: string }) {
+  const [ratingEvolution, ladderStats, positionHistory, challengeBalance] = await Promise.all([
+    getRatingEvolution(userId),
+    getMemberLadderStats(userId),
+    getMemberPositionHistory(userId),
+    getChallengeBalance(userId),
+  ])
+  if (!ladderStats) {
+    return <p className="text-sm text-muted-foreground">Sin estadísticas de La Escalera todavía.</p>
+  }
+  return (
+    <>
+      <StatTiles stats={ladderStats} bestPosition={positionHistory.bestPosition} />
+
+      {/* Evolución de rating (si hay historial) */}
       {ratingEvolution.length >= 2 && (
         <section className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Evolución</h2>
@@ -277,61 +390,24 @@ export default async function JugadorProfilePage({ params }: Props) {
         </section>
       )}
 
-      {/* Upcoming matches */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Próximos partidos</h2>
-          {userId && (
-            <Button variant="ghost" size="sm" render={<Link href={`/jugador/${slug}/partidos`} />}>
-              Ver todos
-            </Button>
-          )}
-        </div>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay partidos próximos.</p>
-        ) : (
-          <div className="space-y-2">
-            {upcoming.map((m) => (
-              <FixtureMatchCard
-                key={m.id}
-                match={m}
-                showDate
-                player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
-                player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
-                player1Rank={rankFor(m, m.player1Id)}
-                player2Rank={rankFor(m, m.player2Id)}
-                currentUserId={canAct ? userId ?? undefined : undefined}
-                currentPlayerSlug={canAct ? slug : undefined}
-                reservation={reservationMap.get(m.id)}
-                ladderPreview={ladderPreviews.get(m.id) ?? null}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      <MonthlyActivityChart months={ladderStats.months} />
+      <BestWinCard win={positionHistory.bestWin} />
+      <FrequentRivals rivals={ladderStats.rivals} />
+      <ChallengeBalanceCard balance={challengeBalance} />
+    </>
+  )
+}
 
-      {/* Recent history */}
-      <section>
-        <h2 className="text-lg font-semibold mb-3">Historial reciente</h2>
-        {recentPlayed.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay partidos jugados.</p>
-        ) : (
-          <div className="space-y-2">
-            {recentPlayed.map((m) => (
-              <FixtureMatchCard
-                key={m.id}
-                match={m}
-                showDate
-                player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
-                player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
-                player1Rank={rankFor(m, m.player1Id)}
-                player2Rank={rankFor(m, m.player2Id)}
-                ladderResultDeltas={resultDeltas.get(m.id) ?? null}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+function StatsPanelSkeleton() {
+  return (
+    <div>
+      <div className="mb-8 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-[58px] rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="mb-8 h-36 rounded-lg" />
+      <Skeleton className="h-24 rounded-lg" />
     </div>
   )
 }
