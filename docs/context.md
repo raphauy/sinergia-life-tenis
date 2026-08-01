@@ -135,8 +135,13 @@ _Código_: reusa `SlotReservation` + flujo `PENDING → CONFIRMED`; el tope de a
 _Evitar_: "acceso prioritario que se pierde por inactividad" / `priorityEligible` — el acceso no se gatea; la inactividad penaliza puntos.
 
 **Penalización mensual** (multa):
-Descuento de **Rating** que el cierre de mes aplica a un **Miembro** activo que jugó menos del **Mínimo mensual de partidos** en el mes calendario UY. Monto = `monthlyPenalty` (default 50; se guarda positivo y se **resta**). Es la **única** consecuencia de la inactividad: no afecta el acceso a reservar ni a retar. Se registra en `RatingHistory` con reason `PENALTY`.
+Descuento de **Rating** que el cierre de mes aplica a un **Miembro** activo que jugó menos del **Mínimo mensual de partidos** en el mes calendario UY. Monto = `monthlyPenalty` (default 50; se guarda positivo y se **resta**). Es la **única** consecuencia de la inactividad: no afecta el acceso a reservar ni a retar. Se registra en `RatingHistory` con reason `PENALTY`. Es **reversible**: el admin puede devolverla desde `/admin/escalera` → Actividad (ver **Reversión de multa**).
 _Evitar_: confundirla con el **Máximo de retos mensual** (limita retar, no toca puntos) o con el "acceso prioritario a reserva" (que no se gatea).
+
+**Reversión de multa**:
+Acto del **admin** que deshace una **Penalización mensual** puntual (típico: el partido que le faltaba se suspendió por lluvia y se juega el mes siguiente). Devuelve los puntos y **borra** la fila `PENALTY` —queda como si el cierre nunca lo hubiera penalizado, sin escalón en la **Evolución de rating**— re-nivelando los movimientos posteriores del miembro. Le llega un email al jugador. No toca el **Cierre de mes**: el período sigue cerrado y re-cerrarlo es idempotente, así que la multa no vuelve.
+_Código_: `revertPenalty` (`ladder-cron-service.ts`, inverso de `closeLadderMonth`) + `getPenaltiesByPeriod` (`ladder-service.ts`) para el listado del panel.
+_Evitar_: compensar con una fila `ADJUSTMENT` — se decidió borrar la fila para que la gráfica del jugador quede limpia.
 
 **Mínimo mensual de partidos**:
 Cantidad de **Partidos de escalera** *jugados* que un **Miembro** activo debe alcanzar en el mes calendario UY para no recibir la **Penalización mensual** (`minMatchesPerMonth`, default 2).

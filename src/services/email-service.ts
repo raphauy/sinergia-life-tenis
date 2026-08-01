@@ -14,6 +14,7 @@ import ChallengeCancelledEmail from '@/components/emails/challenge-cancelled-ema
 import LadderMatchCancelledEmail from '@/components/emails/ladder-match-cancelled-email'
 import LadderProtectionCancelledEmail from '@/components/emails/ladder-protection-cancelled-email'
 import LadderPenaltyAppliedEmail from '@/components/emails/ladder-penalty-applied-email'
+import LadderPenaltyRevertedEmail from '@/components/emails/ladder-penalty-reverted-email'
 import LadderMonthClosingWarningEmail from '@/components/emails/ladder-month-closing-warning-email'
 import LadderMatchExpiryWarningEmail from '@/components/emails/ladder-match-expiry-warning-email'
 import LadderMatchAutoCancelledEmail from '@/components/emails/ladder-match-auto-cancelled-email'
@@ -416,6 +417,31 @@ export async function sendLadderPenaltyAppliedEmail(input: {
       newRating: input.newRating,
       monthLabel: input.monthLabel,
       minMatches: input.minMatches,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+export async function sendLadderPenaltyRevertedEmail(input: {
+  to: string
+  playerName: string
+  points: number
+  newRating: number
+  monthLabel: string
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder penalty reverted -> ${input.to} (+${input.points}, nuevo ${input.newRating}, ${input.monthLabel})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `Se te devolvieron los puntos de la penalización - Life Tenis`,
+    react: LadderPenaltyRevertedEmail({
+      playerName: input.playerName,
+      points: input.points,
+      newRating: input.newRating,
+      monthLabel: input.monthLabel,
       actionUrl: input.actionUrl,
     }),
   })

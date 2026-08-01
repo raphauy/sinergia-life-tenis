@@ -6,11 +6,16 @@ import type { ActionResult } from '@/lib/action-types'
 import { prisma } from '@/lib/prisma'
 import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
 import { adminCancelChallenge } from '@/services/challenge-service'
-import { closeLadderMonth, runLadderDailyTasks } from '@/services/ladder-cron-service'
+import { closeLadderMonth, runLadderDailyTasks, revertPenalty } from '@/services/ladder-cron-service'
 import { setProtection, endProtection, deleteProtection } from '@/services/ladder-protection-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
-import { sendChallengeCancelledEmail, generatePlayerPanelUrl } from '@/services/email-service'
+import {
+  sendChallengeCancelledEmail,
+  sendLadderPenaltyRevertedEmail,
+  generatePlayerPanelUrl,
+} from '@/services/email-service'
 import { fullName } from '@/lib/format-name'
+import { monthLabelUY } from '@/lib/date-utils'
 import { ladderConfigSchema } from '@/lib/validations/ladder'
 import { seedCommitSchema } from '@/lib/validations/ladder'
 import { protectionSchema } from '@/lib/validations/ladder-protection'
@@ -119,6 +124,46 @@ export async function runDailyTasksAction(): Promise<ActionResult> {
   } catch (error) {
     console.error('Error corriendo tareas diarias:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error al correr las tareas diarias' }
+  }
+}
+
+export async function revertPenaltyAction(
+  historyId: string,
+  year: number,
+  month: number
+): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+    if (!historyId) return { success: false, error: 'Penalización inválida' }
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+      return { success: false, error: 'Período inválido' }
+    }
+
+    const res = await revertPenalty(historyId)
+
+    // Ya recibió el email de la multa: cerramos el círculo. No debe romper la reversión.
+    try {
+      if (res.email) {
+        const slug = await getActivePlayerSlugByUserId(res.userId)
+        await sendLadderPenaltyRevertedEmail({
+          to: res.email,
+          playerName: res.name,
+          points: res.points,
+          newRating: res.newRating,
+          monthLabel: monthLabelUY(year, month),
+          actionUrl: generatePlayerPanelUrl(slug),
+        })
+      }
+    } catch (e) {
+      console.error('[EMAIL] penalización revertida:', e)
+    }
+
+    revalidatePath('/')
+    revalidatePath('/admin/escalera')
+    return { success: true, message: `Se le devolvieron ${res.points} puntos a ${res.name}.` }
+  } catch (error) {
+    console.error('Error revirtiendo la penalización:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al revertir la penalización' }
   }
 }
 

@@ -5,6 +5,7 @@ import {
   getLadderRanking,
   getLadderMatchesForAdmin,
   getLastPeriodClose,
+  getPenaltiesByPeriod,
   hasLadderMatches,
   proposeSeedOrder,
   SEED_BASE_RATING,
@@ -35,15 +36,17 @@ export default async function AdminEscaleraPage() {
   if (ladder && ranking.length > 0) {
     const session = await auth()
     const viewerUserId = session?.user?.id ?? null
-    const [locked, challenges, matches, lastPeriodClose, view, movement, protectionMembers] = await Promise.all([
-      hasLadderMatches(ladder.id),
-      getLadderChallenges(ladder.id),
-      getLadderMatchesForAdmin(ladder.id),
-      getLastPeriodClose(),
-      getLadderView(viewerUserId),
-      getWeeklyPositionMovement(),
-      getMembersForProtectionAdmin(),
-    ])
+    const [locked, challenges, matches, lastPeriodClose, penaltiesByPeriod, view, movement, protectionMembers] =
+      await Promise.all([
+        hasLadderMatches(ladder.id),
+        getLadderChallenges(ladder.id),
+        getLadderMatchesForAdmin(ladder.id),
+        getLastPeriodClose(),
+        getPenaltiesByPeriod(),
+        getLadderView(viewerUserId),
+        getWeeklyPositionMovement(),
+        getMembersForProtectionAdmin(),
+      ])
     const currentPlayerSlug =
       view.canChallenge && viewerUserId ? await getActivePlayerSlugByUserId(viewerUserId) : null
 
@@ -113,6 +116,7 @@ export default async function AdminEscaleraPage() {
               lastClose={lastClose}
               monthOptions={monthOptions}
               defaultMonth={`${prevY}-${prevM}`}
+              penaltiesByPeriod={penaltiesByPeriod}
             />
           </TabsContent>
 

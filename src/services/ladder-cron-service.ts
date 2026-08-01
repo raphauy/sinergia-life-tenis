@@ -205,6 +205,75 @@ export async function closeLadderMonth(year: number, month: number): Promise<Clo
   }
 }
 
+export interface RevertPenaltyResult {
+  userId: string
+  email: string | null
+  name: string
+  /** Puntos devueltos (positivo). */
+  points: number
+  /** Puntos del miembro después de devolverle la multa. */
+  newRating: number
+}
+
+/**
+ * Revierte una multa mensual ya aplicada (inverso de closeLadderMonth): devuelve los
+ * puntos y BORRA la fila PENALTY, de modo que quede como si el cierre nunca lo hubiera
+ * penalizado (la curva de evolución sale limpia y el aviso del panel del jugador
+ * desaparece). Los movimientos posteriores del miembro se re-nivelan sumándoles los
+ * mismos puntos en ratingBefore/ratingAfter — sus `delta` no cambian porque son
+ * relativos, pero el nivel absoluto sí corría 50 puntos abajo.
+ *
+ * No toca `LadderPeriodClose`: el mes sigue cerrado y re-cerrarlo es idempotente, así
+ * que la multa no vuelve sola.
+ *
+ * Borde conocido: si un cierre POSTERIOR recortó su multa por el piso `ratingFloor`,
+ * revertir una anterior no la recalcula (con más rating habría descontado más). Queda
+ * una inexactitud histórica; el rating actual y la curva siguen coherentes.
+ */
+export async function revertPenalty(historyId: string): Promise<RevertPenaltyResult> {
+  const row = await prisma.ratingHistory.findUnique({
+    where: { id: historyId },
+    select: {
+      id: true,
+      reason: true,
+      delta: true,
+      createdAt: true,
+      ladderMemberId: true,
+      member: {
+        select: { id: true, rating: true, userId: true, user: { select: { email: true, firstName: true, lastName: true } } },
+      },
+    },
+  })
+  if (!row) throw new Error('No se encontró la penalización')
+  if (row.reason !== 'PENALTY') throw new Error('Ese movimiento de puntos no es una penalización')
+
+  // Puntos reales de la multa (no ladder.monthlyPenalty: el cierre puede haber
+  // aplicado menos por el piso ratingFloor).
+  const points = Math.abs(row.delta)
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.ratingHistory.updateMany({
+      where: { ladderMemberId: row.ladderMemberId, createdAt: { gt: row.createdAt } },
+      data: { ratingBefore: { increment: points }, ratingAfter: { increment: points } },
+    })
+    const member = await tx.ladderMember.update({
+      where: { id: row.member.id },
+      data: { rating: { increment: points } },
+      select: { rating: true },
+    })
+    await tx.ratingHistory.delete({ where: { id: row.id } })
+    return member
+  })
+
+  return {
+    userId: row.member.userId,
+    email: row.member.user.email ?? null,
+    name: fullName(row.member.user.firstName, row.member.user.lastName) || 'Jugador',
+    points,
+    newRating: updated.rating,
+  }
+}
+
 // ============================================================================
 // Tareas diarias — expiración de retos, vencimiento de partidos, aviso pre-cierre
 // ============================================================================

@@ -176,6 +176,87 @@ export async function getLastPeriodClose() {
   })
 }
 
+export interface PenaltyRow {
+  historyId: string
+  userId: string
+  name: string
+  playerSlug: string | null
+  /** Puntos descontados (positivo). */
+  points: number
+  /** Puntos que le quedaron justo después de la multa. */
+  ratingAfter: number
+  /** Puntos que tiene hoy (pudo haber jugado desde el cierre). */
+  currentRating: number
+}
+
+/**
+ * Multas aplicadas, agrupadas por el período que las generó (clave "YYYY-M"), para
+ * poder revertirlas desde el panel admin. `RatingHistory` no guarda a qué período
+ * pertenece la fila, solo `createdAt`: se la atribuye al último cierre cuyo `closedAt`
+ * es <= `createdAt`. Como el cierre crea el `LadderPeriodClose` y las filas `PENALTY`
+ * en la misma transacción, comparten timestamp exacto (CURRENT_TIMESTAMP se congela
+ * por transacción), así que la atribución es exacta.
+ *
+ * Están TODOS los períodos cerrados como clave (con lista vacía si no penalizó a nadie);
+ * un mes sin cierre no aparece. Así la UI distingue "cerrado sin penalizados" de "sin cerrar".
+ */
+export async function getPenaltiesByPeriod(): Promise<Record<string, PenaltyRow[]>> {
+  const ladder = await getLadder()
+  if (!ladder) return {}
+
+  const [closes, penalties] = await Promise.all([
+    prisma.ladderPeriodClose.findMany({
+      where: { ladderId: ladder.id },
+      orderBy: { closedAt: 'asc' },
+      select: { year: true, month: true, closedAt: true },
+    }),
+    prisma.ratingHistory.findMany({
+      where: { reason: 'PENALTY', member: { ladderId: ladder.id } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        createdAt: true,
+        delta: true,
+        ratingAfter: true,
+        member: {
+          select: {
+            rating: true,
+            userId: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    }),
+  ])
+  if (closes.length === 0) return {}
+
+  const slugMap = await getPlayerSlugsByUserIds(penalties.map((p) => p.member.userId))
+
+  // Todos los períodos cerrados arrancan presentes (lista vacía = cierre sin penalizados).
+  const byPeriod: Record<string, PenaltyRow[]> = {}
+  for (const c of closes) byPeriod[`${c.year}-${c.month}`] = []
+
+  const newestFirst = [...closes].reverse()
+  for (const p of penalties) {
+    // Último cierre que ya había ocurrido (o estaba ocurriendo) cuando se creó la fila.
+    const close = newestFirst.find((c) => c.closedAt <= p.createdAt)
+    if (!close) continue
+    const key = `${close.year}-${close.month}`
+    const list = byPeriod[key] ?? (byPeriod[key] = [])
+    list.push({
+      historyId: p.id,
+      userId: p.member.userId,
+      name: fullName(p.member.user.firstName, p.member.user.lastName) || 'Jugador',
+      playerSlug: slugMap.get(p.member.userId) ?? null,
+      points: Math.abs(p.delta),
+      ratingAfter: p.ratingAfter,
+      currentRating: p.member.rating,
+    })
+  }
+  for (const list of Object.values(byPeriod)) list.sort((a, b) => a.name.localeCompare(b.name))
+  return byPeriod
+}
+
 // ============================================================================
 // Siembra (seed) — placement desde el resultado del 1er torneo
 // ============================================================================
