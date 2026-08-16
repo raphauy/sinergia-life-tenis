@@ -12,6 +12,8 @@ import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { AddToCalendarLink } from '@/components/add-to-calendar-link'
 import { blobUrl } from '@/lib/blob-url'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { HeadToHeadLine } from '@/components/head-to-head-line'
+import type { HeadToHead } from '@/services/head-to-head-service'
 
 interface FixtureMatchCardProps {
   match: {
@@ -66,6 +68,11 @@ interface FixtureMatchCardProps {
   /** Puesto en La Escalera (#N) de cada jugador; se muestra junto al nombre si viene. */
   player1Rank?: number | null
   player2Rank?: number | null
+  /**
+   * Historial de escalera entre los dos jugadores (orientado a player1). Si viene, la
+   * card muestra la línea "N enfrentamientos · X-Y {líder}" que abre el detalle.
+   */
+  headToHead?: HeadToHead | null
   /**
    * Dueño del perfil en cuyo contexto se muestra la card: en partidos jugados
    * el badge "Jugado" pasa a "Ganado" (verde) / "Perdido" (rojo) según cómo le
@@ -128,7 +135,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank, perspectiveUserId }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank, perspectiveUserId, headToHead }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
@@ -231,12 +238,17 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
     </span>
   ) : null
 
+  // Los popups de la card (Dialog del historial, Tooltip) se renderizan en un portal,
+  // pero React propaga el evento por SU árbol: sin este filtro, un tap adentro del
+  // Dialog (o en el backdrop) dispararía la navegación de la card.
+  const fromCard = (e: React.SyntheticEvent) => e.currentTarget.contains(e.target as Node)
+
   return (
     <div
       role="link"
       tabIndex={0}
-      onClick={() => router.push(`/partido/${match.id}`)}
-      onKeyDown={(e) => { if (e.key === 'Enter') router.push(`/partido/${match.id}`) }}
+      onClick={(e) => { if (fromCard(e)) router.push(`/partido/${match.id}`) }}
+      onKeyDown={(e) => { if (e.key === 'Enter' && fromCard(e)) router.push(`/partido/${match.id}`) }}
       className="rounded-lg border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
     >
       {/* Row 1: Player1 vs Player2 + morning/afternoon icon */}
@@ -334,6 +346,15 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
           <span>
             Reservado {showDate ? friendlyDateTimeUY(reservation.scheduledAt) : `${formatTimeUY(reservation.scheduledAt)} hs`}          </span>
         </div>
+      )}
+
+      {/* Historial entre ambos (escalera): línea clickeable → Dialog con los cruces */}
+      {headToHead && p1Defined && p2Defined && (
+        <HeadToHeadLine
+          h2h={headToHead}
+          player1={{ name: p1Name, slug: player1Slug }}
+          player2={{ name: p2Name, slug: player2Slug }}
+        />
       )}
 
       {/* Action links: agendar (participante, confirmado) + cargar resultado / coordinar */}

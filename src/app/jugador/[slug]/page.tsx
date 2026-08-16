@@ -30,6 +30,7 @@ import {
   getMemberPositionHistory,
   getChallengeBalance,
 } from '@/services/ladder-player-stats-service'
+import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ProfileTabs } from '@/components/profile-tabs'
@@ -147,10 +148,14 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
   const reservations = await getReservationsByMatchIds(pendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
-  // Puntos en juego del retador para los próximos partidos de escalera (cards).
-  const ladderPreviews = await getLadderChallengerPreviews(upcoming)
-  // Deltas aplicados en los partidos de escalera ya jugados (historial).
-  const resultDeltas = await getLadderResultDeltas(recentPlayed)
+  const [ladderPreviews, resultDeltas, headToHead] = await Promise.all([
+    // Puntos en juego del retador para los próximos partidos de escalera (cards).
+    getLadderChallengerPreviews(upcoming),
+    // Deltas aplicados en los partidos de escalera ya jugados (historial).
+    getLadderResultDeltas(recentPlayed),
+    // Historial entre los dos jugadores de cada partido mostrado.
+    getHeadToHeadByMatch([...upcoming, ...recentPlayed]),
+  ])
 
   // La Escalera: estado del reto entre el viewer y este perfil (+ preview); bandeja del dueño.
   const viewerId = session?.user?.id ?? null
@@ -327,6 +332,7 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
                       currentPlayerSlug={canAct ? slug : undefined}
                       reservation={reservationMap.get(m.id)}
                       ladderPreview={ladderPreviews.get(m.id) ?? null}
+                      headToHead={headToHead.get(m.id) ?? null}
                     />
                   ))}
                 </div>
@@ -351,6 +357,7 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
                       player2Rank={rankFor(m, m.player2Id)}
                       ladderResultDeltas={resultDeltas.get(m.id) ?? null}
                       perspectiveUserId={userId}
+                      headToHead={headToHead.get(m.id) ?? null}
                     />
                   ))}
                 </div>

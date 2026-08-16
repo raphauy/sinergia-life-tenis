@@ -4,6 +4,7 @@ import { getMatchesByPlayer } from '@/services/match-service'
 import { getPlayerBySlug, getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { getLadderRanking } from '@/services/ladder-service'
+import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { fullName } from '@/lib/format-name'
 
@@ -50,15 +51,18 @@ export default async function JugadorPartidosPage({ params }: Props) {
     if (m.player1Id) allUserIds.add(m.player1Id)
     if (m.player2Id) allUserIds.add(m.player2Id)
   }
-  const playerMap = await getPlayerSlugsByUserIds([...allUserIds])
-
-  // Fetch reservations for pending matches
   const pendingMatchIds = upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
-  const reservations = await getReservationsByMatchIds(pendingMatchIds)
+  const [playerMap, reservations, ranking, headToHead] = await Promise.all([
+    getPlayerSlugsByUserIds([...allUserIds]),
+    // Reservations for pending matches
+    getReservationsByMatchIds(pendingMatchIds),
+    getLadderRanking(),
+    // Historial entre los dos jugadores de cada partido listado.
+    getHeadToHeadByMatch([...upcoming, ...played]),
+  ])
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
 
   // Puesto en La Escalera (#N) por usuario; solo se muestra en partidos de escalera.
-  const ranking = await getLadderRanking()
   const positionByUser = new Map(ranking.map((e) => [e.userId, e.position]))
   const rankFor = (m: { ladderId: string | null }, playerId: string | null) =>
     m.ladderId && playerId ? positionByUser.get(playerId) ?? null : null
@@ -85,6 +89,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 currentUserId={userId}
                 currentPlayerSlug={slug}
                 reservation={reservationMap.get(m.id)}
+                headToHead={headToHead.get(m.id) ?? null}
               />
             ))}
           </div>
@@ -107,6 +112,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
                 player1Rank={rankFor(m, m.player1Id)}
                 player2Rank={rankFor(m, m.player2Id)}
                 perspectiveUserId={userId}
+                headToHead={headToHead.get(m.id) ?? null}
               />
             ))}
           </div>

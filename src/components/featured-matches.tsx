@@ -1,12 +1,20 @@
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import type { FeaturedMatch } from '@/services/ladder-stats-service'
+import type { HeadToHead } from '@/services/head-to-head-service'
 
 /**
  * Partidos destacados (home): todo reto aceptado por venir (con o sin reserva) +
  * jugados recientes (visibles 2 días tras la fecha del partido), ordenados por
  * importancia (suma de ratings), top 7. Oculto si no hay ninguno.
  */
-export function FeaturedMatches({ matches }: { matches: FeaturedMatch[] }) {
+export function FeaturedMatches({
+  matches,
+  headToHead,
+}: {
+  matches: FeaturedMatch[]
+  /** Historial entre ambos jugadores por matchId (Map vacío = sin líneas de historial). */
+  headToHead?: Map<string, HeadToHead>
+}) {
   if (matches.length === 0) return null
   return (
     <section className="mb-6">
@@ -24,6 +32,7 @@ export function FeaturedMatches({ matches }: { matches: FeaturedMatch[] }) {
             reservation={fm.reservation}
             ladderPreview={fm.preview}
             ladderResultDeltas={fm.resultDeltas}
+            headToHead={headToHead?.get(fm.match.id) ?? null}
           />
         ))}
       </div>

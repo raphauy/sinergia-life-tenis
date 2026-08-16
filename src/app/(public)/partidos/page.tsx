@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getPendingChallenges } from '@/services/challenge-service'
 import { getLadderMatches } from '@/services/ladder-stats-service'
+import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
 import { LadderPendingChallenges } from '@/components/ladder-pending-challenges'
 
@@ -24,6 +25,9 @@ export default async function PartidosPage() {
     getPendingChallenges(),
     getLadderMatches(),
   ])
+
+  // Historial entre los dos jugadores de cada partido listado.
+  const h2h = await getHeadToHeadByMatch([...upcoming, ...played].map((item) => item.match))
 
   const empty = pending.length === 0 && upcoming.length === 0 && played.length === 0
 
@@ -68,6 +72,7 @@ export default async function PartidosPage() {
                     currentPlayerSlug={currentPlayerSlug}
                     reservation={item.reservation}
                     ladderPreview={item.preview}
+                    headToHead={h2h.get(item.match.id) ?? null}
                   />
                 ))}
               </div>
@@ -90,6 +95,7 @@ export default async function PartidosPage() {
                     currentUserId={currentUserId}
                     currentPlayerSlug={currentPlayerSlug}
                     ladderResultDeltas={item.resultDeltas}
+                    headToHead={h2h.get(item.match.id) ?? null}
                   />
                 ))}
               </div>

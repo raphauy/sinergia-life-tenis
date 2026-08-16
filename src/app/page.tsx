@@ -6,6 +6,7 @@ import { getActiveTournament } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
 import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas, getGallinas } from '@/services/ladder-stats-service'
+import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { GallinaCard } from '@/components/gallina-card'
@@ -34,6 +35,8 @@ export default async function HomePage() {
     getMonthlyRatingDeltas(),
   ])
   const { rows, canChallenge, challengeBlock } = view
+  // Historial entre los dos jugadores de cada partido destacado (depende de `featured`).
+  const featuredH2H = await getHeadToHeadByMatch(featured.map((f) => f.match))
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
   // Slug del viewer para los links de "Responder" / "A jugar" en la tabla.
   const currentPlayerSlug = canChallenge && session?.user?.id ? await getActivePlayerSlugByUserId(session.user.id) : null
@@ -79,7 +82,7 @@ export default async function HomePage() {
                 <GallinaCard gallinas={gallinas} />
               </div>
             )}
-            <FeaturedMatches matches={featured} />
+            <FeaturedMatches matches={featured} headToHead={featuredH2H} />
             <h2 className="mb-3 text-lg font-semibold">Ranking</h2>
             <LadderTable
               rows={rows}

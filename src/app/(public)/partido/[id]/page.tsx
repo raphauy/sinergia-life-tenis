@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
 import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/ladder-stats-service'
+import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
+import { HeadToHeadLine } from '@/components/head-to-head-line'
 import { getLadderRanking } from '@/services/ladder-service'
 import { prisma } from '@/lib/prisma'
 import { fullName } from '@/lib/format-name'
@@ -91,6 +93,8 @@ export default async function PartidoPublicPage({ params }: Props) {
       ? (await getLadderResultDeltas([match])).get(match.id) ?? null
       : null
   const disputedPoints = ladderResult ? Math.abs(ladderResult.player1 ?? ladderResult.player2 ?? 0) : null
+  // Historial de escalera entre ambos jugadores (null si nunca se enfrentaron antes).
+  const headToHead = (await getHeadToHeadByMatch([match])).get(match.id) ?? null
 
   return (
     <div className="max-w-xl mx-auto">
@@ -225,6 +229,16 @@ export default async function PartidoPublicPage({ params }: Props) {
             </div>
           )
         })()}
+
+        {/* Historial entre ambos (escalera) */}
+        {headToHead && (
+          <HeadToHeadLine
+            h2h={headToHead}
+            player1={{ name: p1Name, slug: p1Slug }}
+            player2={{ name: p2Name, slug: p2Slug }}
+            className="mt-3 border-border pt-3"
+          />
+        )}
 
         {/* Reservation info */}
         {reservation && (
