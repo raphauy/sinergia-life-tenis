@@ -12,7 +12,6 @@ import { PlayerDailySchedule } from './player-daily-schedule'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
-import { DayBadgeHint } from './court-availability-calendar'
 import type { CalendarMatch, CalendarReservation, FetchMonthMatches, FetchMonthReservations } from './court-availability-calendar'
 
 interface Props {
@@ -227,8 +226,6 @@ export function PlayerCalendar({
           }}
         />
       </div>
-
-      <DayBadgeHint />
 
       {maxReservationDate && (
         <p className="mt-1 text-center text-xs text-muted-foreground">
