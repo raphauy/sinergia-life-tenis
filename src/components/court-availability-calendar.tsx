@@ -46,6 +46,47 @@ export function slotContextLabel(item: { categoryName: string; groupNumber: numb
   return `Cat ${item.categoryName}${item.groupNumber != null ? ` | Grupo ${item.groupNumber}` : ''}`
 }
 
+/**
+ * Qué significan los globitos con número del calendario. Cuentan los partidos de
+ * TODA la jornada, así que no quieren decir lo mismo que el color de una hora
+ * (un día "rojo" puede tener casi todas las horas libres): por eso se aclara.
+ */
+export function DayBadgeHint() {
+  return (
+    <p className="mt-1 flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-xs text-muted-foreground">
+      {/* pt-0.5: Montserrat deja el dígito 1px alto dentro del círculo (el padding
+          corre el contenido centrado hacia abajo justo esa mitad). */}
+      <span className="inline-flex size-4 items-center justify-center rounded-full bg-amber-400 pt-0.5 text-[10px] font-bold leading-none text-amber-950">
+        1
+      </span>
+      <span className="inline-flex size-4 items-center justify-center rounded-full bg-red-500 pt-0.5 text-[10px] font-bold leading-none text-white">
+        2
+      </span>
+      <span>cuántos partidos y reservas hay ese día. Tocá un día para ver hora por hora.</span>
+    </p>
+  )
+}
+
+/** Referencia de los colores de cada hora en la grilla del día. */
+export function ScheduleLegend() {
+  const items = [
+    { label: 'Libre', dot: 'bg-muted-foreground/25' },
+    { label: 'Ocupado', dot: 'bg-amber-400' },
+    { label: 'Reservado', dot: 'bg-blue-400' },
+    { label: 'Clase grupal', dot: 'bg-violet-400' },
+  ]
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+      {items.map((i) => (
+        <span key={i.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', i.dot)} />
+          {i.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 interface Props {
   initialMatches: CalendarMatch[]
   initialReservations?: CalendarReservation[]
@@ -199,6 +240,8 @@ export function CourtAvailabilityCalendar({
           }}
         />
       </div>
+
+      <DayBadgeHint />
 
       {selectedDay && (
         <DailyScheduleView matches={dayMatches} reservations={dayReservations} day={selectedDay} />

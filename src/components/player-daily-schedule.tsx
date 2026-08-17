@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { CalendarCheck, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
-import { slotContextLabel } from './court-availability-calendar'
+import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -152,8 +152,9 @@ export function PlayerDailySchedule({
                   isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
                   !isClass && total === 0 && 'py-1.5 border-l-muted-foreground/20',
                   !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
-                  !isClass && occupied > 0 && total < 2 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
-                  !isClass && total >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                  // Ocupado es ocupado: con un partido ya no se puede reservar, así que
+                  // no se distingue 1 de 2 (el rojo del calendario cuenta otra cosa).
+                  !isClass && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
                   canReserve && !isOpen && 'cursor-pointer hover:bg-muted/50 active:bg-muted select-none',
                   isOpen && 'bg-primary/5 border-l-primary',
                 )}
@@ -268,6 +269,8 @@ export function PlayerDailySchedule({
         })}
       </div>
       )}
+
+      {slots.length > 0 && <ScheduleLegend />}
     </div>
   )
 }

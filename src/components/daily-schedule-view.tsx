@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { CLASS_SCHEDULE, getSlotsForDay, getMinReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
-import { slotContextLabel } from './court-availability-calendar'
+import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -67,8 +67,9 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
                 isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
                 !isClass && total === 0 && 'py-1.5 border-l-muted-foreground/20',
                 !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
-                !isClass && occupied > 0 && reserved === 0 && occupied < 2 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
-                !isClass && total >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                // Ocupado es ocupado: no se distingue 1 de 2 (el rojo del calendario
+                // cuenta los partidos de todo el día, que es otra cosa).
+                !isClass && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
               )}
             >
               <span className={cn(
@@ -111,8 +112,8 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
                     </div>
                   ))}
                   {total >= 2 && (
-                    <p className="text-xs font-medium text-red-600 dark:text-red-400">
-                      Sin canchas disponibles
+                    <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                      Las dos canchas ocupadas
                     </p>
                   )}
                 </div>
@@ -122,6 +123,8 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
         })}
       </div>
       )}
+
+      {slots.length > 0 && <ScheduleLegend />}
     </div>
   )
 }
