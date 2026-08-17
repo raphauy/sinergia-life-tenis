@@ -42,7 +42,13 @@ export function ActivityLine({ a, viewerUserId, ownerName, isSelf, rowOwnerName 
     ? `Tenis vs ${a.rivalName}`
     : `${rowOwnerName ?? ''} vs ${a.rivalName}`
   const calendarGuests = isSelf && a.rivalEmail ? [a.rivalEmail] : undefined
-  const courtName = COURTS.find((c) => c.number === a.courtNumber)?.name
+  // Cancha ajena al club: no sabemos dónde juegan, así que el evento va sin ubicación.
+  const courtName = a.externalCourt ? null : COURTS.find((c) => c.number === a.courtNumber)?.name
+  const calendarLocation = a.externalCourt
+    ? undefined
+    : courtName
+      ? `Life Montevideo · ${courtName}`
+      : 'Life Montevideo'
 
   // Condición del encuentro (solo partidos a jugar): fecha/hora si está confirmado,
   // "reservado" si hay reserva pedida, "a coordinar" si falta agendar. Los retos no llevan.
@@ -90,7 +96,7 @@ export function ActivityLine({ a, viewerUserId, ownerName, isSelf, rowOwnerName 
             <AddToCalendarLink
               start={a.scheduledAt!}
               title={calendarTitle}
-              location={courtName ? `Life Montevideo · ${courtName}` : 'Life Montevideo'}
+              location={calendarLocation}
               guestEmails={calendarGuests}
             />
           )}

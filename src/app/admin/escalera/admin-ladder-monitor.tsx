@@ -33,6 +33,14 @@ function PlayerLink({ name, slug, className }: { name: string; slug: string | nu
 
 function matchStatusBadge(m: AdminLadderMatchRow) {
   if (m.status === 'CONFIRMED') {
+    // El jugador dice haber sacado la cancha por la app del club: nadie la reservó
+    // desde acá, así que se marca para poder verificarla.
+    if (m.selfScheduled && !m.externalCourt) {
+      return <Badge className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Cancha del jugador · verificar</Badge>
+    }
+    if (m.selfScheduled) {
+      return <Badge className="border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">Fuera del club</Badge>
+    }
     return <Badge className="border-green-300 bg-green-100 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">Confirmado</Badge>
   }
   if (m.scheduledAt) {
@@ -131,7 +139,7 @@ export function AdminLadderMonitor({ challenges, active, played }: Props) {
                     {m.scheduledAt && (
                       <span>
                         {formatDateUY(m.scheduledAt)} · {formatTimeUY(m.scheduledAt)}
-                        {m.courtNumber ? ` · Cancha ${m.courtNumber}` : ''}
+                        {m.externalCourt ? ' · Fuera del club' : m.courtNumber ? ` · Cancha ${m.courtNumber}` : ''}
                       </span>
                     )}
                   </div>

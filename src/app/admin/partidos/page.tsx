@@ -83,7 +83,9 @@ export default async function PartidosPage({ searchParams }: Props) {
                   {m.scheduledAt && (
                     <p className="text-xs text-muted-foreground mt-1">
                       {formatDateTimeUY(m.scheduledAt)}
-                      {m.courtNumber && ` — ${COURTS.find((c) => c.number === m.courtNumber)?.name}`}
+                      {m.externalCourt
+                        ? ' — Fuera del club'
+                        : m.courtNumber && ` — ${COURTS.find((c) => c.number === m.courtNumber)?.name}`}
                     </p>
                   )}
                   {m.result && (

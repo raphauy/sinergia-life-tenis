@@ -21,6 +21,10 @@ interface DatePickerProps {
   className?: string
   fromYear?: number
   toYear?: number
+  /** Primera fecha elegible (inclusive). */
+  minDate?: Date
+  /** Última fecha elegible (inclusive). */
+  maxDate?: Date
 }
 
 export function DatePicker({
@@ -31,8 +35,17 @@ export function DatePicker({
   className,
   fromYear = 2024,
   toYear = new Date().getFullYear() + 2,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false)
+
+  const disabledDays = React.useMemo(() => {
+    const matchers = []
+    if (minDate) matchers.push({ before: minDate })
+    if (maxDate) matchers.push({ after: maxDate })
+    return matchers.length > 0 ? matchers : undefined
+  }, [minDate, maxDate])
 
   const handleSelect = (date: Date | undefined) => {
     onChange(date)
@@ -64,7 +77,8 @@ export function DatePicker({
           mode="single"
           selected={value ?? undefined}
           onSelect={handleSelect}
-          defaultMonth={value ?? undefined}
+          defaultMonth={value ?? minDate ?? undefined}
+          disabled={disabledDays}
           locale={es}
           autoFocus
           captionLayout="label"

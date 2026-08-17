@@ -207,7 +207,7 @@ export async function cleanupMemberLiveItems(userId: string, ladderId: string): 
       await tx.slotReservation.deleteMany({ where: { matchId: { in: matchIds } } })
       await tx.match.updateMany({
         where: { id: { in: matchIds } },
-        data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
+        data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null },
       })
     }
   })

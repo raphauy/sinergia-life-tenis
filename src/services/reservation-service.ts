@@ -27,25 +27,49 @@ export async function createReservation(data: {
     throw new Error('El partido aún no tiene ambos jugadores definidos')
   }
 
-  // Tope de anticipación (escalera): no se puede reservar más allá de hoy + leadDays.
-  // Defensa server-side del límite que el calendario ya aplica en el cliente.
+  // Defensa server-side de los límites que el calendario ya aplica en el cliente.
+  // Solo escalera: el flujo de torneo mantiene su validación de UI únicamente.
   if (match.ladder) {
     const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
-    const { endOfDay, addDays } = await import('date-fns')
-    const { TIMEZONE } = await import('@/lib/constants')
+    const { endOfDay, addDays, format } = await import('date-fns')
+    const {
+      TIMEZONE,
+      CLASS_SCHEDULE,
+      getSlotsForDay,
+      isLadderReservableDay,
+      getLadderDaysForWeek,
+      formatLadderDays,
+    } = await import('@/lib/constants')
     const nowUY = toZonedTime(new Date(), TIMEZONE)
     const maxUTC = fromZonedTime(endOfDay(addDays(nowUY, match.ladder.reservationLeadDays)), TIMEZONE)
     if (data.scheduledAt > maxUTC) {
       throw new Error('Ese horario está fuera del plazo de anticipación permitido.')
     }
+
+    const scheduledUY = toZonedTime(data.scheduledAt, TIMEZONE)
+    const dayOfWeek = scheduledUY.getDay()
+    const slot = format(scheduledUY, 'HH:mm')
+
+    if (!isLadderReservableDay(scheduledUY)) {
+      const days = formatLadderDays(getLadderDaysForWeek(scheduledUY))
+      throw new Error(`Ese día La Escalera no puede reservar con anticipación. Esa semana se puede: ${days}.`)
+    }
+    if (!getSlotsForDay(dayOfWeek).includes(slot)) {
+      throw new Error('Ese horario no es un turno válido del club.')
+    }
+    if (CLASS_SCHEDULE[dayOfWeek]?.includes(slot)) {
+      throw new Error('Ese horario está reservado para clase grupal.')
+    }
   }
 
-  // Check slot availability: no confirmed matches + no other reservations at same time
+  // Check slot availability: no confirmed matches + no other reservations at same time.
+  // Los partidos fuera del club no ocupan cancha.
   const [matchCount, reservationCount] = await Promise.all([
     prisma.match.count({
       where: {
         scheduledAt: data.scheduledAt,
         status: { in: ['CONFIRMED', 'PLAYED'] },
+        externalCourt: false,
       },
     }),
     prisma.slotReservation.count({

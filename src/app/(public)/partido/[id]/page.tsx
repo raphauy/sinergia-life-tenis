@@ -191,7 +191,7 @@ export default async function PartidoPublicPage({ params }: Props) {
         )}
 
         {/* Date & court */}
-        {(match.scheduledAt || court) && (() => {
+        {(match.scheduledAt || court || match.externalCourt) && (() => {
           let dateLabel = ''
           let isMorning = false
           if (match.scheduledAt) {
@@ -225,7 +225,7 @@ export default async function PartidoPublicPage({ params }: Props) {
                     : <Sunset className="h-4 w-4 text-indigo-400" />
                 )}
               </span>
-              {court && <span>{court.name}</span>}
+              {match.externalCourt ? <span>Fuera del club</span> : court && <span>{court.name}</span>}
             </div>
           )
         })()}

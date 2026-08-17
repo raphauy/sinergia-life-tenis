@@ -18,6 +18,8 @@ interface MatchConfirmationEmailProps {
   time: string
   courtName: string
   stageLabel?: string
+  /** El partido se agendó con fecha pasada (ya se jugó): cambia el texto. */
+  alreadyPlayed?: boolean
 }
 
 export default function MatchConfirmationEmail({
@@ -28,6 +30,7 @@ export default function MatchConfirmationEmail({
   time,
   courtName,
   stageLabel,
+  alreadyPlayed,
 }: MatchConfirmationEmailProps) {
   return (
     <Html>
@@ -42,7 +45,11 @@ export default function MatchConfirmationEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            {stageLabel ? (
+            {alreadyPlayed ? (
+              <>
+                Se registró tu partido contra <strong>{rivalName}</strong> en <strong>{tournamentName}</strong>, que ya jugaron:
+              </>
+            ) : stageLabel ? (
               <>
                 Tu partido de <strong>{stageLabel}</strong> contra <strong>{rivalName}</strong> en <strong>{tournamentName}</strong> ha sido confirmado:
               </>

@@ -12,13 +12,21 @@ import {
   Mail,
   ChevronRight,
 } from 'lucide-react'
+import { toZonedTime } from 'date-fns-tz'
+import { addDays } from 'date-fns'
 import { getLadder } from '@/services/ladder-service'
 import { DocSection } from '@/components/escalera-doc'
+import {
+  SELF_SCHEDULE_PAST_DAYS,
+  TIMEZONE,
+  getLadderDaysForWeek,
+  formatLadderDays,
+} from '@/lib/constants'
 
 export const metadata: Metadata = {
   title: 'Cómo funciona La Escalera - Life Tenis',
   description:
-    'Guía de jugador de La Escalera: cómo se calculan los puntos, los retos y sus plazos, el compromiso mensual, el ranking protegido por lesión o viaje, el jugador de la semana y las notificaciones que recibís.',
+    'Guía de jugador de La Escalera: cómo se calculan los puntos, los retos y sus plazos, cómo conseguir cancha y agendar el partido, el compromiso mensual, el ranking protegido por lesión o viaje, el jugador de la semana y las notificaciones que recibís.',
 }
 
 /** Resalta un valor de config dentro del texto. */
@@ -54,6 +62,12 @@ export default async function EscaleraDocPage() {
     matchScheduleDeadlineDays: ladder?.matchScheduleDeadlineDays ?? 3,
     matchFormat: ladder?.matchFormat ?? 'SINGLE_SET',
   }
+
+  // Días de reserva de esta semana y la próxima (el servidor corre en UTC, así que
+  // la fecha se pasa a hora uruguaya antes de calcular la semana).
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const daysThisWeek = formatLadderDays(getLadderDaysForWeek(nowUY))
+  const daysNextWeek = formatLadderDays(getLadderDaysForWeek(addDays(nowUY, 7)))
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -151,14 +165,47 @@ export default async function EscaleraDocPage() {
           </ul>
           <p>
             <span className="font-medium text-foreground">Cuando aceptan, se crea el partido.</span>{' '}
-            Coordinan día y hora y reservan una cancha. La reserva se puede pedir con hasta{' '}
-            <Hl>{days(cfg.reservationLeadDays)}</Hl> de anticipación: cualquiera de los dos la pide y
-            Mati la confirma en la app del club.
+            Coordinan día y hora, y consiguen cancha. Hay <Hl>dos caminos</Hl>, y sirve cualquiera de
+            los dos:
+          </p>
+          <ul className="list-disc space-y-1.5 pl-5">
+            <li>
+              <span className="font-medium text-foreground">Pedir la reserva desde acá.</span>{' '}
+              Cualquiera de los dos la pide desde el calendario del partido, con hasta{' '}
+              <Hl>{days(cfg.reservationLeadDays)}</Hl> de anticipación, y Mati la confirma en la app
+              del club. Es el beneficio de estar en La Escalera: el socio común solo reserva el día
+              anterior.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Cargar una cancha que ya conseguiste.</span>{' '}
+              Si la sacaste por la app del club, o van a jugar en otra cancha, usá{' '}
+              <Hl>¿Ya tenés cancha?</Hl> en la página del partido: queda confirmado al toque, sin
+              esperar a Mati y sin importar qué día de la semana sea.
+            </li>
+          </ul>
+          <p>
+            <span className="font-medium text-foreground">Ojo con los días de reserva.</span> El club
+            nos habilita días alternados, así que la <Hl>reserva anticipada</Hl> (el primer camino)
+            solo se puede pedir para esos días: una semana <Hl>lunes, miércoles y viernes</Hl>; la
+            siguiente, <Hl>martes y jueves</Hl>. El <Hl>sábado</Hl> está habilitado todas las semanas
+            y el domingo el club está cerrado. Los días habilitados de esta semana son{' '}
+            <Hl>{daysThisWeek}</Hl>; los de la que viene, <Hl>{daysNextWeek}</Hl>. En el calendario
+            los días que no van te aparecen deshabilitados.
+          </p>
+          <p>
+            Esto <span className="font-medium text-foreground">no limita cuándo podés jugar</span>: si
+            conseguís cancha por tu cuenta, jugás el día que quieras y lo cargás igual.
+          </p>
+          <p>
+            <span className="font-medium text-foreground">¿Ya lo jugaron?</span> Si el partido fue en
+            estos últimos <Hl>{days(SELF_SCHEDULE_PAST_DAYS)}</Hl> y nunca lo agendaron acá, cargalo
+            igual con la fecha en que jugaron y subí el resultado ahí mismo. Los partidos jugados{' '}
+            <Hl>fuera del club</Hl> valen exactamente igual: mismos puntos y mismo ranking.
           </p>
           <p>
             Tenés <Hl>{days(cfg.matchScheduleDeadlineDays)}</Hl> para concretar el partido desde que
-            se aceptó el reto. Si no lo agendan a tiempo, se cancela solo (no afecta los puntos) y les
-            llega un aviso el día antes.
+            se aceptó el reto, por cualquiera de los dos caminos. Si no lo agendan a tiempo, se
+            cancela solo (no afecta los puntos) y les llega un aviso el día antes.
           </p>
           <p className="text-xs">
             Formato de los partidos: <Hl>{matchFormatLabel(cfg.matchFormat)}</Hl>.
@@ -258,11 +305,17 @@ export default async function EscaleraDocPage() {
             </li>
             <li>
               <span className="font-medium text-foreground">Aceptaron tu reto</span> — a coordinar el
-              día y reservar la cancha.
+              día y conseguir la cancha.
             </li>
             <li>
               <span className="font-medium text-foreground">Rechazaron tu reto</span> — podés retar a
               otra persona cuando quieras.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Partido confirmado</span> — con la fecha,
+              la hora y la cancha. Te llega tanto si lo confirmó Mati como si lo cargó tu rival
+              porque ya tenían cancha (si el partido ya se jugó, el aviso dice que quedó
+              registrado).
             </li>
             <li>
               <span className="font-medium text-foreground">Partido cancelado</span> — si vos o tu

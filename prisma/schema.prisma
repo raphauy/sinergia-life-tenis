@@ -275,6 +275,14 @@ model Match {
   player2SourceGroupId  String?
   player2SourcePosition Int?
   courtNumber  Int?
+  // Partido de escalera autoagendado en una cancha ajena al club: no ocupa las
+  // canchas del club, así que queda fuera del cálculo de disponibilidad.
+  // Invariante: externalCourt = true ⇒ courtNumber = null.
+  externalCourt Boolean    @default(false)
+  // Lo confirmó un jugador diciendo que ya tenía cancha, no el admin. Con
+  // externalCourt = false significa que dice haberla sacado por la app del club:
+  // el admin no la reservó, así que en el panel se marca para poder verificarla.
+  selfScheduled Boolean    @default(false)
   scheduledAt  DateTime?
   status       MatchStatus @default(PENDING)
   confirmedAt  DateTime?

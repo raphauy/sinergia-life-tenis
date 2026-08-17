@@ -95,14 +95,22 @@ export async function sendMatchConfirmationEmail(input: {
   time: string
   courtName: string
   stageLabel?: string
+  /** Se agendó con fecha pasada (ya se jugó): no corresponde decir "confirmado". */
+  alreadyPlayed?: boolean
 }) {
   console.log(`[EMAIL] Match confirmation to ${input.to} - ${input.playerName} vs ${input.rivalName} - ${input.date} ${input.time}${input.stageLabel ? ` (${input.stageLabel})` : ''}`)
   if (isDev) return
 
+  const subjectLabel = input.alreadyPlayed
+    ? 'Partido registrado'
+    : input.stageLabel
+      ? `${input.stageLabel} confirmada`
+      : 'Partido confirmado'
+
   await resend.emails.send({
     from: fromEmail,
     to: input.to,
-    subject: `${input.stageLabel ? `${input.stageLabel} confirmada` : 'Partido confirmado'} - ${input.tournamentName} - Life Tenis`,
+    subject: `${subjectLabel} - ${input.tournamentName} - Life Tenis`,
     react: MatchConfirmationEmail({
       playerName: input.playerName,
       rivalName: input.rivalName,
@@ -111,6 +119,7 @@ export async function sendMatchConfirmationEmail(input: {
       time: input.time,
       courtName: input.courtName,
       stageLabel: input.stageLabel,
+      alreadyPlayed: input.alreadyPlayed,
     }),
   })
 }

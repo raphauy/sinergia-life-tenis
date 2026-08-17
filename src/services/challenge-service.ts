@@ -316,8 +316,8 @@ export async function cancelLadderMatch(matchId: string, actorId: string, isAdmi
     await tx.match.update({
       where: { id: matchId },
       data: reopen
-        ? { status: 'PENDING', scheduledAt: null, courtNumber: null, confirmedAt: null, createdAt: new Date() }
-        : { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
+        ? { status: 'PENDING', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null, createdAt: new Date() }
+        : { status: 'CANCELLED', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null },
     })
   })
 
@@ -503,6 +503,7 @@ export interface LadderActivity {
   ifLose: number
   scheduledAt: Date | null // solo 'playing'; null hasta que Mati confirma
   courtNumber: number | null
+  externalCourt: boolean // jugado en cancha ajena al club (autoagendado)
   reserved: boolean // 'playing' aún PENDING pero ya con reserva pedida (sin confirmar)
   matchId: string | null
 }
@@ -576,7 +577,7 @@ export async function getLadderView(
       challengerId: true,
       challengedId: true,
       status: true,
-      match: { select: { id: true, scheduledAt: true, courtNumber: true } },
+      match: { select: { id: true, scheduledAt: true, courtNumber: true, externalCourt: true } },
     },
   })
 
@@ -597,7 +598,7 @@ export async function getLadderView(
     ownerId: string,
     rivalId: string,
     kind: LadderActivity['kind'],
-    match: { id: string; scheduledAt: Date | null; courtNumber: number | null } | null,
+    match: { id: string; scheduledAt: Date | null; courtNumber: number | null; externalCourt: boolean } | null,
     reserved = false
   ) => {
     const owner = entryByUser.get(ownerId)
@@ -616,6 +617,7 @@ export async function getLadderView(
       ifLose,
       scheduledAt: match?.scheduledAt ?? null,
       courtNumber: match?.courtNumber ?? null,
+      externalCourt: match?.externalCourt ?? false,
       reserved,
       matchId: match?.id ?? null,
     })

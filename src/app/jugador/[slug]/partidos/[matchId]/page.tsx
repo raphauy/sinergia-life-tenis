@@ -17,6 +17,7 @@ import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
 import { PlayerLoadResult } from './player-load-result'
+import { SelfScheduleCard } from './self-schedule-card'
 import { MatchPhoto } from './match-photo'
 import { blobUrl } from '@/lib/blob-url'
 import { PlayerCalendar } from '@/components/player-calendar'
@@ -152,6 +153,24 @@ export default async function MatchDetailPage({ params }: Props) {
     }
   }
 
+  // Canchas ya tomadas este mes ("yyyy-MM-dd HH:mm" → nº de cancha), para no ofrecer
+  // esos turnos en el autoagendado. Va por cancha, igual que la validación del server:
+  // que una esté ocupada no impide cargar la otra. La reserva propia no cuenta —
+  // pueden haber conseguido justo el slot que habían pedido. courtNumber null (raro)
+  // bloquea ambas, por las dudas.
+  const occupiedSlots: Record<string, number[]> = {}
+  if (calendarData) {
+    const taken = [
+      ...calendarData.matches,
+      ...calendarData.reservations.filter((r) => r.matchId !== matchId),
+    ]
+    for (const t of taken) {
+      const key = `${t.dateUY} ${t.timeUY}`
+      const courts = t.courtNumber != null ? [t.courtNumber] : COURTS.map((c) => c.number)
+      occupiedSlots[key] = [...(occupiedSlots[key] ?? []), ...courts]
+    }
+  }
+
   return (
     <div className="max-w-xl">
       <Button variant="ghost" size="sm" className="mb-4 -ml-2" render={<Link href={`/jugador/${slug}/partidos`} />}>
@@ -189,7 +208,7 @@ export default async function MatchDetailPage({ params }: Props) {
         {match.scheduledAt && (
           <p className="text-sm text-muted-foreground mt-1">
             {formatDateTimeUY(match.scheduledAt)}
-            {court && ` — ${court.name}`}
+            {match.externalCourt ? ' — Fuera del club' : court && ` — ${court.name}`}
           </p>
         )}
       </div>
@@ -262,6 +281,7 @@ export default async function MatchDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground mb-2">
             Coordiná con <span className="font-medium text-foreground">{rival.firstName || rivalName}</span> la fecha y hora en que puedan jugar.
             Más abajo podés ver los horarios disponibles y reservar directamente el que les quede bien.
+            {isLadder && ' Y si ya conseguiste cancha por tu cuenta, podés confirmar el partido sin esperar a nadie.'}
           </p>
           <p className="text-xs text-muted-foreground mb-3">
             Cualquier duda o cambio, escribile a Mati.
@@ -308,11 +328,19 @@ export default async function MatchDetailPage({ params }: Props) {
             matchId={matchId}
             currentReservation={calendarData.currentReservation}
             reservationLeadDays={isLadder ? match.ladder?.reservationLeadDays ?? null : null}
+            isLadder={isLadder}
             fetchAction={fetchMonthMatchesAction}
             fetchReservationsAction={fetchMonthReservationsAction}
             createReservationAction={createReservationAction}
             cancelReservationAction={cancelReservationAction}
           />
+          {isLadder && (
+            <SelfScheduleCard
+              matchId={matchId}
+              reservationLeadDays={match.ladder?.reservationLeadDays ?? 7}
+              occupiedSlots={occupiedSlots}
+            />
+          )}
         </div>
       )}
 

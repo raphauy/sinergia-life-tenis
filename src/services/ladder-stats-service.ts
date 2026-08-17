@@ -345,6 +345,7 @@ const featuredSelect = {
   ladderId: true,
   scheduledAt: true,
   courtNumber: true,
+  externalCourt: true,
   player1Id: true,
   player2Id: true,
   player1: { select: { firstName: true, lastName: true, email: true } },

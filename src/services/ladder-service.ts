@@ -574,6 +574,8 @@ export interface AdminLadderMatchRow {
   player2Slug: string | null
   scheduledAt: Date | null
   courtNumber: number | null
+  externalCourt: boolean
+  selfScheduled: boolean
   walkover: boolean
   winnerName: string | null
   winnerDelta: number | null // +X del ganador (0 si walkover)
@@ -623,6 +625,8 @@ export async function getLadderMatchesForAdmin(
       player2Slug: m.player2Id ? slugMap.get(m.player2Id) ?? null : null,
       scheduledAt: m.scheduledAt ?? m.reservation?.scheduledAt ?? null,
       courtNumber: m.courtNumber ?? m.reservation?.courtNumber ?? null,
+      externalCourt: m.externalCourt,
+      selfScheduled: m.selfScheduled,
       walkover: m.result?.walkover ?? false,
       winnerName,
       winnerDelta,

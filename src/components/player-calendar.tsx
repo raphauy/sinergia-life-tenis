@@ -5,13 +5,14 @@ import { CalendarCheck, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { friendlyDateTimeUY } from '@/lib/date-utils'
-import { getMaxReservationDate } from '@/lib/constants'
+import { getMaxReservationDate, getMinReservationDate, getLadderDaysForWeek, getLadderWeekParity, formatLadderDays, isLadderReservableDay } from '@/lib/constants'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { PlayerDailySchedule } from './player-daily-schedule'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
+import { DayBadgeHint } from './court-availability-calendar'
 import type { CalendarMatch, CalendarReservation, FetchMonthMatches, FetchMonthReservations } from './court-availability-calendar'
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   matchId: string
   currentReservation: CalendarReservation | null
   reservationLeadDays?: number | null
+  isLadder?: boolean // aplica la regla de días alternantes de La Escalera
   fetchAction: FetchMonthMatches
   fetchReservationsAction: FetchMonthReservations
   createReservationAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
@@ -38,6 +40,7 @@ export function PlayerCalendar({
   matchId,
   currentReservation: initialCurrentReservation,
   reservationLeadDays,
+  isLadder = false,
   fetchAction,
   fetchReservationsAction,
   createReservationAction,
@@ -70,6 +73,30 @@ export function PlayerCalendar({
     () => (reservationLeadDays != null ? getMaxReservationDate(new Date(), reservationLeadDays) : null),
     [reservationLeadDays]
   )
+
+  // Días alternantes (escalera): las dos semanas que el jugador todavía alcanza a
+  // reservar. Se cuentan desde la primera fecha reservable, no desde hoy: un sábado,
+  // "esta semana" ya serían días pasados (la anticipación mínima salta al martes).
+  const ladderWeeks = useMemo(() => {
+    if (!isLadder) return null
+    const first = getMinReservationDate(new Date())
+    const next = new Date(first)
+    next.setDate(next.getDate() + 7)
+    // first cae como mucho 4 días adelante, así que o es de esta semana o de la próxima.
+    const startsThisWeek = getLadderWeekParity(first) === getLadderWeekParity(new Date())
+    return {
+      firstLabel: startsThisWeek ? 'Esta semana' : 'La semana que viene',
+      first: formatLadderDays(getLadderDaysForWeek(first)),
+      next: formatLadderDays(getLadderDaysForWeek(next)),
+    }
+  }, [isLadder])
+
+  const disabledDays = useMemo(() => {
+    const matchers = []
+    if (maxReservationDate) matchers.push({ after: maxReservationDate })
+    if (isLadder) matchers.push((d: Date) => !isLadderReservableDay(d))
+    return matchers.length > 0 ? matchers : undefined
+  }, [maxReservationDate, isLadder])
 
   const matchCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -190,7 +217,7 @@ export function PlayerCalendar({
           month={currentMonth}
           onMonthChange={handleMonthChange}
           onDayClick={handleDayClick}
-          disabled={maxReservationDate ? { after: maxReservationDate } : undefined}
+          disabled={disabledDays}
           className="w-full !px-0 !py-1 [&_table]:w-full [&_.rdp-weekdays]:grid [&_.rdp-weekdays]:grid-cols-7 [&_.rdp-week]:grid [&_.rdp-week]:grid-cols-7 [&_.rdp-weekday]:text-center [&_.rdp-day]:text-center"
           classNames={{
             root: 'w-full',
@@ -203,6 +230,8 @@ export function PlayerCalendar({
         />
       </div>
 
+      <DayBadgeHint />
+
       {maxReservationDate && (
         <p className="mt-1 text-center text-xs text-muted-foreground">
           Reservas habilitadas hasta el{' '}
@@ -210,6 +239,18 @@ export function PlayerCalendar({
             {maxReservationDate.toLocaleDateString('es-UY', { day: 'numeric', month: 'long' })}
           </span>
         </p>
+      )}
+
+      {ladderWeeks && (
+        <div className="mt-1 space-y-0.5 text-center text-xs text-muted-foreground">
+          <p className="text-balance">
+            {ladderWeeks.firstLabel} La Escalera reserva:{' '}
+            <span className="font-medium text-foreground">{ladderWeeks.first}</span>.
+          </p>
+          <p className="text-balance">
+            La siguiente: <span className="font-medium text-foreground">{ladderWeeks.next}</span>.
+          </p>
+        </div>
       )}
 
       {/* Reservation banner — always visible */}

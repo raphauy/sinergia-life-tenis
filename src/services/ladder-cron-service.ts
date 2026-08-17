@@ -359,7 +359,7 @@ async function processStalePendingMatches(
         await tx.slotReservation.deleteMany({ where: { matchId: m.id } })
         await tx.match.update({
           where: { id: m.id },
-          data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
+          data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null },
         })
       })
       cancelled++

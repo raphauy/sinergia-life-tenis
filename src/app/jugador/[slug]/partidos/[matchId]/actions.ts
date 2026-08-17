@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { getMatchById } from '@/services/match-service'
+import { getMatchById, selfScheduleLadderMatch } from '@/services/match-service'
 import { createMatchResult, updateMatchResultPhoto } from '@/services/match-result-service'
 import { uploadImage, deleteImage } from '@/services/upload-service'
 import { notifyMatchResult } from '@/services/match-result-notification'
@@ -15,8 +15,11 @@ import type { CalendarMatch, CalendarReservation } from '@/components/court-avai
 import { createReservation, getReservationsByMonth, getReservationByMatch, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
 import { getUserById, updateUser } from '@/services/user-service'
 import { parseFromUY } from '@/lib/date-utils'
-import { getMinReservationDate, TIMEZONE } from '@/lib/constants'
+import { COURTS, getMinReservationDate, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
+import { selfScheduleMatchSchema } from '@/lib/validations/match'
+import { sendMatchConfirmationEmail } from '@/services/email-service'
+import { stageLabel } from '@/lib/match-status'
 
 export async function playerLoadResultAction(
   matchId: string,
@@ -172,6 +175,87 @@ export async function createReservationAction(
     return { success: true }
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error al reservar'
+    return { success: false, error: msg }
+  }
+}
+
+/**
+ * El jugador ya consiguió cancha por su cuenta (app del club o fuera del club) y
+ * confirma el partido de escalera sin esperar al admin. No pide cédula: nadie tiene
+ * que reservar nada en la app del club.
+ */
+export async function selfScheduleMatchAction(
+  matchId: string,
+  data: Record<string, unknown>
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return { success: false, error: 'No autenticado' }
+
+    const validated = selfScheduleMatchSchema.safeParse(data)
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message || 'Datos inválidos' }
+    }
+    const { date, time, location, courtNumber } = validated.data
+
+    const match = await getMatchById(matchId)
+    if (!match) return { success: false, error: 'Partido no encontrado' }
+
+    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
+
+    const external = location === 'EXTERNAL'
+    const updated = await selfScheduleLadderMatch(matchId, session.user.id, {
+      scheduledAt: parseFromUY(date, time),
+      courtNumber: external ? null : courtNumber!,
+      external,
+    })
+
+    // Aviso a ambos jugadores, igual que cuando confirma el admin.
+    const court = COURTS.find((c) => c.number === updated.courtNumber)
+    const courtName = updated.externalCourt ? 'Fuera del club' : court?.name || `Cancha ${updated.courtNumber}`
+    const dateStr = formatDateUY(updated.scheduledAt!)
+    const timeStr = formatTimeUY(updated.scheduledAt!)
+    const label = stageLabel(updated.stage)
+    const alreadyPlayed = updated.scheduledAt!.getTime() <= Date.now()
+
+    const emails = []
+    if (updated.player1?.email) {
+      emails.push(sendMatchConfirmationEmail({
+        to: updated.player1.email,
+        playerName: fullName(updated.player1.firstName, updated.player1.lastName) || 'Jugador',
+        rivalName: fullName(updated.player2?.firstName, updated.player2?.lastName) || 'Rival',
+        tournamentName: 'La Escalera',
+        date: dateStr,
+        time: timeStr,
+        courtName,
+        stageLabel: label,
+        alreadyPlayed,
+      }))
+    }
+    if (updated.player2?.email) {
+      emails.push(sendMatchConfirmationEmail({
+        to: updated.player2.email,
+        playerName: fullName(updated.player2.firstName, updated.player2.lastName) || 'Jugador',
+        rivalName: fullName(updated.player1?.firstName, updated.player1?.lastName) || 'Rival',
+        tournamentName: 'La Escalera',
+        date: dateStr,
+        time: timeStr,
+        courtName,
+        stageLabel: label,
+        alreadyPlayed,
+      }))
+    }
+    await Promise.allSettled(emails)
+
+    revalidatePath('/')
+    revalidatePath('/jugador')
+    revalidatePath('/admin')
+    revalidatePath('/admin/escalera')
+    revalidatePath('/calendario')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error al agendar el partido'
     return { success: false, error: msg }
   }
 }

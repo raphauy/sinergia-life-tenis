@@ -43,7 +43,18 @@ export default async function MatchDetailPage({ params }: Props) {
         {match.scheduledAt && (
           <p className="text-sm text-muted-foreground">
             {formatDateTimeUY(match.scheduledAt)}
-            {court && ` — ${court.name}`}
+            {match.externalCourt ? ' — Fuera del club' : court && ` — ${court.name}`}
+          </p>
+        )}
+        {match.selfScheduled && !match.externalCourt && (
+          <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+            Lo agendó el jugador diciendo que consiguió la cancha por la app del club.
+            No se reservó desde acá: conviene verificarla.
+          </p>
+        )}
+        {match.selfScheduled && match.externalCourt && (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Lo agendó el jugador en una cancha ajena al club.
           </p>
         )}
       </div>

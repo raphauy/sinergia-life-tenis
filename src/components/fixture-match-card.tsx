@@ -22,6 +22,7 @@ interface FixtureMatchCardProps {
     stage?: string
     scheduledAt: Date | null
     courtNumber: number | null
+    externalCourt?: boolean // escalera autoagendada en cancha ajena al club
     player1: { firstName: string | null; lastName: string | null; email?: string | null } | null
     player2: { firstName: string | null; lastName: string | null; email?: string | null } | null
     player1Id: string | null
@@ -232,7 +233,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
             ? `Tenis vs ${currentUserId === match.player1Id ? p2Name : p1Name}`
             : `${p1Name} vs ${p2Name}`
         }
-        location={court ? `Life Montevideo · ${court.name}` : 'Life Montevideo'}
+        location={match.externalCourt ? undefined : court ? `Life Montevideo · ${court.name}` : 'Life Montevideo'}
         guestEmails={rivalEmail ? [rivalEmail] : undefined}
       />
     </span>
@@ -310,7 +311,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         <div className="mt-0.5 flex items-center justify-between text-sm text-muted-foreground">
           <span>
             <span className="font-bold text-foreground">{dateTimeLabel}</span>
-            {court && ` - ${court.name}`}
+            {match.externalCourt ? ' - Fuera del club' : court && ` - ${court.name}`}
           </span>
           {!isPlayed && statusBadge}
         </div>

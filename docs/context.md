@@ -134,6 +134,19 @@ Beneficio inherente de La Escalera: un **Partido de escalera** se puede reservar
 _Código_: reusa `SlotReservation` + flujo `PENDING → CONFIRMED`; el tope de anticipación vive en `Ladder.reservationLeadDays`.
 _Evitar_: "acceso prioritario que se pierde por inactividad" / `priorityEligible` — el acceso no se gatea; la inactividad penaliza puntos.
 
+**Días de reserva alternantes**:
+Acuerdo con el club sobre qué días La Escalera puede pedir cancha **con anticipación**: una semana **lunes, miércoles y viernes**; la siguiente **martes y jueves**, alternando indefinidamente. El **sábado** está habilitado **todas** las semanas; el domingo nunca (club cerrado). La paridad la fija la semana (lun-dom, UY) de la **fecha del partido**, no la de la reserva; el ancla es la semana del **lunes 17/08/2026** = lun/mié/vie. Solo restringe la **reserva anticipada del jugador**: el admin agenda cualquier día y el **Autoagendado** tampoco pasa por esta regla.
+_Código_: `isLadderReservableDay` / `getLadderDaysForWeek` en `constants.ts`; validado en el calendario del jugador y en `createReservation`.
+
+**Autoagendado** ("ya tengo cancha"):
+El jugador de un **Partido de escalera** `PENDING` declara que **ya consiguió cancha por su cuenta** —por la app del club (que reserva de un día para el otro) o en una cancha **fuera del club**— y el partido pasa **directo a `CONFIRMED` sin Mati**. Acepta desde `SELF_SCHEDULE_PAST_DAYS` (5) **días atrás** —para cargar un partido ya jugado, con su resultado en el acto— hasta `reservationLeadDays` adelante; no aplica ni la anticipación mínima ni los **Días de reserva alternantes**. Un partido **fuera del club** no ocupa las canchas del club: queda fuera de los calendarios de disponibilidad. Uno **en el club** sí ocupa, y su chequeo de disponibilidad es **por cancha** (no por horario entero como el de `createReservation`): el jugador ya tiene esa cancha, así que bloquearlo porque la otra está ocupada solo lo empujaría a declararla "fuera del club".
+_Código_: `Match.externalCourt` + `Match.selfScheduled` + `selfScheduleLadderMatch` (`match-service.ts`); UI en `self-schedule-card.tsx`.
+_Evitar_: llamarlo "reserva" — no hay `SlotReservation` ni confirmación del admin; la cancha ya está conseguida.
+
+**Cancha del jugador** (a verificar):
+Partido **Autoagendado** con `selfScheduled = true` y `externalCourt = false`: el jugador dice haber sacado una cancha **del club** por la app del club, pero **nadie la reservó desde nuestra app**. En el panel de admin se marca en ámbar ("Cancha del jugador · verificar") para que Mati pueda chequear que la reserva exista de verdad. Si Mati la reprograma o le cambia la cancha, el flag se limpia (pasa a ser una cancha que gestiona él).
+_Código_: `Match.selfScheduled`; badge en `admin-ladder-monitor.tsx`, aviso en `/admin/partidos/[id]`.
+
 **Penalización mensual** (multa):
 Descuento de **Rating** que el cierre de mes aplica a un **Miembro** activo que jugó menos del **Mínimo mensual de partidos** en el mes calendario UY. Monto = `monthlyPenalty` (default 50; se guarda positivo y se **resta**). Es la **única** consecuencia de la inactividad: no afecta el acceso a reservar ni a retar. Se registra en `RatingHistory` con reason `PENALTY`. Es **reversible**: el admin puede devolverla desde `/admin/escalera` → Actividad (ver **Reversión de multa**).
 _Evitar_: confundirla con el **Máximo de retos mensual** (limita retar, no toca puntos) o con el "acceso prioritario a reserva" (que no se gatea).

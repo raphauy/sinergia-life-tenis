@@ -87,10 +87,121 @@ export async function confirmMatch(
     data: {
       scheduledAt: data.scheduledAt,
       courtNumber: data.courtNumber,
+      externalCourt: false,
+      selfScheduled: false, // lo confirma el admin
       status: 'CONFIRMED',
       confirmedAt: new Date(),
     },
     include: matchIncludes,
+  })
+}
+
+/**
+ * Autoagendado de escalera: el jugador ya consiguió cancha por su cuenta (por la app
+ * del club o fuera del club) y confirma el partido sin pasar por el admin. Acepta
+ * fechas pasadas (hasta SELF_SCHEDULE_PAST_DAYS) para cargar partidos ya jugados.
+ */
+export async function selfScheduleLadderMatch(
+  matchId: string,
+  actorId: string,
+  data: { scheduledAt: Date; courtNumber: number | null; external: boolean }
+) {
+  if (data.external !== (data.courtNumber == null)) {
+    throw new Error('Datos de cancha inconsistentes')
+  }
+
+  const match = await prisma.match.findUnique({
+    where: { id: matchId },
+    select: {
+      status: true,
+      ladderId: true,
+      player1Id: true,
+      player2Id: true,
+      ladder: { select: { reservationLeadDays: true } },
+    },
+  })
+  if (!match) throw new Error('Partido no encontrado')
+  if (!match.ladderId || !match.ladder) throw new Error('Solo se pueden autoagendar partidos de La Escalera')
+  if (match.status !== 'PENDING') throw new Error('Solo se pueden agendar partidos pendientes')
+  if (!match.player1Id || !match.player2Id) {
+    throw new Error('El partido aún no tiene ambos jugadores definidos')
+  }
+  if (actorId !== match.player1Id && actorId !== match.player2Id) {
+    throw new Error('No autorizado para este partido')
+  }
+
+  const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
+  const { startOfDay, endOfDay, addDays, subDays, format } = await import('date-fns')
+  const { TIMEZONE, CLASS_SCHEDULE, getSlotsForDay, SELF_SCHEDULE_PAST_DAYS } = await import('@/lib/constants')
+
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const minUTC = fromZonedTime(startOfDay(subDays(nowUY, SELF_SCHEDULE_PAST_DAYS)), TIMEZONE)
+  const maxUTC = fromZonedTime(endOfDay(addDays(nowUY, match.ladder.reservationLeadDays)), TIMEZONE)
+  if (data.scheduledAt < minUTC) {
+    throw new Error(`No se pueden cargar partidos de más de ${SELF_SCHEDULE_PAST_DAYS} días atrás.`)
+  }
+  if (data.scheduledAt > maxUTC) {
+    throw new Error('Ese horario está fuera del plazo de anticipación permitido.')
+  }
+
+  // Cancha del club: el turno tiene que ser válido. Fuera del club no ocupa nada.
+  if (!data.external) {
+    const scheduledUY = toZonedTime(data.scheduledAt, TIMEZONE)
+    const dayOfWeek = scheduledUY.getDay()
+    const slot = format(scheduledUY, 'HH:mm')
+    if (!getSlotsForDay(dayOfWeek).includes(slot)) {
+      throw new Error('Ese horario no es un turno válido del club.')
+    }
+    if (CLASS_SCHEDULE[dayOfWeek]?.includes(slot)) {
+      throw new Error('Ese horario está reservado para clase grupal.')
+    }
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // La ocupación se chequea acá adentro: confirmar dos partidos en el mismo slot
+    // es más caro de deshacer que una reserva duplicada. A diferencia de
+    // createReservation (que bloquea el horario entero), acá se mira SOLO la cancha
+    // que el jugador dice tener: si la sacó por la app del club, que la otra esté
+    // ocupada no es su problema — si no, lo empujaríamos a mentir "fuera del club".
+    if (!data.external && data.courtNumber != null) {
+      const court = data.courtNumber
+      const [matchCount, reservationCount] = await Promise.all([
+        tx.match.count({
+          where: {
+            scheduledAt: data.scheduledAt,
+            courtNumber: court,
+            status: { in: ['CONFIRMED', 'PLAYED'] },
+            externalCourt: false,
+            id: { not: matchId },
+          },
+        }),
+        // La reserva propia no cuenta: pueden haber conseguido el mismo slot que pidieron.
+        tx.slotReservation.count({
+          where: {
+            scheduledAt: data.scheduledAt,
+            courtNumber: court,
+            matchId: { not: matchId },
+          },
+        }),
+      ])
+      if (matchCount + reservationCount >= 1) {
+        throw new Error('Esa cancha ya está ocupada o reservada a esa hora')
+      }
+    }
+
+    await tx.slotReservation.deleteMany({ where: { matchId } })
+    return tx.match.update({
+      where: { id: matchId },
+      data: {
+        scheduledAt: data.scheduledAt,
+        courtNumber: data.courtNumber,
+        externalCourt: data.external,
+        selfScheduled: true,
+        status: 'CONFIRMED',
+        confirmedAt: new Date(),
+      },
+      include: matchIncludes,
+    })
   })
 }
 
@@ -107,6 +218,8 @@ export async function rescheduleMatch(
     data: {
       scheduledAt: data.scheduledAt,
       courtNumber: data.courtNumber,
+      externalCourt: false,
+      selfScheduled: false, // pasa a ser una cancha que gestiona el admin
     },
     include: matchIncludes,
   })
@@ -119,7 +232,7 @@ export async function updateMatchCourt(id: string, courtNumber: number) {
 
   return prisma.match.update({
     where: { id },
-    data: { courtNumber },
+    data: { courtNumber, externalCourt: false, selfScheduled: false },
     include: matchIncludes,
   })
 }
@@ -147,6 +260,8 @@ export async function revertMatchToPending(id: string) {
       status: 'PENDING',
       scheduledAt: null,
       courtNumber: null,
+      externalCourt: false,
+      selfScheduled: false,
       confirmedAt: null,
     },
     include: matchIncludes,
@@ -193,6 +308,7 @@ export async function getMatchesByPlayer(userId: string) {
 // tournamentId opcional: sin él, devuelve la ocupación GLOBAL de canchas (torneo
 // + escalera). Las canchas son físicas y compartidas, así que la disponibilidad
 // para reservar se calcula global; el filtro por torneo es solo para listados.
+// Los partidos jugados fuera del club quedan excluidos: no ocupan cancha.
 export async function getMonthMatches(tournamentId: string | undefined, year: number, month: number) {
   const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
   const { startOfMonth, endOfMonth } = await import('date-fns')
@@ -210,6 +326,7 @@ export async function getMonthMatches(tournamentId: string | undefined, year: nu
       ...(tournamentId ? { tournamentId } : {}),
       scheduledAt: { gte: startUTC, lte: endUTC },
       status: { in: ['CONFIRMED', 'PLAYED'] },
+      externalCourt: false,
     },
     select: {
       id: true,
