@@ -147,11 +147,10 @@ export function AdminCalendar({
         {count > 0 ? (
           <span className={cn(
             'size-5.5 rounded-full text-xs font-bold leading-none flex items-center justify-center',
-            hasReservation
-              ? 'bg-blue-500 text-white'
-              : count >= 2
-                ? 'bg-red-500 text-white'
-                : 'bg-amber-400 text-amber-950',
+            // Azul = hay reservas esperando que las confirmes (lo accionable).
+            // El resto siempre ámbar: el rojo a partir de 2 confundía, porque el
+            // número cuenta todo el día y no dice nada de cuán lleno está.
+            hasReservation ? 'bg-blue-500 text-white' : 'bg-amber-400 text-amber-950',
           )}>
             {count}
           </span>

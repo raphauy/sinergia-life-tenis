@@ -191,13 +191,11 @@ export function PlayerCalendar({
         )}
       >
         <span className="text-lg leading-none">{dayDate.getDate()}</span>
+        {/* Siempre ámbar: el número ya dice cuántos hay. El rojo a partir de 2
+            venía de la grilla horaria (2 = las dos canchas), pero acá el techo
+            del día son ~28, así que pintaba de rojo días casi vacíos. */}
         {count > 0 ? (
-          <span className={cn(
-            'size-5.5 rounded-full text-xs font-bold leading-none flex items-center justify-center',
-            count >= 2
-              ? 'bg-red-500 text-white'
-              : 'bg-amber-400 text-amber-950',
-          )}>
+          <span className="size-5.5 rounded-full bg-amber-400 text-xs font-bold leading-none text-amber-950 flex items-center justify-center">
             {count}
           </span>
         ) : (

@@ -47,9 +47,8 @@ export function slotContextLabel(item: { categoryName: string; groupNumber: numb
 }
 
 /**
- * Qué significan los globitos con número del calendario. Cuentan los partidos de
- * TODA la jornada, así que no quieren decir lo mismo que el color de una hora
- * (un día "rojo" puede tener casi todas las horas libres): por eso se aclara.
+ * Qué significa el globito con número del calendario: cuenta los partidos de TODA
+ * la jornada, así que no quiere decir lo mismo que el color de una hora.
  */
 export function DayBadgeHint() {
   return (
@@ -57,9 +56,6 @@ export function DayBadgeHint() {
       {/* pt-0.5: Montserrat deja el dígito 1px alto dentro del círculo (el padding
           corre el contenido centrado hacia abajo justo esa mitad). */}
       <span className="inline-flex size-4 items-center justify-center rounded-full bg-amber-400 pt-0.5 text-[10px] font-bold leading-none text-amber-950">
-        1
-      </span>
-      <span className="inline-flex size-4 items-center justify-center rounded-full bg-red-500 pt-0.5 text-[10px] font-bold leading-none text-white">
         2
       </span>
       <span>cuántos partidos y reservas hay ese día. Tocá un día para ver hora por hora.</span>
@@ -203,13 +199,9 @@ export function CourtAvailabilityCalendar({
         )}
       >
         <span className="text-lg leading-none">{dayDate.getDate()}</span>
+        {/* Siempre ámbar: ver el comentario en player-calendar. */}
         {count > 0 ? (
-          <span className={cn(
-            'size-5.5 rounded-full text-xs font-bold leading-none flex items-center justify-center',
-            count >= 2
-              ? 'bg-red-500 text-white'
-              : 'bg-amber-400 text-amber-950',
-          )}>
+          <span className="size-5.5 rounded-full bg-amber-400 text-xs font-bold leading-none text-amber-950 flex items-center justify-center">
             {count}
           </span>
         ) : (
