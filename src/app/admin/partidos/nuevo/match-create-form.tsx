@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { COURTS, TIME_SLOTS } from '@/lib/constants'
+import { COURTS, TIME_SLOTS, getSlotsForDay } from '@/lib/constants'
 import { createMatchAction, getPlayersByCategoryAction } from '../actions'
 
 interface Tournament {
@@ -31,7 +31,6 @@ interface Player {
   userId: string
 }
 
-const timeItems = TIME_SLOTS.map((t) => ({ value: t, label: t }))
 const courtItems = COURTS.map((c) => ({ value: c.number.toString(), label: c.name }))
 
 export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) {
@@ -42,8 +41,20 @@ export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) 
   const [player1Id, setPlayer1Id] = useState('')
   const [player2Id, setPlayer2Id] = useState('')
   const [matchDate, setMatchDate] = useState<Date | undefined>()
+  const [matchTime, setMatchTime] = useState('')
   const [players, setPlayers] = useState<Player[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
+
+  // Los horarios dependen del día: el sábado el club cierra a las 13 (y tiene el slot
+  // de las 12:00, que entre semana no existe) y el domingo no abre.
+  const slots = matchDate ? getSlotsForDay(matchDate.getDay()) : TIME_SLOTS
+  const timeItems = slots.map((t) => ({ value: t, label: t }))
+
+  /** Al cambiar de día, la hora elegida puede dejar de existir (ej. 18:30 → sábado). */
+  function pickDate(date: Date | undefined) {
+    setMatchDate(date)
+    if (date && matchTime && !getSlotsForDay(date.getDay()).includes(matchTime)) setMatchTime('')
+  }
 
   const selectedTournament = tournaments.find((t) => t.id === tournamentId)
   const categories = selectedTournament?.categories ?? []
@@ -90,7 +101,7 @@ export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) 
         player2Id: players.find((p) => p.id === player2Id)?.userId || '',
         courtNumber: form.get('courtNumber') || undefined,
         date: matchDate ? format(matchDate, 'yyyy-MM-dd') : undefined,
-        time: (form.get('time') as string) || undefined,
+        time: matchTime || undefined,
       })
 
       if (result.success && result.data) {
@@ -185,16 +196,21 @@ export function MatchCreateForm({ tournaments }: { tournaments: Tournament[] }) 
         <div className="grid grid-cols-[1fr_auto_auto] gap-3">
           <div className="space-y-2">
             <Label>Fecha</Label>
-            <DatePicker value={matchDate} onChange={setMatchDate} />
+            <DatePicker value={matchDate} onChange={pickDate} />
           </div>
           <div className="space-y-2">
             <Label>Hora</Label>
-            <Select name="time" items={timeItems}>
+            <Select
+              value={matchTime}
+              onValueChange={(v) => setMatchTime(v ?? '')}
+              items={timeItems}
+              disabled={slots.length === 0}
+            >
               <SelectTrigger className="w-24">
                 <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
-                {TIME_SLOTS.map((t) => (
+                {slots.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>

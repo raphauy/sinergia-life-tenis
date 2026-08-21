@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { COURTS, TIME_SLOTS } from '@/lib/constants'
+import { COURTS, TIME_SLOTS, getSlotsForDay } from '@/lib/constants'
 import { MatchResultForm } from '@/components/match-result-form'
 import { confirmMatchAction, rescheduleMatchAction, cancelMatchAction, adminLoadResultAction } from '../actions'
 import type { MatchFormat, MatchStage, MatchStatus } from '@prisma/client'
@@ -71,6 +71,7 @@ export function MatchDetailClient({
   const isFinalsStage = stage === 'SEMIFINAL' || stage === 'FINAL'
   const initialConfirmDate = isFinalsStage && finalsDate ? new Date(finalsDate) : undefined
   const [confirmDate, setConfirmDate] = useState<Date | undefined>(initialConfirmDate)
+  const [confirmTime, setConfirmTime] = useState('')
   const [confirmCourt, setConfirmCourt] = useState('2')
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(
     scheduledAt ? new Date(scheduledAt) : undefined
@@ -84,17 +85,28 @@ export function MatchDetailClient({
   const [showCancelForm, setShowCancelForm] = useState(false)
   const [cancelReason, setCancelReason] = useState('Cancelado por lluvia')
 
-  const timeItems = TIME_SLOTS.map((t) => ({ value: t, label: t }))
+  // Los horarios dependen del día: el sábado el club cierra a las 13 (y tiene el
+  // slot de las 12:00, que entre semana no existe) y el domingo no abre. Sin fecha
+  // elegida todavía, se muestra la grilla de día de semana.
+  const confirmSlots = confirmDate ? getSlotsForDay(confirmDate.getDay()) : TIME_SLOTS
+  const rescheduleSlots = rescheduleDate ? getSlotsForDay(rescheduleDate.getDay()) : TIME_SLOTS
+  const toItems = (slots: string[]) => slots.map((t) => ({ value: t, label: t }))
+
+  /** Al cambiar de día, la hora elegida puede dejar de existir (ej. 18:30 → sábado). */
+  function pickDate(date: Date | undefined, time: string, setDate: (d: Date | undefined) => void, setTime: (t: string) => void) {
+    setDate(date)
+    if (date && time && !getSlotsForDay(date.getDay()).includes(time)) setTime('')
+  }
+
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
     if (!confirmDate) { toast.error('Seleccioná una fecha'); return }
-    if (!form.get('time')) { toast.error('Seleccioná una hora'); return }
+    if (!confirmTime) { toast.error('Seleccioná una hora'); return }
     if (!confirmCourt) { toast.error('Seleccioná una cancha'); return }
     startTransition(async () => {
       const res = await confirmMatchAction(matchId, {
         date: confirmDate ? format(confirmDate, 'yyyy-MM-dd') : null,
-        time: form.get('time'),
+        time: confirmTime,
         courtNumber: confirmCourt,
       })
       if (res.success) {
@@ -162,20 +174,31 @@ export function MatchDetailClient({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
-                <DatePicker value={confirmDate} onChange={setConfirmDate} />
+                <DatePicker
+                  value={confirmDate}
+                  onChange={(d) => pickDate(d, confirmTime, setConfirmDate, setConfirmTime)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Hora</Label>
-                <Select name="time" items={timeItems}>
+                <Select
+                  value={confirmTime}
+                  onValueChange={(v) => setConfirmTime(v ?? '')}
+                  items={toItems(confirmSlots)}
+                  disabled={confirmSlots.length === 0}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((t) => (
+                    {confirmSlots.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {confirmSlots.length === 0 && (
+                  <p className="text-xs text-muted-foreground">El club está cerrado ese día.</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -212,20 +235,31 @@ export function MatchDetailClient({
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
-                <DatePicker value={rescheduleDate} onChange={setRescheduleDate} />
+                <DatePicker
+                  value={rescheduleDate}
+                  onChange={(d) => pickDate(d, rescheduleTime, setRescheduleDate, setRescheduleTime)}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Hora</Label>
-                <Select value={rescheduleTime} onValueChange={(v) => setRescheduleTime(v ?? '')} items={timeItems}>
+                <Select
+                  value={rescheduleTime}
+                  onValueChange={(v) => setRescheduleTime(v ?? '')}
+                  items={toItems(rescheduleSlots)}
+                  disabled={rescheduleSlots.length === 0}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((t) => (
+                    {rescheduleSlots.map((t) => (
                       <SelectItem key={t} value={t}>{t}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {rescheduleSlots.length === 0 && (
+                  <p className="text-xs text-muted-foreground">El club está cerrado ese día.</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
