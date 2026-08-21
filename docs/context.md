@@ -143,6 +143,12 @@ El jugador de un **Partido de escalera** `PENDING` declara que **ya consiguió c
 _Código_: `Match.externalCourt` + `Match.selfScheduled` + `selfScheduleLadderMatch` (`match-service.ts`); UI en `self-schedule-card.tsx`.
 _Evitar_: llamarlo "reserva" — no hay `SlotReservation` ni confirmación del admin; la cancha ya está conseguida.
 
+**Aviso de reservas pendientes** (a los admins):
+Email diario a **todos los admins activos**, a las **20 hs UY**, con las **Reservas de slot** de escalera que todavía nadie confirmó. Sale **solo** si hay al menos una para **mañana** o **pasado mañana** (día calendario UY); si no, no llega nada. El foco son las de **pasado mañana**: la app del club abre el día anterior al partido a las **9 hs** para todos los socios, así que esa mañana es la última chance del admin de sacar la cancha antes de que se la lleve otro. Por eso el aviso llega la **tarde anterior a esa ventana** (D-2 del partido). Es un **digest** (se recalcula entero en cada corrida, sin marca de "ya avisé") y no aplica a reservas de torneo.
+_Código_: `notifyAdminsPendingReservations` (`ladder-cron-service.ts`) + `getPendingLadderReservations` (`reservation-service.ts`); cron propio en `/api/cron/pending-reservations` (23:00 UTC), disparo manual desde `/admin/escalera`.
+_Ojo_: la clasificación es por **día calendario UY**, no por una ventana de 48 h corridas — con 48 h, el aviso del lunes 20 hs dejaría afuera un partido del miércoles 20:30.
+_Evitar_: confundirlo con el flujo de **reserva vencida** (`stale reservation`), que va a los **jugadores** cuando el turno pedido pasó sin resolverse.
+
 **Cancha del jugador** (a verificar):
 Partido **Autoagendado** con `selfScheduled = true` y `externalCourt = false`: el jugador dice haber sacado una cancha **del club** por la app del club, pero **nadie la reservó desde nuestra app**. En el panel de admin se marca en ámbar ("Cancha del jugador · verificar") para que Mati pueda chequear que la reserva exista de verdad. Si Mati la reprograma o le cambia la cancha, el flag se limpia (pasa a ser una cancha que gestiona él).
 _Código_: `Match.selfScheduled`; badge en `admin-ladder-monitor.tsx`, aviso en `/admin/partidos/[id]`.

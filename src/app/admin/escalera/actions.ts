@@ -6,7 +6,7 @@ import type { ActionResult } from '@/lib/action-types'
 import { prisma } from '@/lib/prisma'
 import { commitSeed, resetSeed, updateLadderConfig } from '@/services/ladder-service'
 import { adminCancelChallenge } from '@/services/challenge-service'
-import { closeLadderMonth, runLadderDailyTasks, revertPenalty } from '@/services/ladder-cron-service'
+import { closeLadderMonth, runLadderDailyTasks, revertPenalty, notifyAdminsPendingReservations } from '@/services/ladder-cron-service'
 import { setProtection, endProtection, deleteProtection } from '@/services/ladder-protection-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import {
@@ -124,6 +124,37 @@ export async function runDailyTasksAction(): Promise<ActionResult> {
   } catch (error) {
     console.error('Error corriendo tareas diarias:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Error al correr las tareas diarias' }
+  }
+}
+
+/** Disparo manual del aviso de reservas pendientes (el cron lo manda 20 hs UY). */
+export async function runPendingReservationsNoticeAction(): Promise<ActionResult> {
+  try {
+    if (!(await requireAdmin())) return { success: false, error: 'No autorizado' }
+
+    const r = await notifyAdminsPendingReservations()
+    // recipients distingue "no había nada que avisar" de "se intentó y falló": con
+    // notified === 0 a secas, un fallo de Resend se leería como día tranquilo.
+    if (r.recipients === 0) {
+      if (r.urgent + r.tomorrow > 0) {
+        return { success: false, error: 'Hay reservas para avisar pero ningún admin activo tiene email.' }
+      }
+      return {
+        success: true,
+        message: `Sin aviso: ${r.totalPending} reservas pendientes, ninguna para mañana ni pasado mañana.`,
+      }
+    }
+    if (r.notified === 0) {
+      return { success: false, error: `No se pudo enviar el aviso a ninguno de los ${r.recipients} admins (ver logs).` }
+    }
+    const detail = `${r.totalPending} pendientes, ${r.urgent} para pasado mañana, ${r.tomorrow} para mañana`
+    return {
+      success: true,
+      message: `Aviso enviado a ${r.notified} de ${r.recipients} admin(s): ${detail}.`,
+    }
+  } catch (error) {
+    console.error('Error avisando reservas pendientes:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Error al mandar el aviso' }
   }
 }
 

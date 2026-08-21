@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/ladder-month-close", "schedule": "0 3 1 * *" },
-    { "path": "/api/cron/ladder-daily", "schedule": "0 4 * * *" }
+    { "path": "/api/cron/ladder-daily", "schedule": "0 4 * * *" },
+    { "path": "/api/cron/pending-reservations", "schedule": "0 23 * * *" }
   ]
 }

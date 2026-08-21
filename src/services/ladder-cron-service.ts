@@ -6,9 +6,11 @@ import { getLadder } from '@/services/ladder-service'
 import { expireStaleChallenges } from '@/services/challenge-service'
 import { coveredDaysInMonth, reconcileProtections } from '@/services/ladder-protection-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getPendingLadderReservations } from '@/services/reservation-service'
+import { getAdminUsers } from '@/services/user-service'
 import { fullName } from '@/lib/format-name'
 import { TIMEZONE } from '@/lib/constants'
-import { monthRangeUY, daysUntilEndOfMonthUY, monthLabelUY, endOfDayInDaysUY, longDateUY, longDateTimeUY } from '@/lib/date-utils'
+import { monthRangeUY, daysUntilEndOfMonthUY, monthLabelUY, endOfDayInDaysUY, longDateUY, longDateTimeUY, formatTimeUY } from '@/lib/date-utils'
 import { renewScheduleDeadline } from '@/services/match-service'
 import {
   generatePlayerPanelUrl,
@@ -17,6 +19,8 @@ import {
   sendLadderMatchExpiryWarningEmail,
   sendLadderMatchAutoCancelledEmail,
   sendLadderStaleReservationEmail,
+  sendAdminPendingReservationsEmail,
+  generateAdminPanelUrl,
 } from '@/services/email-service'
 
 // Partido jugado del mes que cuenta para el mínimo: participó y NO fue el ausente
@@ -567,4 +571,107 @@ async function sendMonthClosingWarnings(ladder: NonNullable<LadderRow>): Promise
     )
   )
   return results.filter((r) => r.status === 'fulfilled').length
+}
+
+// ============================================================================
+// Aviso a los admins — reservas pendientes de confirmar (20 hs UY)
+// ============================================================================
+
+/**
+ * La reserva de escalera es semiautomática: el jugador la pide acá y el admin tiene
+ * que sacar la cancha en la app del club. Esa app abre el día anterior al partido a
+ * las 9 hs para todos los socios, así que la última chance del admin es esa mañana.
+ * Por eso el aviso sale a las 20 hs del día ANTERIOR a esa ventana (D-2 del partido).
+ *
+ * La clasificación es por día CALENDARIO UY, no por una ventana de 48 h corridas: a
+ * las 20 hs del lunes, un partido del miércoles 20:30 tiene que entrar igual, y con
+ * 48 h corridas quedaría afuera por dos horas y media.
+ *
+ * Sin marca de "ya avisé": es un digest, se recalcula de cero en cada corrida.
+ */
+export async function notifyAdminsPendingReservations(): Promise<{
+  notified: number
+  /** Admins con email a los que se intentó escribir (0 si no se disparó el aviso). */
+  recipients: number
+  totalPending: number
+  urgent: number
+  tomorrow: number
+  today: number
+}> {
+  const reservations = await getPendingLadderReservations()
+  const nowUY = toZonedTime(new Date(), TIMEZONE)
+
+  type Row = (typeof reservations)[number]
+  const urgentRows: Row[] = []
+  const tomorrowRows: Row[] = []
+  const todayRows: Row[] = []
+
+  for (const r of reservations) {
+    const days = differenceInCalendarDays(toZonedTime(r.scheduledAt, TIMEZONE), nowUY)
+    if (days === 2) urgentRows.push(r)
+    else if (days === 1) tomorrowRows.push(r)
+    else if (days === 0) todayRows.push(r)
+  }
+
+  const totalPending = reservations.length
+  // Día tranquilo: nada accionable en los próximos dos días, no molestamos. Una
+  // reserva de hoy más tarde no alcanza para disparar (la ventana del club ya pasó
+  // hace rato), pero si el aviso sale igual, se lista.
+  if (urgentRows.length === 0 && tomorrowRows.length === 0) {
+    return { notified: 0, recipients: 0, totalPending, urgent: 0, tomorrow: 0, today: todayRows.length }
+  }
+
+  const admins = (await getAdminUsers()).filter((a) => a.email)
+  const counts = {
+    totalPending,
+    urgent: urgentRows.length,
+    tomorrow: tomorrowRows.length,
+    today: todayRows.length,
+  }
+  if (admins.length === 0) return { notified: 0, recipients: 0, ...counts }
+
+  const toBlock = (rows: Row[]) =>
+    rows.length === 0
+      ? null
+      : {
+          // Todas las filas del bloque caen el mismo día UY; alcanza con la primera.
+          dayLabel: longDateUY(rows[0].scheduledAt).toLowerCase(),
+          items: rows.map((r) => {
+            const p1 = fullName(r.match.player1?.firstName, r.match.player1?.lastName) || 'Jugador'
+            const p2 = fullName(r.match.player2?.firstName, r.match.player2?.lastName) || 'Jugador'
+            return `${formatTimeUY(r.scheduledAt)} hs · Cancha ${r.courtNumber} · ${p1} vs ${p2}`
+          }),
+        }
+
+  const urgent = toBlock(urgentRows)
+  const tomorrow = toBlock(tomorrowRows)
+  const today = toBlock(todayRows)
+  // "Más adelante" es literal: lo que cae después de pasado mañana. Las de hoy van
+  // en su propio bloque — meterlas acá las describiría como futuras siendo lo contrario.
+  const laterCount = totalPending - urgentRows.length - tomorrowRows.length - todayRows.length
+  const actionUrl = generateAdminPanelUrl()
+
+  const results = await Promise.allSettled(
+    admins.map((a) =>
+      sendAdminPendingReservationsEmail({
+        to: a.email,
+        adminName: a.firstName || 'admin',
+        totalPending,
+        urgent,
+        tomorrow,
+        today,
+        laterCount,
+        actionUrl,
+      })
+    )
+  )
+  for (const r of results) {
+    if (r.status === 'rejected') console.error('[CRON] email reservas pendientes (admin):', r.reason)
+  }
+
+  return {
+    notified: results.filter((r) => r.status === 'fulfilled').length,
+    recipients: admins.length,
+    ...counts,
+  }
 }

@@ -21,6 +21,7 @@ import LadderMatchAutoCancelledEmail from '@/components/emails/ladder-match-auto
 import LadderStaleReservationEmail from '@/components/emails/ladder-stale-reservation-email'
 import ReservationRejectedEmail from '@/components/emails/reservation-rejected-email'
 import PlayerWelcomeEmail from '@/components/emails/player-welcome-email'
+import AdminPendingReservationsEmail from '@/components/emails/admin-pending-reservations-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
@@ -609,6 +610,48 @@ export async function sendPlayerWelcomeEmail(input: {
   })
 }
 
+// ===================== Aviso a los admins =====================
+
+/**
+ * Digest diario (20 hs UY) a los admins con las reservas de escalera sin confirmar.
+ * Los labels vienen ya formateados desde el servicio; acá no se calculan fechas.
+ * `urgent` son las de pasado mañana: mañana a las 9 la app del club abre ese día
+ * al resto de los socios y se puede perder el horario.
+ */
+export async function sendAdminPendingReservationsEmail(input: {
+  to: string
+  adminName: string
+  totalPending: number
+  urgent: { dayLabel: string; items: string[] } | null
+  tomorrow: { dayLabel: string; items: string[] } | null
+  today: { dayLabel: string; items: string[] } | null
+  laterCount: number
+  actionUrl: string
+}) {
+  const urgentCount = input.urgent?.items.length ?? 0
+  console.log(`[EMAIL] Reservas pendientes (admin) -> ${input.to} (${input.totalPending} pendientes, ${urgentCount} urgentes)`)
+  if (isDev) return
+
+  const subject = input.urgent
+    ? `${urgentCount} ${urgentCount === 1 ? 'reserva' : 'reservas'} para el ${input.urgent.dayLabel} sin confirmar - Life Tenis`
+    : 'Reservas pendientes de confirmar - Life Tenis'
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject,
+    react: AdminPendingReservationsEmail({
+      adminName: input.adminName,
+      totalPending: input.totalPending,
+      urgent: input.urgent,
+      tomorrow: input.tomorrow,
+      today: input.today,
+      laterCount: input.laterCount,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
 // ===================== URL Helpers =====================
 
 /**
@@ -635,4 +678,10 @@ export function generatePlayerInviteUrl(token: string): string {
 export function generateAdminInviteUrl(token: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return `${baseUrl}/invite/admin/${token}`
+}
+
+/** Panel de admin (ahí se confirman las reservas, desde el calendario). */
+export function generateAdminPanelUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return `${baseUrl}/admin`
 }

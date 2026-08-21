@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { CalendarCheck, RefreshCw, Undo2 } from 'lucide-react'
+import { CalendarCheck, RefreshCw, Undo2, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { closeMonthAction, runDailyTasksAction, revertPenaltyAction } from './actions'
+import { closeMonthAction, runDailyTasksAction, revertPenaltyAction, runPendingReservationsNoticeAction } from './actions'
 import type { PenaltyRow } from '@/services/ladder-service'
 
 interface MonthOption {
@@ -37,6 +37,7 @@ export function LadderPeriodControls({ lastClose, monthOptions, defaultMonth, pe
   const [closing, startClose] = useTransition()
   const [running, startRun] = useTransition()
   const [reverting, startRevert] = useTransition()
+  const [notifying, startNotify] = useTransition()
 
   const penalties = penaltiesByPeriod[period] ?? []
   const periodLabel = monthOptions.find((o) => o.value === period)?.label ?? period
@@ -77,6 +78,17 @@ export function LadderPeriodControls({ lastClose, monthOptions, defaultMonth, pe
       if (res.success) {
         toast.success(res.message ?? 'Listo.')
         router.refresh()
+      } else {
+        toast.error(res.error)
+      }
+    })
+  }
+
+  function doNotify() {
+    startNotify(async () => {
+      const res = await runPendingReservationsNoticeAction()
+      if (res.success) {
+        toast.success(res.message ?? 'Listo.')
       } else {
         toast.error(res.error)
       }
@@ -195,6 +207,16 @@ export function LadderPeriodControls({ lastClose, monthOptions, defaultMonth, pe
           </Button>
           <p className="mt-1 text-xs text-muted-foreground">
             Expira retos vencidos, libera reservas cuyo turno pasó sin confirmar, avisa/auto-cancela partidos sin reservar y manda el aviso pre-cierre.
+          </p>
+        </div>
+
+        <div className="border-t pt-3">
+          <Button variant="outline" size="sm" disabled={notifying} onClick={doNotify}>
+            <Mail className="h-4 w-4" />
+            {notifying ? 'Mandando…' : 'Probar aviso de reservas'}
+          </Button>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Mail a los admins con las reservas sin confirmar. Sale solo a las 20 hs y solo si hay alguna para mañana o pasado mañana.
           </p>
         </div>
       </div>

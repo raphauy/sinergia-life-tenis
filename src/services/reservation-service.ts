@@ -160,6 +160,36 @@ export async function getPendingReservationCount(tournamentId?: string) {
   })
 }
 
+/**
+ * Reservas de escalera pedidas y todavía sin resolver por el admin, de acá en
+ * adelante. Alimenta el aviso diario a los admins (ver notifyAdminsPendingReservations):
+ * la reserva la tiene que cargar Mati en la app del club antes de que se abra al
+ * resto de los socios, la mañana anterior al partido.
+ *
+ * `SlotReservation` no tiene estado: existir ES estar pendiente (se borra al
+ * confirmar, rechazar, cancelar o autoagendar). Las que ya pasaron quedan fuera
+ * (`gte: now`): esas las libera el cron diario.
+ */
+export async function getPendingLadderReservations() {
+  return prisma.slotReservation.findMany({
+    where: {
+      match: { ladderId: { not: null }, status: 'PENDING' },
+      scheduledAt: { gte: new Date() },
+    },
+    select: {
+      scheduledAt: true,
+      courtNumber: true,
+      match: {
+        select: {
+          player1: { select: { firstName: true, lastName: true } },
+          player2: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+    orderBy: { scheduledAt: 'asc' },
+  })
+}
+
 export async function deleteReservation(id: string) {
   return prisma.slotReservation.delete({
     where: { id },
