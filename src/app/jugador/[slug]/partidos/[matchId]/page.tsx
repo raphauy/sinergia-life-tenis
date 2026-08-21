@@ -12,7 +12,7 @@ import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatDateTimeUY, formatDateUY, formatTimeUY } from '@/lib/date-utils'
+import { formatDateTimeUY, formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
@@ -22,8 +22,8 @@ import { MatchPhoto } from './match-photo'
 import { blobUrl } from '@/lib/blob-url'
 import { PlayerCalendar } from '@/components/player-calendar'
 import { CancelLadderMatchButton } from '@/components/cancel-ladder-match-button'
-import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservationAction, cancelReservationAction } from './actions'
-import { getReservationsByMonth, getReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
+import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservationAction, cancelReservationAction, fetchCurrentReservationAction } from './actions'
+import { getReservationsByMonth, getCalendarReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
 import { toZonedTime } from 'date-fns-tz'
 
 interface Props {
@@ -108,11 +108,17 @@ export default async function MatchDetailPage({ params }: Props) {
   // Partido de escalera sin jugar: se puede cancelar; aviso de plazo si lleva mucho.
   const canCancelLadder =
     isLadder && !match.result && (match.status === 'PENDING' || match.status === 'CONFIRMED') && (isOwner || isAdmin)
-  const deadlineDays = match.ladder?.matchScheduleDeadlineDays ?? 3
-  const deadlinePassed =
-    isLadder &&
-    match.status === 'PENDING' &&
-    Date.now() - match.createdAt.getTime() > deadlineDays * 24 * 60 * 60 * 1000
+
+  // Reserva pedida y todavía sin resolver por el admin. Mientras exista, el plazo
+  // está en pausa: la pelota está del lado del club, no de los jugadores. Se lee en
+  // formato de calendario para que sirva también de banner, sin depender del mes a
+  // la vista (una reserva del mes siguiente igual tiene que aparecer).
+  const pendingReservation =
+    match.status === 'PENDING' ? await getCalendarReservationByMatch(matchId) : null
+  const deadlineAt = isLadder && match.status === 'PENDING' ? match.scheduleDeadlineAt : null
+  const deadlineOnHold = deadlineAt != null && pendingReservation != null
+  const deadlinePassed = deadlineAt != null && !deadlineOnHold && deadlineAt.getTime() < Date.now()
+  const deadlineLabel = deadlineAt ? longDateUY(deadlineAt) : null
 
   // Fetch court availability + reservations for pending matches
   let calendarData: {
@@ -126,15 +132,11 @@ export default async function MatchDetailPage({ params }: Props) {
     const nowUY = toZonedTime(new Date(), TIMEZONE)
     const year = nowUY.getFullYear()
     const month = nowUY.getMonth() + 1
-    const [monthMatches, monthReservations, myReservation] = await Promise.all([
+    const [monthMatches, monthReservations] = await Promise.all([
       getMonthMatches(availabilityTournamentId, year, month),
       getReservationsByMonth(availabilityTournamentId, year, month),
-      getReservationByMatch(matchId),
     ])
     const reservationsList = monthReservations.map(mapReservationToCalendar)
-    const currentRes = myReservation
-      ? reservationsList.find((r) => r.matchId === matchId) ?? null
-      : null
     calendarData = {
       matches: monthMatches.map((m) => ({
         scheduledAt: m.scheduledAt!.toISOString(),
@@ -147,7 +149,7 @@ export default async function MatchDetailPage({ params }: Props) {
         groupNumber: m.group?.number ?? null,
       })),
       reservations: reservationsList,
-      currentReservation: currentRes,
+      currentReservation: pendingReservation,
       year,
       month,
     }
@@ -261,11 +263,22 @@ export default async function MatchDetailPage({ params }: Props) {
           <div className="min-w-0">
             {match.status === 'CONFIRMED' ? (
               <p className="text-sm text-muted-foreground">¿No van a poder jugar? Pueden cancelar el partido.</p>
+            ) : deadlineOnHold ? (
+              <p className="text-sm text-muted-foreground">
+                Ya pidieron cancha:{' '}
+                <span className="font-medium text-foreground">{friendlyDateTimeUY(new Date(pendingReservation!.scheduledAt))}</span>.
+                Mientras Mati la confirma, el plazo para concretar el partido queda en pausa.
+              </p>
             ) : deadlinePassed ? (
               <>
-                <h2 className="font-semibold text-amber-800 dark:text-amber-300">Este partido lleva varios días sin jugarse</h2>
-                <p className="text-sm text-muted-foreground">Coordinen y reserven, o cancelen el partido para liberar el cupo.</p>
+                <h2 className="font-semibold text-amber-800 dark:text-amber-300">Se venció el plazo para reservar</h2>
+                <p className="text-sm text-muted-foreground">Pidan cancha ahora o cancelen el partido para liberar el cupo. Si no, se cancela solo.</p>
               </>
+            ) : deadlineLabel ? (
+              <p className="text-sm text-muted-foreground">
+                Tienen hasta el <span className="font-medium text-foreground">{deadlineLabel.toLowerCase()}</span> para reservar.
+                ¿No llegan a coordinar? Pueden cancelar el partido.
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">¿No llegan a coordinar? Pueden cancelar el partido.</p>
             )}
@@ -333,6 +346,7 @@ export default async function MatchDetailPage({ params }: Props) {
             fetchReservationsAction={fetchMonthReservationsAction}
             createReservationAction={createReservationAction}
             cancelReservationAction={cancelReservationAction}
+            fetchCurrentReservationAction={fetchCurrentReservationAction}
           />
           {isLadder && (
             <SelfScheduleCard

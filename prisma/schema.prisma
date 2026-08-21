@@ -286,6 +286,12 @@ model Match {
   scheduledAt  DateTime?
   status       MatchStatus @default(PENDING)
   confirmedAt  DateTime?
+  // Plazo para concretar el partido de escalera (fin del día UY). Se renueva entero
+  // cada vez que se quedan sin reserva sin haberla podido usar: el reloj no corre
+  // mientras la reserva espera al admin. null = sin plazo (torneo, o legacy).
+  scheduleDeadlineAt DateTime?
+  // Cuándo se avisó "se te vence". El cron no cancela nada sin un aviso previo.
+  scheduleWarnedAt   DateTime?
   playedAt     DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
@@ -403,7 +409,7 @@ model Ladder {
   acceptanceWindowDays  Int      @default(4)
   reservationLeadDays   Int      @default(7)
   rematchCooldownDays   Int      @default(3)    // días para re-retar al mismo rival tras jugar
-  matchScheduleDeadlineDays Int  @default(3)    // días para concretar el partido aceptado
+  matchScheduleDeadlineDays Int  @default(5)    // días para concretar el partido aceptado
   gallinaEnabled        Boolean  @default(true)  // muestra/oculta la Sección Gallina (home + doc)
   gallinaPositionRange  Int      @default(10)   // ±N puestos para que un rechazo cuente como "gallina"
   matchFormat           MatchFormat @default(SINGLE_SET) // formato de los partidos de escalera

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getLadder, getLadderRanking, type LadderEntry } from '@/services/ladder-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
+import { renewScheduleDeadline } from '@/services/match-service'
 import { isCurrentlyProtected } from '@/services/ladder-protection-service'
 import { fullName } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
@@ -225,12 +226,19 @@ export async function acceptChallenge(challengeId: string, actorId: string): Pro
       throw new Error('Quien te retó entró en Ranking protegido; el reto ya no está disponible.')
     }
 
+    // El plazo para concretar vive en el partido (no se deduce de createdAt): así
+    // se puede renovar entero cuando se quedan sin reserva sin poder usarla.
+    const ladder = await tx.ladder.findUnique({
+      where: { id: challenge.ladderId },
+      select: { matchScheduleDeadlineDays: true },
+    })
     const match = await tx.match.create({
       data: {
         ladderId: challenge.ladderId,
         player1Id: challenge.challengerId,
         player2Id: challenge.challengedId,
         status: 'PENDING',
+        scheduleDeadlineAt: endOfDayInDaysUY(ladder?.matchScheduleDeadlineDays ?? 5),
       },
     })
     const updated = await tx.challenge.update({
@@ -316,9 +324,12 @@ export async function cancelLadderMatch(matchId: string, actorId: string, isAdmi
     await tx.match.update({
       where: { id: matchId },
       data: reopen
-        ? { status: 'PENDING', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null, createdAt: new Date() }
+        ? { status: 'PENDING', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null }
         : { status: 'CANCELLED', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null },
     })
+    // Reloj fresco para volver a coordinar (antes se pisaba `createdAt`, que era el
+    // ancla del plazo; ahora el plazo es un campo propio).
+    if (reopen) await renewScheduleDeadline(matchId, tx)
   })
 
   return { reopened: reopen }

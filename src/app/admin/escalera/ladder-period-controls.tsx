@@ -194,7 +194,7 @@ export function LadderPeriodControls({ lastClose, monthOptions, defaultMonth, pe
             {running ? 'Corriendo…' : 'Correr tareas diarias'}
           </Button>
           <p className="mt-1 text-xs text-muted-foreground">
-            Expira retos vencidos, avisa/auto-cancela partidos pendientes sin reserva y manda el aviso pre-cierre.
+            Expira retos vencidos, libera reservas cuyo turno pasó sin confirmar, avisa/auto-cancela partidos sin reservar y manda el aviso pre-cierre.
           </p>
         </div>
       </div>

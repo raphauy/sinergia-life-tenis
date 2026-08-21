@@ -28,6 +28,8 @@ interface Props {
   fetchReservationsAction: FetchMonthReservations
   createReservationAction: (matchId: string, date: string, time: string, cedula?: string) => Promise<{ success: boolean; error?: string }>
   cancelReservationAction: (matchId: string) => Promise<{ success: boolean; error?: string }>
+  /** Relee la reserva del partido sin depender del mes a la vista. */
+  fetchCurrentReservationAction: (matchId: string) => Promise<CalendarReservation | null>
 }
 
 export function PlayerCalendar({
@@ -44,6 +46,7 @@ export function PlayerCalendar({
   fetchReservationsAction,
   createReservationAction,
   cancelReservationAction,
+  fetchCurrentReservationAction,
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
@@ -112,17 +115,18 @@ export function PlayerCalendar({
     const y = currentMonth.getFullYear()
     const m = currentMonth.getMonth() + 1
     startTransition(async () => {
-      const [matches, reservations] = await Promise.all([
+      // La reserva propia se pide aparte: buscarla en la lista del mes a la vista
+      // la perdería si cae en otro mes.
+      const [matches, reservations, mine] = await Promise.all([
         fetchAction(tournamentId, y, m),
         fetchReservationsAction(tournamentId, y, m),
+        fetchCurrentReservationAction(matchId),
       ])
       setMatchesByMonth((prev) => new Map(prev).set(currentKey, matches))
       setReservationsByMonth((prev) => new Map(prev).set(currentKey, reservations))
-      // Update current reservation from fresh data
-      const myReservation = reservations.find((r) => r.matchId === matchId) ?? null
-      setCurrentReservation(myReservation)
+      setCurrentReservation(mine)
     })
-  }, [currentMonth, currentKey, tournamentId, matchId, fetchAction, fetchReservationsAction])
+  }, [currentMonth, currentKey, tournamentId, matchId, fetchAction, fetchReservationsAction, fetchCurrentReservationAction])
 
   const loadMonth = useCallback((y: number, m: number) => {
     const key = `${y}-${m.toString().padStart(2, '0')}`
@@ -260,7 +264,10 @@ export function PlayerCalendar({
               {friendlyDateTimeUY(new Date(currentReservation.scheduledAt))}
               {' · Cancha '}{currentReservation.courtNumber}
             </p>
-            <p className="text-muted-foreground">Pendiente de confirmación del admin</p>
+            <p className="text-muted-foreground">
+              Pendiente de confirmación del admin
+              {isLadder && ' — mientras tanto el plazo para concretar el partido está en pausa'}.
+            </p>
           </div>
           <Button
             size="sm"

@@ -49,6 +49,14 @@ export function longDateUY(date: Date): string {
 }
 
 /**
+ * "Sábado 9 de mayo 11:00 hs" — fecha absoluta para emails. En un email no sirve
+ * friendlyDateTimeUY: se manda hoy y se lee mañana, y ahí "Hoy 11:00 hs" miente.
+ */
+export function longDateTimeUY(date: Date): string {
+  return `${longDateUY(date)} ${formatTimeUY(date)} hs`
+}
+
+/**
  * Fin del día UY (23:59:59.999) que cae `days` días de calendario UY después de
  * `from`, devuelto en UTC. Para ventanas "hasta el día X" (p.ej. aceptar/rechazar un
  * reto): el vencimiento es el final de ese día en UY, no un corte exacto de N×24h.

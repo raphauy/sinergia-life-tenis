@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma'
+import { renewScheduleDeadline } from '@/services/match-service'
+import type { Prisma } from '@prisma/client'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import type { CalendarReservation } from '@/components/court-availability-calendar'
@@ -99,6 +101,37 @@ export async function getReservationByMatch(matchId: string) {
   })
 }
 
+/**
+ * La reserva del partido lista para el calendario, sin depender del mes a la vista.
+ * El banner "Tenés una reserva" salía de la lista del mes en curso, así que una
+ * reserva del mes siguiente no se mostraba y parecía que no habían reservado.
+ */
+export async function getCalendarReservationByMatch(matchId: string): Promise<CalendarReservation | null> {
+  const reservation = await prisma.slotReservation.findUnique({
+    where: { matchId },
+    select: reservationCalendarSelect,
+  })
+  return reservation ? mapReservationToCalendar(reservation) : null
+}
+
+// Campos que necesita el calendario (mapReservationToCalendar). Compartido entre la
+// lectura por mes y la lectura puntual de un partido.
+const reservationCalendarSelect = {
+  id: true,
+  scheduledAt: true,
+  courtNumber: true,
+  matchId: true,
+  user: { select: { firstName: true } },
+  match: {
+    select: {
+      player1: { select: { firstName: true, lastName: true, cedula: true } },
+      player2: { select: { firstName: true, lastName: true, cedula: true } },
+      category: { select: { name: true } },
+      group: { select: { number: true } },
+    },
+  },
+} satisfies Prisma.SlotReservationSelect
+
 // tournamentId opcional: sin él, devuelve TODAS las reservas del mes (global),
 // para el cálculo de disponibilidad de canchas compartido torneo + escalera.
 export async function getReservationsByMonth(tournamentId: string | undefined, year: number, month: number) {
@@ -115,21 +148,7 @@ export async function getReservationsByMonth(tournamentId: string | undefined, y
       scheduledAt: { gte: startUTC, lte: endUTC },
       ...(tournamentId ? { match: { tournamentId } } : {}),
     },
-    select: {
-      id: true,
-      scheduledAt: true,
-      courtNumber: true,
-      matchId: true,
-      user: { select: { firstName: true } },
-      match: {
-        select: {
-          player1: { select: { firstName: true, lastName: true, cedula: true } },
-          player2: { select: { firstName: true, lastName: true, cedula: true } },
-          category: { select: { name: true } },
-          group: { select: { number: true } },
-        },
-      },
-    },
+    select: reservationCalendarSelect,
     orderBy: { scheduledAt: 'asc' },
   })
 }
@@ -147,6 +166,21 @@ export async function deleteReservation(id: string) {
   })
 }
 
+/**
+ * Libera una reserva que no llegó a confirmarse (la rechazó el admin, o la soltaron
+ * los jugadores para pedir otro horario) y le da plazo nuevo al partido, en una sola
+ * transacción: si se borrara la reserva sin renovar, el partido quedaría suelto con
+ * el reloj viejo corriendo, que es justo lo que esta feature viene a evitar.
+ *
+ * Devuelve el nuevo vencimiento, o null si el partido es de torneo (no tiene plazo).
+ */
+export async function releaseReservation(reservationId: string, matchId: string): Promise<Date | null> {
+  return prisma.$transaction(async (tx) => {
+    await tx.slotReservation.delete({ where: { id: reservationId } })
+    return renewScheduleDeadline(matchId, tx)
+  })
+}
+
 export async function getReservationsByMatchIds(matchIds: string[]) {
   if (matchIds.length === 0) return []
   return prisma.slotReservation.findMany({
@@ -155,7 +189,9 @@ export async function getReservationsByMatchIds(matchIds: string[]) {
   })
 }
 
-export function mapReservationToCalendar(r: Awaited<ReturnType<typeof getReservationsByMonth>>[number]): CalendarReservation {
+type ReservationForCalendar = Prisma.SlotReservationGetPayload<{ select: typeof reservationCalendarSelect }>
+
+export function mapReservationToCalendar(r: ReservationForCalendar): CalendarReservation {
   return {
     id: r.id,
     matchId: r.matchId,

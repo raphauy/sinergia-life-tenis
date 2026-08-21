@@ -5,7 +5,14 @@ import { COURTS, CLASS_SCHEDULE, getSlotsForDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Check, Loader2, Search, X } from 'lucide-react'
+import { Check, ChevronDown, Loader2, Search, X } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { REJECT_REASON_LABELS, type RejectReservationReason } from '@/lib/validations/reservation'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
 import { slotContextLabel } from './court-availability-calendar'
@@ -18,12 +25,14 @@ interface Props {
   searchAction: (tournamentId: string, query: string) => Promise<PendingMatch[]>
   confirmAction: (matchId: string, date: string, time: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
   confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
-  rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
+  rejectReservationAction?: (reservationId: string, reason: RejectReservationReason) => Promise<{ success: boolean; error?: string }>
   cancelMatchAction?: (matchId: string, reason: string) => Promise<{ success: boolean; error?: string }>
   changeCourtAction?: (matchId: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
   tournamentId: string
   onConfirmed?: () => void
 }
+
+const REJECT_REASONS: RejectReservationReason[] = ['NO_COURT', 'CLASS', 'OTHER']
 
 function groupByTime<T extends { timeUY: string }>(items: T[]) {
   const map = new Map<string, T[]>()
@@ -139,12 +148,13 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
     })
   }, [confirmReservationAction, onConfirmed])
 
-  const handleRejectReservation = useCallback((reservationId: string) => {
+  // El motivo va en el email que reciben los dos jugadores.
+  const handleRejectReservation = useCallback((reservationId: string, reason: RejectReservationReason) => {
     if (!rejectReservationAction) return
     startConfirm(async () => {
-      const result = await rejectReservationAction(reservationId)
+      const result = await rejectReservationAction(reservationId, reason)
       if (result.success) {
-        toast.success('Reserva rechazada')
+        toast.success('Reserva rechazada. Les avisamos a los dos.')
         onConfirmed?.()
       } else {
         toast.error(result.error || 'Error al rechazar reserva')
@@ -320,15 +330,32 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                               {isConfirming ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                               Confirmar
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs px-2 cursor-pointer text-destructive"
-                              onClick={(e) => { e.stopPropagation(); handleRejectReservation(r.id) }}
-                              disabled={isConfirming}
-                            >
-                              Rechazar
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger
+                                render={
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs px-2 cursor-pointer text-destructive"
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={isConfirming}
+                                  />
+                                }
+                              >
+                                Rechazar
+                                <ChevronDown className="h-3 w-3" />
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                {REJECT_REASONS.map((reason) => (
+                                  <DropdownMenuItem
+                                    key={reason}
+                                    onClick={(e) => { e.stopPropagation(); handleRejectReservation(r.id, reason) }}
+                                  >
+                                    {REJECT_REASON_LABELS[reason]}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                           </div>
                         )}

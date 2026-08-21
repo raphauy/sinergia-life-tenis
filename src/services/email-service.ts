@@ -18,6 +18,8 @@ import LadderPenaltyRevertedEmail from '@/components/emails/ladder-penalty-rever
 import LadderMonthClosingWarningEmail from '@/components/emails/ladder-month-closing-warning-email'
 import LadderMatchExpiryWarningEmail from '@/components/emails/ladder-match-expiry-warning-email'
 import LadderMatchAutoCancelledEmail from '@/components/emails/ladder-match-auto-cancelled-email'
+import LadderStaleReservationEmail from '@/components/emails/ladder-stale-reservation-email'
+import ReservationRejectedEmail from '@/components/emails/reservation-rejected-email'
 import PlayerWelcomeEmail from '@/components/emails/player-welcome-email'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -487,10 +489,10 @@ export async function sendLadderMatchExpiryWarningEmail(input: {
   to: string
   playerName: string
   rivalName: string
-  daysLeft: number
+  deadlineLabel: string
   actionUrl: string
 }) {
-  console.log(`[EMAIL] Ladder match expiry warning -> ${input.to} (vs ${input.rivalName}, ${input.daysLeft}d)`)
+  console.log(`[EMAIL] Ladder match expiry warning -> ${input.to} (vs ${input.rivalName}, hasta ${input.deadlineLabel})`)
   if (isDev) return
 
   await resend.emails.send({
@@ -500,7 +502,7 @@ export async function sendLadderMatchExpiryWarningEmail(input: {
     react: LadderMatchExpiryWarningEmail({
       playerName: input.playerName,
       rivalName: input.rivalName,
-      daysLeft: input.daysLeft,
+      deadlineLabel: input.deadlineLabel,
       actionUrl: input.actionUrl,
     }),
   })
@@ -522,6 +524,63 @@ export async function sendLadderMatchAutoCancelledEmail(input: {
     react: LadderMatchAutoCancelledEmail({
       playerName: input.playerName,
       rivalName: input.rivalName,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+/**
+ * El turno pedido pasó sin que el admin lo resolviera: se liberó la reserva y les
+ * queda plazo nuevo para elegir otro. `deadlineLabel` sale de longDateUY.
+ */
+export async function sendLadderStaleReservationEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  slotLabel: string
+  deadlineLabel: string
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder stale reservation -> ${input.to} (vs ${input.rivalName}, turno ${input.slotLabel})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `El turno que pediste no se confirmó - Life Tenis`,
+    react: LadderStaleReservationEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      slotLabel: input.slotLabel,
+      deadlineLabel: input.deadlineLabel,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+/** El admin rechazó la reserva. `deadlineLabel` null en partidos de torneo (no vencen). */
+export async function sendReservationRejectedEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  slotLabel: string
+  reasonLabel: string
+  deadlineLabel: string | null
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Reservation rejected -> ${input.to} (${input.slotLabel}, ${input.reasonLabel})`)
+  if (isDev) return
+
+  await resend.emails.send({
+    from: fromEmail,
+    to: input.to,
+    subject: `No pudimos confirmar el horario que pediste - Life Tenis`,
+    react: ReservationRejectedEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      slotLabel: input.slotLabel,
+      reasonLabel: input.reasonLabel,
+      deadlineLabel: input.deadlineLabel,
       actionUrl: input.actionUrl,
     }),
   })

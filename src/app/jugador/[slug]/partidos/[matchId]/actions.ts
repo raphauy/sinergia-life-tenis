@@ -12,7 +12,7 @@ import { getMonthMatches } from '@/services/match-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
-import { createReservation, getReservationsByMonth, getReservationByMatch, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
+import { createReservation, getReservationsByMonth, getReservationByMatch, getCalendarReservationByMatch, releaseReservation, mapReservationToCalendar } from '@/services/reservation-service'
 import { getUserById, updateUser } from '@/services/user-service'
 import { parseFromUY } from '@/lib/date-utils'
 import { COURTS, getMinReservationDate, TIMEZONE } from '@/lib/constants'
@@ -124,6 +124,23 @@ export async function fetchMonthReservationsAction(
 
   const reservations = await getReservationsByMonth(tournamentId, year, month)
   return reservations.map(mapReservationToCalendar)
+}
+
+/**
+ * La reserva del partido, en cualquier mes. El calendario la buscaba dentro de la
+ * lista del mes a la vista, así que tras crear/cancelar una reserva de otro mes el
+ * banner quedaba desincronizado.
+ */
+export async function fetchCurrentReservationAction(matchId: string): Promise<CalendarReservation | null> {
+  const session = await auth()
+  if (!session?.user?.id) return null
+
+  const match = await getMatchById(matchId)
+  if (!match) return null
+  const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+  if (!isInMatch) return null
+
+  return getCalendarReservationByMatch(matchId)
 }
 
 export async function createReservationAction(
@@ -337,7 +354,10 @@ export async function cancelReservationAction(
     const reservation = await getReservationByMatch(matchId)
     if (!reservation) return { success: false, error: 'No hay reserva activa' }
 
-    await deleteReservation(reservation.id)
+    // Plazo nuevo, en la misma transacción que la liberación: soltar el turno para
+    // pedir otro no puede acercarlos al vencimiento del partido (antes el reloj seguía
+    // corriendo y el cron los mataba esa noche).
+    await releaseReservation(reservation.id, matchId)
 
     revalidatePath('/jugador')
     revalidatePath('/admin')

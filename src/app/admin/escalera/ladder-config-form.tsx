@@ -50,7 +50,7 @@ const NUM_FIELDS = [
   { key: 'maxChallengesPerMonth', label: 'Retos por mes', hint: 'Tope de retos que un jugador inicia por mes.', min: 1, max: 50, group: 'retos' },
   { key: 'acceptanceWindowDays', label: 'Días para responder', hint: 'Plazo del retado para aceptar o rechazar antes de que venza.', min: 1, max: 30, group: 'retos' },
   { key: 'rematchCooldownDays', label: 'Cooldown de revancha (días)', hint: 'Días de espera para volver a retar al mismo rival tras jugar. 0 = sin espera.', min: 0, max: 60, group: 'retos' },
-  { key: 'matchScheduleDeadlineDays', label: 'Días para concretar', hint: 'Días para jugar el partido aceptado antes de mostrar el recordatorio de cancelar.', min: 1, max: 30, group: 'partidos' },
+  { key: 'matchScheduleDeadlineDays', label: 'Días para concretar', hint: 'Plazo para agendar el partido aceptado. Queda en pausa mientras una reserva espera confirmación, y arranca de nuevo si esa reserva no prospera.', min: 1, max: 30, group: 'partidos' },
   { key: 'reservationLeadDays', label: 'Anticipación de reserva (días)', hint: 'Hasta cuántos días adelante se pueden reservar canchas.', min: 1, max: 120, group: 'partidos' },
   { key: 'minMatchesPerMonth', label: 'Mínimo de partidos al mes', hint: 'Partidos a jugar por mes para no recibir la multa de puntos.', min: 0, max: 30, group: 'fase3' },
   { key: 'monthlyPenalty', label: 'Penalización mensual', hint: 'Puntos a descontar por no llegar al mínimo.', min: 0, max: 500, group: 'fase3' },

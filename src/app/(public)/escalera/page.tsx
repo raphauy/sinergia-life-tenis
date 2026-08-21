@@ -59,7 +59,7 @@ export default async function EscaleraDocPage() {
     acceptanceWindowDays: ladder?.acceptanceWindowDays ?? 4,
     reservationLeadDays: ladder?.reservationLeadDays ?? 7,
     rematchCooldownDays: ladder?.rematchCooldownDays ?? 3,
-    matchScheduleDeadlineDays: ladder?.matchScheduleDeadlineDays ?? 3,
+    matchScheduleDeadlineDays: ladder?.matchScheduleDeadlineDays ?? 5,
     matchFormat: ladder?.matchFormat ?? 'SINGLE_SET',
   }
 
@@ -204,8 +204,10 @@ export default async function EscaleraDocPage() {
           </p>
           <p>
             Tenés <Hl>{days(cfg.matchScheduleDeadlineDays)}</Hl> para concretar el partido desde que
-            se aceptó el reto, por cualquiera de los dos caminos. Si no lo agendan a tiempo, se
-            cancela solo (no afecta los puntos) y les llega un aviso el día antes.
+            se aceptó el reto, por cualquiera de los dos caminos. Mientras una reserva espera que la
+            confirmen, <Hl>el plazo queda en pausa</Hl>: si al final ese turno no sale, el plazo
+            arranca de nuevo. Si no lo agendan a tiempo, se cancela solo (no afecta los puntos) y
+            nunca sin haberte avisado antes.
           </p>
           <p className="text-xs">
             Formato de los partidos: <Hl>{matchFormatLabel(cfg.matchFormat)}</Hl>.
@@ -322,8 +324,13 @@ export default async function EscaleraDocPage() {
               rival cancelan un partido ya agendado.
             </li>
             <li>
-              <span className="font-medium text-foreground">Recordatorio para coordinar</span> — el
-              día antes de que venza el plazo para agendar.
+              <span className="font-medium text-foreground">Recordatorio para coordinar</span> — antes
+              de que venza el plazo para agendar. Ningún partido se cancela sin este aviso.
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Tu reserva no se confirmó</span> — si el
+              club no puede darte el turno que pediste, te avisamos con el motivo y te damos plazo
+              nuevo para elegir otro.
             </li>
             <li>
               <span className="font-medium text-foreground">Un rival entró en Ranking protegido</span>{' '}

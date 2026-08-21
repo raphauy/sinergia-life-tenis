@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import type { MatchStage, MatchStatus } from '@prisma/client'
+import { endOfDayInDaysUY } from '@/lib/date-utils'
+import type { MatchStage, MatchStatus, Prisma } from '@prisma/client'
 
 const matchIncludes = {
   player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
@@ -69,6 +70,38 @@ export async function getMatchById(id: string) {
     where: { id },
     include: matchIncludes,
   })
+}
+
+/**
+ * Renueva entero el plazo para concretar un partido de escalera: `scheduleDeadlineAt`
+ * al fin del día UY dentro de N días y el aviso a cero.
+ *
+ * Se llama cada vez que se quedan sin reserva sin haberla podido usar (el admin la
+ * rechazó, alguno la canceló para pedir otro horario, o el turno pasó sin confirmarse).
+ * El reloj no corre mientras la reserva espera al admin, así que perder la reserva
+ * nunca los acerca a la muerte del partido — que es exactamente lo que pasaba antes:
+ * el cron medía sobre `createdAt` y los mataba en la corrida siguiente, sin aviso.
+ *
+ * Devuelve el nuevo vencimiento, o null si el partido es de torneo (no tiene plazo):
+ * así quien renueva puede avisarlo sin volver a leer el partido.
+ */
+export async function renewScheduleDeadline(
+  matchId: string,
+  tx?: Prisma.TransactionClient
+): Promise<Date | null> {
+  const client = tx ?? prisma
+  const match = await client.match.findUnique({
+    where: { id: matchId },
+    select: { ladder: { select: { matchScheduleDeadlineDays: true } } },
+  })
+  if (!match?.ladder) return null
+
+  const scheduleDeadlineAt = endOfDayInDaysUY(match.ladder.matchScheduleDeadlineDays)
+  await client.match.update({
+    where: { id: matchId },
+    data: { scheduleDeadlineAt, scheduleWarnedAt: null },
+  })
+  return scheduleDeadlineAt
 }
 
 export async function confirmMatch(
@@ -254,6 +287,9 @@ export async function revertMatchToPending(id: string) {
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'CONFIRMED') throw new Error('Solo se pueden revertir partidos confirmados')
 
+  // Vuelve a estar "a coordinar": reloj fresco, no el que traía de antes de confirmarse.
+  // Va antes del update para que el match devuelto ya traiga el plazo nuevo.
+  await renewScheduleDeadline(id)
   return prisma.match.update({
     where: { id },
     data: {

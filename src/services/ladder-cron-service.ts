@@ -1,20 +1,22 @@
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { toZonedTime } from 'date-fns-tz'
-import { differenceInCalendarDays } from 'date-fns'
+import { differenceInCalendarDays, startOfDay } from 'date-fns'
 import { getLadder } from '@/services/ladder-service'
 import { expireStaleChallenges } from '@/services/challenge-service'
 import { coveredDaysInMonth, reconcileProtections } from '@/services/ladder-protection-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { fullName } from '@/lib/format-name'
 import { TIMEZONE } from '@/lib/constants'
-import { monthRangeUY, daysUntilEndOfMonthUY, monthLabelUY } from '@/lib/date-utils'
+import { monthRangeUY, daysUntilEndOfMonthUY, monthLabelUY, endOfDayInDaysUY, longDateUY, longDateTimeUY } from '@/lib/date-utils'
+import { renewScheduleDeadline } from '@/services/match-service'
 import {
   generatePlayerPanelUrl,
   sendLadderPenaltyAppliedEmail,
   sendLadderMonthClosingWarningEmail,
   sendLadderMatchExpiryWarningEmail,
   sendLadderMatchAutoCancelledEmail,
+  sendLadderStaleReservationEmail,
 } from '@/services/email-service'
 
 // Partido jugado del mes que cuenta para el mínimo: participó y NO fue el ausente
@@ -281,12 +283,14 @@ export async function revertPenalty(historyId: string): Promise<RevertPenaltyRes
 export interface DailyResult {
   matchesWarned: number
   matchesCancelled: number
+  /** Reservas cuyo turno pasó sin que el admin las resolviera; se limpiaron. */
+  staleReservations: number
   monthWarnings: number
   protectionsReconciled: number
 }
 
 export async function runLadderDailyTasks(): Promise<DailyResult> {
-  const result: DailyResult = { matchesWarned: 0, matchesCancelled: 0, monthWarnings: 0, protectionsReconciled: 0 }
+  const result: DailyResult = { matchesWarned: 0, matchesCancelled: 0, staleReservations: 0, monthWarnings: 0, protectionsReconciled: 0 }
   const ladder = await getLadder()
   if (!ladder) return result
 
@@ -305,11 +309,12 @@ export async function runLadderDailyTasks(): Promise<DailyResult> {
     console.error('[CRON] reconciliar protecciones:', e)
   }
 
-  // 2. Avisar / auto-cancelar partidos PENDING sin reserva.
+  // 2. Avisar / auto-cancelar partidos PENDING vencidos + limpiar reservas zombie.
   try {
     const r = await processStalePendingMatches(ladder)
     result.matchesWarned = r.warned
     result.matchesCancelled = r.cancelled
+    result.staleReservations = r.staleReservations
   } catch (e) {
     console.error('[CRON] partidos pendientes:', e)
   }
@@ -326,35 +331,74 @@ export async function runLadderDailyTasks(): Promise<DailyResult> {
 
 type LadderRow = Awaited<ReturnType<typeof getLadder>>
 
+/**
+ * Vencimiento de los partidos de escalera "a coordinar", con dos garantías que antes
+ * no existían:
+ *
+ * 1. El reloj no corre mientras la reserva espera al admin. Si el turno pasa sin que
+ *    nadie la resuelva, la reserva se limpia y el plazo arranca de nuevo — antes esa
+ *    reserva quedaba viva para siempre, bloqueando el partido (no se podía reservar
+ *    otro turno) y dejándolo colgado.
+ * 2. Nada se cancela sin un aviso previo, mandado en una corrida ANTERIOR. El aviso
+ *    ya no depende de acertar un día exacto (antes: `daysSince === deadline - 1`),
+ *    que se perdía para siempre si ese día el partido tenía reserva o el cron no corrió.
+ */
 async function processStalePendingMatches(
   ladder: NonNullable<LadderRow>
-): Promise<{ warned: number; cancelled: number }> {
-  // Solo PENDING sin reserva: si ya pidieron slot, la pelota está en Mati (no se toca).
+): Promise<{ warned: number; cancelled: number; staleReservations: number }> {
+  // Solo los que tienen plazo: `scheduleDeadlineAt` null = no vence (torneo o legacy).
   const matches = await prisma.match.findMany({
-    where: { ladderId: ladder.id, status: 'PENDING', reservation: { is: null } },
+    where: { ladderId: ladder.id, status: 'PENDING', scheduleDeadlineAt: { not: null } },
     select: {
       id: true,
-      createdAt: true,
+      scheduleDeadlineAt: true,
+      scheduleWarnedAt: true,
       player1Id: true,
       player2Id: true,
       player1: { select: { email: true, firstName: true, lastName: true } },
       player2: { select: { email: true, firstName: true, lastName: true } },
+      reservation: { select: { id: true, scheduledAt: true } },
     },
   })
-  if (matches.length === 0) return { warned: 0, cancelled: 0 }
+  if (matches.length === 0) return { warned: 0, cancelled: 0, staleReservations: 0 }
 
-  const nowUY = toZonedTime(new Date(), TIMEZONE)
-  const deadline = ladder.matchScheduleDeadlineDays
+  const now = new Date()
+  const nowUY = toZonedTime(now, TIMEZONE)
+  const startOfTodayUY = startOfDay(nowUY)
   const userIds = matches.flatMap((m) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
   const slugMap = await getPlayerSlugsByUserIds(userIds)
 
   let warned = 0
   let cancelled = 0
+  let staleReservations = 0
 
   for (const m of matches) {
-    const daysSince = differenceInCalendarDays(nowUY, toZonedTime(m.createdAt, TIMEZONE))
+    // (1) Reserva zombie: el turno pasó y el admin nunca la confirmó ni la rechazó.
+    // Se libera el partido y se les da plazo nuevo para pedir otro horario.
+    if (m.reservation && m.reservation.scheduledAt < now) {
+      await prisma.$transaction(async (tx) => {
+        await tx.slotReservation.delete({ where: { id: m.reservation!.id } })
+        await renewScheduleDeadline(m.id, tx)
+      })
+      staleReservations++
+      await notifyBothPlayers(
+        m,
+        slugMap,
+        'stale-reservation',
+        longDateUY(endOfDayInDaysUY(ladder.matchScheduleDeadlineDays)),
+        { slotAt: m.reservation.scheduledAt }
+      )
+      continue
+    }
 
-    if (daysSince >= deadline) {
+    // (2) Reserva por venir: la pelota está en el admin, el reloj no corre.
+    if (m.reservation) continue
+
+    const deadline = m.scheduleDeadlineAt as Date
+    const expired = deadline < now
+
+    // (3) Vencido y ya avisado en una corrida anterior → se cancela.
+    if (expired && m.scheduleWarnedAt && toZonedTime(m.scheduleWarnedAt, TIMEZONE) < startOfTodayUY) {
       await prisma.$transaction(async (tx) => {
         await tx.slotReservation.deleteMany({ where: { matchId: m.id } })
         await tx.match.update({
@@ -363,14 +407,35 @@ async function processStalePendingMatches(
         })
       })
       cancelled++
-      await notifyBothPlayers(m, slugMap, 'cancelled', 0)
-    } else if (daysSince === deadline - 1) {
-      warned++
-      await notifyBothPlayers(m, slugMap, 'warning', deadline - daysSince)
+      await notifyBothPlayers(m, slugMap, 'cancelled', '')
+      continue
+    }
+
+    // (4) Vencido pero nunca avisado (p.ej. estuvo todo el plazo con una reserva
+    // esperando al admin): se avisa y se les corre el plazo a mañana. Red de
+    // seguridad — ningún partido muere sin haber recibido un email antes.
+    if (expired && !m.scheduleWarnedAt) {
+      const extended = endOfDayInDaysUY(1)
+      // El plazo se corre igual: aunque el aviso falle, mañana no se cancela.
+      await prisma.match.update({ where: { id: m.id }, data: { scheduleDeadlineAt: extended } })
+      if (await notifyBothPlayers(m, slugMap, 'warning', longDateUY(extended))) {
+        await prisma.match.update({ where: { id: m.id }, data: { scheduleWarnedAt: now } })
+        warned++
+      }
+      continue
+    }
+
+    // (5) Le queda un día o menos y todavía no se avisó.
+    const daysLeft = differenceInCalendarDays(toZonedTime(deadline, TIMEZONE), nowUY)
+    if (!expired && daysLeft <= 1 && !m.scheduleWarnedAt) {
+      if (await notifyBothPlayers(m, slugMap, 'warning', longDateUY(deadline))) {
+        await prisma.match.update({ where: { id: m.id }, data: { scheduleWarnedAt: now } })
+        warned++
+      }
     }
   }
 
-  return { warned, cancelled }
+  return { warned, cancelled, staleReservations }
 }
 
 type MatchPlayers = {
@@ -381,12 +446,22 @@ type MatchPlayers = {
   player2: { email: string | null; firstName: string | null; lastName: string | null } | null
 }
 
+/**
+ * Avisa a los dos jugadores. Devuelve si el aviso quedó dado: hubo al menos un envío
+ * exitoso, o directamente no había a quién escribirle (ninguno tiene email, así que
+ * reintentar mañana daría igual).
+ *
+ * Ese booleano es lo que habilita sellar `scheduleWarnedAt`: si Resend falla, el
+ * partido NO queda marcado como avisado y la corrida siguiente vuelve a intentarlo en
+ * vez de cancelarlo a ciegas — que es exactamente la garantía que promete la feature.
+ */
 async function notifyBothPlayers(
   m: MatchPlayers,
   slugMap: Map<string, string>,
-  kind: 'warning' | 'cancelled',
-  daysLeft: number
-): Promise<void> {
+  kind: 'warning' | 'cancelled' | 'stale-reservation',
+  deadlineLabel: string,
+  extra?: { slotAt: Date }
+): Promise<boolean> {
   const p1 = m.player1
   const p2 = m.player2
   const p1Name = fullName(p1?.firstName, p1?.lastName) || 'Jugador'
@@ -397,24 +472,38 @@ async function notifyBothPlayers(
     selfName: string,
     rivalName: string,
     selfUserId: string | null
-  ) => {
-    if (!email) return
+  ): Promise<boolean> => {
+    if (!email) return false
     const actionUrl = generatePlayerPanelUrl(selfUserId ? slugMap.get(selfUserId) ?? null : null)
     try {
       if (kind === 'warning') {
-        await sendLadderMatchExpiryWarningEmail({ to: email, playerName: selfName, rivalName, daysLeft, actionUrl })
+        await sendLadderMatchExpiryWarningEmail({ to: email, playerName: selfName, rivalName, deadlineLabel, actionUrl })
+      } else if (kind === 'stale-reservation') {
+        await sendLadderStaleReservationEmail({
+          to: email,
+          playerName: selfName,
+          rivalName,
+          slotLabel: extra ? longDateTimeUY(extra.slotAt) : '',
+          deadlineLabel,
+          actionUrl,
+        })
       } else {
         await sendLadderMatchAutoCancelledEmail({ to: email, playerName: selfName, rivalName, actionUrl })
       }
+      return true
     } catch (e) {
       console.error(`[CRON] email partido (${kind}):`, e)
+      return false
     }
   }
 
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     sendTo(p1?.email ?? null, p1Name, p2Name, m.player1Id),
     sendTo(p2?.email ?? null, p2Name, p1Name, m.player2Id),
   ])
+  const sent = results.some((r) => r.status === 'fulfilled' && r.value)
+  const hadRecipients = Boolean(p1?.email || p2?.email)
+  return sent || !hadRecipients
 }
 
 async function sendMonthClosingWarnings(ladder: NonNullable<LadderRow>): Promise<number> {

@@ -1,6 +1,12 @@
-// Cancela EN SILENCIO (sin emails) los partidos de escalera PENDING sin reserva
-// vencidos (≥ matchScheduleDeadlineDays). Replica EXACTO la rama de auto-cancelación
-// del cron diario (processStalePendingMatches), pero NO notifica a nadie.
+// Cancela EN SILENCIO (sin emails) los partidos de escalera vencidos. Replica EXACTO
+// la rama de auto-cancelación del cron diario (processStalePendingMatches), pero NO
+// notifica a nadie.
+//
+// Regla (la misma del cron): sin reserva viva + `scheduleDeadlineAt` ya pasado +
+// `scheduleWarnedAt` sellado en un día anterior. No alcanza con que el partido sea
+// viejo: mientras una reserva espera al admin el plazo está en pausa, y nada se
+// cancela sin un aviso previo. Un partido sin `scheduleDeadlineAt` (torneo o legacy)
+// no vence nunca.
 //
 // Usa .env.local (mismo patrón que inspect-*.ts / diag-*.ts). Apuntá el
 // DIRECT_DATABASE_URL de .env.local a la base que quieras: dev para probar, prod
@@ -19,7 +25,7 @@ import { config } from 'dotenv'
 config({ path: '.env.local', override: true })
 
 import { PrismaClient } from '@prisma/client'
-import { differenceInCalendarDays } from 'date-fns'
+import { differenceInCalendarDays, startOfDay } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 
 const TIMEZONE = 'America/Montevideo'
@@ -46,28 +52,43 @@ async function main() {
 
   const ladder = await prisma.ladder.findFirst({ where: { isActive: true } })
   if (!ladder) { console.log('No hay escalera activa.'); return }
-  const deadline = ladder.matchScheduleDeadlineDays
 
   const matches = await prisma.match.findMany({
     where: { ladderId: ladder.id, status: 'PENDING', reservation: { is: null } },
     select: {
-      id: true, createdAt: true,
+      id: true, createdAt: true, scheduleDeadlineAt: true, scheduleWarnedAt: true,
       player1: { select: { firstName: true, lastName: true } },
       player2: { select: { firstName: true, lastName: true } },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { scheduleDeadlineAt: 'asc' },
   })
 
-  const nowUY = toZonedTime(new Date(), TIMEZONE)
+  const now = new Date()
+  const nowUY = toZonedTime(now, TIMEZONE)
+  const startOfTodayUY = startOfDay(nowUY)
   const stale = matches.filter(
-    (m) => differenceInCalendarDays(nowUY, toZonedTime(m.createdAt, TIMEZONE)) >= deadline
+    (m) =>
+      m.scheduleDeadlineAt != null &&
+      m.scheduleDeadlineAt < now &&
+      m.scheduleWarnedAt != null &&
+      toZonedTime(m.scheduleWarnedAt, TIMEZONE) < startOfTodayUY
   )
 
-  console.log(`PENDING sin reserva: ${matches.length}  ·  vencidos (≥${deadline}d) a cancelar: ${stale.length}\n`)
+  console.log(`PENDING sin reserva: ${matches.length}  ·  vencidos Y ya avisados, a cancelar: ${stale.length}\n`)
   for (const m of stale) {
-    const days = differenceInCalendarDays(nowUY, toZonedTime(m.createdAt, TIMEZONE))
-    const created = toZonedTime(m.createdAt, TIMEZONE).toISOString().slice(0, 16).replace('T', ' ')
-    console.log(`  ${created}  (${String(days).padStart(2)}d)  ${name(m.player1)} vs ${name(m.player2)}`)
+    const days = differenceInCalendarDays(nowUY, toZonedTime(m.scheduleDeadlineAt!, TIMEZONE))
+    const dl = toZonedTime(m.scheduleDeadlineAt!, TIMEZONE).toISOString().slice(0, 16).replace('T', ' ')
+    const wr = toZonedTime(m.scheduleWarnedAt!, TIMEZONE).toISOString().slice(0, 10)
+    console.log(`  venció ${dl} (hace ${days}d, avisado ${wr})  ${name(m.player1)} vs ${name(m.player2)}`)
+  }
+
+  // Los que están vencidos pero todavía no recibieron el aviso: los toma el cron
+  // diario (les avisa y les corre el plazo). Este script no los cancela.
+  const notWarned = matches.filter(
+    (m) => m.scheduleDeadlineAt != null && m.scheduleDeadlineAt < now && m.scheduleWarnedAt == null
+  )
+  if (notWarned.length > 0) {
+    console.log(`\n(${notWarned.length} vencidos SIN aviso previo: no se tocan — el cron les avisa primero)`)
   }
 
   if (stale.length === 0) { console.log('\nNada para cancelar.'); return }
@@ -82,7 +103,7 @@ async function main() {
       await tx.slotReservation.deleteMany({ where: { matchId: m.id } })
       await tx.match.update({
         where: { id: m.id },
-        data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, confirmedAt: null },
+        data: { status: 'CANCELLED', scheduledAt: null, courtNumber: null, externalCourt: false, selfScheduled: false, confirmedAt: null },
       })
     })
     cancelled++

@@ -9,6 +9,7 @@ import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
 import type { CalendarMatch, CalendarReservation, FetchMonthMatches, FetchMonthReservations } from './court-availability-calendar'
 import type { PendingMatch } from '@/app/admin/actions-calendar'
+import type { RejectReservationReason } from '@/lib/validations/reservation'
 
 interface Props {
   initialMatches: CalendarMatch[]
@@ -21,7 +22,7 @@ interface Props {
   searchAction: (tournamentId: string, query: string) => Promise<PendingMatch[]>
   confirmAction: (matchId: string, date: string, time: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
   confirmReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
-  rejectReservationAction?: (reservationId: string) => Promise<{ success: boolean; error?: string }>
+  rejectReservationAction?: (reservationId: string, reason: RejectReservationReason) => Promise<{ success: boolean; error?: string }>
   cancelMatchAction?: (matchId: string, reason: string) => Promise<{ success: boolean; error?: string }>
   changeCourtAction?: (matchId: string, courtNumber: number) => Promise<{ success: boolean; error?: string }>
 }

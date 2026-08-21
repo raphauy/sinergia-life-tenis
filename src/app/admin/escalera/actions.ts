@@ -119,7 +119,7 @@ export async function runDailyTasksAction(): Promise<ActionResult> {
     revalidatePath('/admin/escalera')
     return {
       success: true,
-      message: `Tareas diarias: ${r.matchesWarned} avisados, ${r.matchesCancelled} cancelados, ${r.monthWarnings} avisos de cierre, ${r.protectionsReconciled} protecciones reconciliadas.`,
+      message: `Tareas diarias: ${r.matchesWarned} avisados, ${r.matchesCancelled} cancelados, ${r.staleReservations} reservas vencidas liberadas, ${r.monthWarnings} avisos de cierre, ${r.protectionsReconciled} protecciones reconciliadas.`,
     }
   } catch (error) {
     console.error('Error corriendo tareas diarias:', error)

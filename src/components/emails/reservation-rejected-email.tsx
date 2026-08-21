@@ -10,20 +10,26 @@ import {
 } from '@react-email/components'
 import { theme } from './email-theme'
 
-interface LadderMatchExpiryWarningEmailProps {
+interface ReservationRejectedEmailProps {
   playerName: string
   rivalName: string
-  /** Hasta cuándo tienen para reservar ("Martes 25 de agosto"). */
-  deadlineLabel: string
+  /** El turno que se había pedido ("Sábado 11:00 hs"). */
+  slotLabel: string
+  /** Motivo elegido por el admin ("No hay cancha disponible"). */
+  reasonLabel: string
+  /** Solo escalera: hasta cuándo tienen para elegir otro. null en torneo. */
+  deadlineLabel: string | null
   actionUrl: string
 }
 
-export default function LadderMatchExpiryWarningEmail({
+export default function ReservationRejectedEmail({
   playerName,
   rivalName,
+  slotLabel,
+  reasonLabel,
   deadlineLabel,
   actionUrl,
-}: LadderMatchExpiryWarningEmailProps) {
+}: ReservationRejectedEmailProps) {
   return (
     <Html>
       <Head />
@@ -37,11 +43,19 @@ export default function LadderMatchExpiryWarningEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Tu partido de <strong>La Escalera</strong> contra <strong>{rivalName}</strong> sigue sin reservar. Tienen tiempo hasta el <strong>{deadlineLabel}</strong>: si no piden cancha, se cancela solo.
+            No pudimos confirmarles el turno que pidieron para el partido contra{' '}
+            <strong>{rivalName}</strong> (<strong>{slotLabel}</strong>): {reasonLabel}.
+          </Text>
+          <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
+            {deadlineLabel ? (
+              <>Elijan otro horario cuando puedan — <strong>el reto sigue en pie</strong> y tienen hasta el <strong>{deadlineLabel}</strong>.</>
+            ) : (
+              <>Pueden elegir otro horario cuando les quede cómodo.</>
+            )}
           </Text>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
             <a href={actionUrl} style={{ display: 'inline-block', backgroundColor: theme.colors.primary, color: '#ffffff', textDecoration: 'none', padding: '10px 22px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold' }}>
-              Coordinar y reservar
+              Elegir otro horario
             </a>
           </Section>
           <Hr style={{ borderColor: theme.colors.border, margin: '16px 0 0' }} />
@@ -55,9 +69,11 @@ export default function LadderMatchExpiryWarningEmail({
   )
 }
 
-LadderMatchExpiryWarningEmail.PreviewProps = {
+ReservationRejectedEmail.PreviewProps = {
   playerName: 'Juan Pérez',
   rivalName: 'Carlos López',
+  slotLabel: 'Sábado 11:00 hs',
+  reasonLabel: 'no hay cancha disponible a esa hora',
   deadlineLabel: 'Martes 25 de agosto',
   actionUrl: 'https://life-tenis.raphauy.dev/jugador/juan-perez',
-} as LadderMatchExpiryWarningEmailProps
+} as ReservationRejectedEmailProps

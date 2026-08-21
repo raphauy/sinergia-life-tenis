@@ -10,20 +10,23 @@ import {
 } from '@react-email/components'
 import { theme } from './email-theme'
 
-interface LadderMatchExpiryWarningEmailProps {
+interface LadderStaleReservationEmailProps {
   playerName: string
   rivalName: string
-  /** Hasta cuándo tienen para reservar ("Martes 25 de agosto"). */
+  /** El turno que había quedado pedido y ya pasó ("22/08 11:00 hs"). */
+  slotLabel: string
+  /** Hasta cuándo tienen para elegir otro ("Martes 25 de agosto"). */
   deadlineLabel: string
   actionUrl: string
 }
 
-export default function LadderMatchExpiryWarningEmail({
+export default function LadderStaleReservationEmail({
   playerName,
   rivalName,
+  slotLabel,
   deadlineLabel,
   actionUrl,
-}: LadderMatchExpiryWarningEmailProps) {
+}: LadderStaleReservationEmailProps) {
   return (
     <Html>
       <Head />
@@ -37,11 +40,14 @@ export default function LadderMatchExpiryWarningEmail({
             Hola {playerName},
           </Text>
           <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
-            Tu partido de <strong>La Escalera</strong> contra <strong>{rivalName}</strong> sigue sin reservar. Tienen tiempo hasta el <strong>{deadlineLabel}</strong>: si no piden cancha, se cancela solo.
+            El turno que habían pedido para el partido contra <strong>{rivalName}</strong>{slotLabel ? <> (<strong>{slotLabel}</strong>)</> : null} pasó sin que quedara confirmado. Liberamos la reserva así pueden pedir otro horario: <strong>el reto sigue en pie</strong> y tienen hasta el <strong>{deadlineLabel}</strong>.
+          </Text>
+          <Text style={{ fontSize: '14px', color: theme.colors.text, margin: '0 0 16px' }}>
+            Si al final lo jugaron igual, cargalo desde el partido con la opción <strong>&quot;ya tengo cancha&quot;</strong> y subí el resultado.
           </Text>
           <Section style={{ textAlign: 'center' as const, margin: '0 0 8px' }}>
             <a href={actionUrl} style={{ display: 'inline-block', backgroundColor: theme.colors.primary, color: '#ffffff', textDecoration: 'none', padding: '10px 22px', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold' }}>
-              Coordinar y reservar
+              Elegir otro horario
             </a>
           </Section>
           <Hr style={{ borderColor: theme.colors.border, margin: '16px 0 0' }} />
@@ -55,9 +61,10 @@ export default function LadderMatchExpiryWarningEmail({
   )
 }
 
-LadderMatchExpiryWarningEmail.PreviewProps = {
+LadderStaleReservationEmail.PreviewProps = {
   playerName: 'Juan Pérez',
   rivalName: 'Carlos López',
+  slotLabel: '22/08 11:00 hs',
   deadlineLabel: 'Martes 25 de agosto',
   actionUrl: 'https://life-tenis.raphauy.dev/jugador/juan-perez',
-} as LadderMatchExpiryWarningEmailProps
+} as LadderStaleReservationEmailProps

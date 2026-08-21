@@ -2,15 +2,17 @@
 
 import { auth } from '@/lib/auth'
 import { getMonthMatches, confirmMatch, getPendingMatches, updateMatchCourt } from '@/services/match-service'
+import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { fullName } from '@/lib/format-name'
 import { stageLabel } from '@/lib/match-status'
-import { formatDateUY, formatTimeUY, parseFromUY } from '@/lib/date-utils'
-import { sendMatchConfirmationEmail } from '@/services/email-service'
+import { formatDateUY, formatTimeUY, parseFromUY, longDateUY, longDateTimeUY } from '@/lib/date-utils'
+import { sendMatchConfirmationEmail, sendReservationRejectedEmail, generatePlayerMatchUrl } from '@/services/email-service'
+import { rejectReservationSchema, REJECT_REASON_EMAIL_LABELS, type RejectReservationReason } from '@/lib/validations/reservation'
 import { COURTS } from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 import type { ActionResult } from '@/lib/action-types'
-import { getReservationsByMonth, getReservationById, deleteReservation, mapReservationToCalendar } from '@/services/reservation-service'
+import { getReservationsByMonth, getReservationById, deleteReservation, releaseReservation, mapReservationToCalendar } from '@/services/reservation-service'
 
 function isAdmin(role?: string) {
   return role === 'SUPERADMIN' || role === 'ADMIN'
@@ -231,8 +233,16 @@ export async function confirmReservationAction(
   }
 }
 
+/**
+ * Rechaza el turno pedido por los jugadores. Además de liberar el slot:
+ * — renueva el plazo del partido de escalera (quedarse sin reserva por decisión del
+ *   admin no puede acercarlos al vencimiento; antes el reloj seguía corriendo desde
+ *   que aceptaron el reto y el cron los mataba esa misma madrugada), y
+ * — les avisa por email con el motivo (antes el rechazo era mudo).
+ */
 export async function rejectReservationAction(
-  reservationId: string
+  reservationId: string,
+  reason: RejectReservationReason
 ): Promise<ActionResult> {
   try {
     const session = await auth()
@@ -240,10 +250,52 @@ export async function rejectReservationAction(
       return { success: false, error: 'No autorizado' }
     }
 
+    const parsed = rejectReservationSchema.safeParse({ reservationId, reason })
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0]?.message || 'Datos inválidos' }
+    }
+
     const reservation = await getReservationById(reservationId)
     if (!reservation) return { success: false, error: 'Reserva no encontrada' }
 
-    await deleteReservation(reservationId)
+    const match = reservation.match
+
+    // Atómico: liberar el turno sin renovar dejaría el partido corriendo con el reloj
+    // viejo. Devuelve null en torneo, que no tiene plazo (y ahí el email va sin fecha).
+    const newDeadline = await releaseReservation(reservationId, match.id)
+
+    // Aviso a los dos jugadores (fire-and-forget: el rechazo ya se hizo).
+    try {
+      const deadlineLabel = newDeadline ? longDateUY(newDeadline) : null
+      const slotLabel = longDateTimeUY(reservation.scheduledAt)
+      const reasonLabel = REJECT_REASON_EMAIL_LABELS[parsed.data.reason]
+      const slugMap = await getPlayerSlugsByUserIds(
+        [match.player1Id, match.player2Id].filter((id): id is string => !!id)
+      )
+      const p1Name = fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador'
+      const p2Name = fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador'
+
+      await Promise.allSettled(
+        [
+          { email: match.player1?.email, self: p1Name, rival: p2Name, userId: match.player1Id },
+          { email: match.player2?.email, self: p2Name, rival: p1Name, userId: match.player2Id },
+        ]
+          .filter((p) => p.email)
+          .map((p) =>
+            sendReservationRejectedEmail({
+              to: p.email as string,
+              playerName: p.self,
+              rivalName: p.rival,
+              slotLabel,
+              reasonLabel,
+              deadlineLabel,
+              actionUrl: generatePlayerMatchUrl(p.userId ? slugMap.get(p.userId) ?? null : null, match.id),
+            })
+          )
+      )
+    } catch (e) {
+      console.error('[RESERVA] aviso de rechazo:', e)
+    }
 
     revalidatePath('/admin')
     revalidatePath('/jugador')
