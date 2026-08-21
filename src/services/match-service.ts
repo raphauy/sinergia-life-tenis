@@ -104,18 +104,43 @@ export async function renewScheduleDeadline(
   return scheduleDeadlineAt
 }
 
+/**
+ * Confirma un partido y consume, en la misma transacción, cualquier `SlotReservation`
+ * que tuviera: un partido CONFIRMED con la reserva viva la deja **huérfana**, y nadie
+ * la vuelve a mirar — sigue ocupando el slot en el calendario, cuenta como "pendiente
+ * de confirmar" en el banner del admin y en el aviso diario, y ningún cron la limpia
+ * (el release de reservas vencidas solo mira partidos PENDING). No hay forma de
+ * resolverla desde la UI.
+ *
+ * Por eso el borrado vive ACÁ y no en cada action: hay tres caminos que confirman
+ * (desde la reserva, desde el calendario y desde el detalle del partido) y el
+ * invariante no puede depender de que cada uno se acuerde. `deleteMany` lo hace
+ * idempotente: no falla si el partido no tenía reserva.
+ *
+ * `tx` opcional para poder componerlo dentro de una transacción mayor; sin él abre
+ * la suya, así que el update y el borrado nunca se separan.
+ */
 export async function confirmMatch(
+  id: string,
+  data: { scheduledAt: Date; courtNumber: number },
+  tx?: Prisma.TransactionClient
+) {
+  return tx ? confirmMatchTx(tx, id, data) : prisma.$transaction((t) => confirmMatchTx(t, id, data))
+}
+
+async function confirmMatchTx(
+  tx: Prisma.TransactionClient,
   id: string,
   data: { scheduledAt: Date; courtNumber: number }
 ) {
-  const match = await prisma.match.findUnique({ where: { id } })
+  const match = await tx.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'PENDING') throw new Error('Solo se pueden confirmar partidos pendientes')
   if (!match.player1Id || !match.player2Id) {
     throw new Error('El partido aún no tiene ambos jugadores definidos')
   }
 
-  return prisma.match.update({
+  const confirmed = await tx.match.update({
     where: { id },
     data: {
       scheduledAt: data.scheduledAt,
@@ -127,6 +152,8 @@ export async function confirmMatch(
     },
     include: matchIncludes,
   })
+  await tx.slotReservation.deleteMany({ where: { matchId: id } })
+  return confirmed
 }
 
 /**

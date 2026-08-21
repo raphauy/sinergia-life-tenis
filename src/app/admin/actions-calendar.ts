@@ -12,7 +12,7 @@ import { COURTS } from '@/lib/constants'
 import { revalidatePath } from 'next/cache'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 import type { ActionResult } from '@/lib/action-types'
-import { getReservationsByMonth, getReservationById, deleteReservation, releaseReservation, mapReservationToCalendar } from '@/services/reservation-service'
+import { getReservationsByMonth, getReservationById, releaseReservation, mapReservationToCalendar } from '@/services/reservation-service'
 
 function isAdmin(role?: string) {
   return role === 'SUPERADMIN' || role === 'ADMIN'
@@ -89,6 +89,7 @@ export async function confirmMatchFromCalendarAction(
     }
 
     const scheduledAt = parseFromUY(date, time)
+    // confirmMatch consume la reserva del partido si la hubiera (ver match-service).
     const match = await confirmMatch(matchId, { scheduledAt, courtNumber })
 
     const court = COURTS.find((c) => c.number === match.courtNumber)
@@ -180,14 +181,11 @@ export async function confirmReservationAction(
     const reservation = await getReservationById(reservationId)
     if (!reservation) return { success: false, error: 'Reserva no encontrada' }
 
-    // Confirm the match with reservation data
+    // El borrado de la reserva va dentro de confirmMatch, en la misma transacción.
     const match = await confirmMatch(reservation.matchId, {
       scheduledAt: reservation.scheduledAt,
       courtNumber: reservation.courtNumber,
     })
-
-    // Delete reservation after confirming
-    await deleteReservation(reservationId)
 
     // Send emails
     const court = COURTS.find((c) => c.number === match.courtNumber)
