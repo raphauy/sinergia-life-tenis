@@ -1,15 +1,50 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { CLASS_SCHEDULE, getSlotsForDay, getMinReservationDate } from '@/lib/constants'
+import {
+  CLASS_SCHEDULE,
+  getSlotsForDay,
+  getMinReservationDate,
+  getMaxReservationDate,
+  isLadderReservableDay,
+  getLadderDaysForWeek,
+  formatLadderDays,
+} from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
+import type { CalendarMatch, CalendarReservation, LadderReservationInfo } from './court-availability-calendar'
 import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
   reservations?: CalendarReservation[]
   day: Date
+  /** Días de reserva de La Escalera. null = no se señaliza (torneo). */
+  ladderReservation?: LadderReservationInfo | null
+}
+
+/**
+ * Por qué este día no admite reserva anticipada de La Escalera, o null si la
+ * admite. El calendario público no reserva nada: explica, porque un día sin
+ * partidos se ve libre y no siempre se puede pedir.
+ */
+function ladderReservationNote(day: Date, info: LadderReservationInfo): string | null {
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  // Un día pasado no se reserva por definición, y el domingo el club está cerrado:
+  // en ninguno de los dos el motivo es la regla de La Escalera. (El domingo importa
+  // en dev, donde la grilla horaria sí se muestra.)
+  if (day < today || day.getDay() === 0) return null
+
+  if (!isLadderReservableDay(day)) {
+    return `La Escalera no reserva con anticipación este día. Esa semana se puede pedir: ${formatLadderDays(getLadderDaysForWeek(day))}. Si conseguís cancha por tu cuenta, podés jugar igual.`
+  }
+  if (day < getMinReservationDate(now)) {
+    return 'Ya pasó el plazo para pedir reserva anticipada para este día: hay que pedirla con al menos un día hábil de anticipación.'
+  }
+  if (day > getMaxReservationDate(now, info.leadDays)) {
+    return `Todavía no se puede reservar este día: la reserva anticipada se abre ${info.leadDays} días antes.`
+  }
+  return null
 }
 
 function groupByTime<T extends { timeUY: string }>(items: T[]) {
@@ -25,12 +60,16 @@ function hasClass(dayOfWeek: number, slot: string) {
   return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
-export function DailyScheduleView({ matches, reservations = [], day }: Props) {
+export function DailyScheduleView({ matches, reservations = [], day, ladderReservation = null }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const byTime = groupByTime(matches)
   const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
+  const ladderNote = ladderReservation ? ladderReservationNote(day, ladderReservation) : null
+  // "libre" sigue queriendo decir "la cancha está libre", no "podés pedirla": un
+  // día que La Escalera no reserva igual se puede jugar consiguiendo cancha por
+  // tu cuenta. De por qué no se puede reservar se encarga la nota de arriba.
   const isReservable = day >= getMinReservationDate(new Date())
 
   useEffect(() => {
@@ -44,6 +83,10 @@ export function DailyScheduleView({ matches, reservations = [], day }: Props) {
       <h3 className="text-sm font-semibold mb-2 capitalize">
         {day.toLocaleDateString('es-UY', { weekday: 'long', day: 'numeric', month: 'long' })}
       </h3>
+      {slots.length > 0 && ladderNote && (
+        <p className="mb-2 text-xs text-muted-foreground text-balance">{ladderNote}</p>
+      )}
+
       {slots.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">Club cerrado</p>
       ) : (

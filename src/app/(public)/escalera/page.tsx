@@ -190,7 +190,11 @@ export default async function EscaleraDocPage() {
             siguiente, <Hl>martes y jueves</Hl>. El <Hl>sábado</Hl> está habilitado todas las semanas
             y el domingo el club está cerrado. Los días habilitados de esta semana son{' '}
             <Hl>{daysThisWeek}</Hl>; los de la que viene, <Hl>{daysNextWeek}</Hl>. En el calendario
-            los días que no van te aparecen deshabilitados.
+            de tu partido los días que no van te aparecen deshabilitados, y en el{' '}
+            <Link href="/calendario" className="font-medium text-primary underline underline-offset-2">
+              calendario del club
+            </Link>{' '}
+            los días habilitados van marcados.
           </p>
           <p>
             Esto <span className="font-medium text-foreground">no limita cuándo podés jugar</span>: si

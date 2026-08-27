@@ -3,8 +3,10 @@ import { getMonthMatches } from '@/services/match-service'
 import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
 import { fullName } from '@/lib/format-name'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
-import { TIMEZONE } from '@/lib/constants'
+import { TIMEZONE, getLadderDaysForWeek, formatLadderDays } from '@/lib/constants'
+import { getLadder } from '@/services/ladder-service'
 import { toZonedTime } from 'date-fns-tz'
+import { addDays } from 'date-fns'
 import { CourtAvailabilityCalendar } from '@/components/court-availability-calendar'
 import { fetchMonthMatchesPublicAction, fetchMonthReservationsPublicAction } from './actions'
 
@@ -20,10 +22,24 @@ export default async function CalendarioPage() {
 
   // Disponibilidad de canchas GLOBAL (tournamentId undefined): incluye partidos
   // y reservas de torneo + La Escalera, igual que el calendario del admin.
-  const [monthMatches, monthReservations] = await Promise.all([
+  const [monthMatches, monthReservations, ladder] = await Promise.all([
     getMonthMatches(undefined, year, month),
     getReservationsByMonth(undefined, year, month),
+    getLadder(),
   ])
+
+  // Días alternantes de reserva de La Escalera (acuerdo con el club): se calculan
+  // acá, en hora uruguaya, porque el calendario es un client component y en el
+  // server la hora local es UTC. Sin escalera activa no se señaliza nada: esto es
+  // estado real, no documentación (a diferencia de /escalera, que cae a los
+  // defaults del schema para poder renderizar igual).
+  const ladderReservation = ladder
+    ? {
+        leadDays: ladder.reservationLeadDays,
+        daysThisWeek: formatLadderDays(getLadderDaysForWeek(nowUY)),
+        daysNextWeek: formatLadderDays(getLadderDaysForWeek(addDays(nowUY, 7))),
+      }
+    : null
 
   const initialMatches = monthMatches.map((m) => ({
     scheduledAt: m.scheduledAt!.toISOString(),
@@ -52,6 +68,7 @@ export default async function CalendarioPage() {
         initialMonth={month}
         fetchAction={fetchMonthMatchesPublicAction}
         fetchReservationsAction={fetchMonthReservationsPublicAction}
+        ladderReservation={ladderReservation}
       />
     </div>
   )

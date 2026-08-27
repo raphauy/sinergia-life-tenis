@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition, useCallback } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { DailyScheduleView } from './daily-schedule-view'
+import { isLadderReservableDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
@@ -46,6 +47,22 @@ export function slotContextLabel(item: { categoryName: string; groupNumber: numb
   return `Cat ${item.categoryName}${item.groupNumber != null ? ` | Grupo ${item.groupNumber}` : ''}`
 }
 
+/**
+ * Señalización de los días de reserva anticipada de La Escalera en un calendario
+ * público. Los días habilitados van marcados en la grilla (pero siguen clickeables:
+ * el calendario es para ver los partidos, y los días que no se pueden reservar
+ * igual tienen partidos que mirar). Los textos de la semana vienen calculados del
+ * server, en hora uruguaya.
+ */
+export interface LadderReservationInfo {
+  /** Tope de anticipación (`Ladder.reservationLeadDays`). */
+  leadDays: number
+  /** "martes, jueves y sábado" — días habilitados de la semana en curso. */
+  daysThisWeek: string
+  /** Ídem para la semana siguiente. */
+  daysNextWeek: string
+}
+
 /** Referencia de los colores de cada hora en la grilla del día. */
 export function ScheduleLegend() {
   const items = [
@@ -75,6 +92,8 @@ interface Props {
   fetchAction: FetchMonthMatches
   fetchReservationsAction?: FetchMonthReservations
   title?: string
+  /** Días de reserva de La Escalera. null/ausente = no se señaliza (torneo). */
+  ladderReservation?: LadderReservationInfo | null
 }
 
 export function CourtAvailabilityCalendar({
@@ -86,6 +105,7 @@ export function CourtAvailabilityCalendar({
   fetchAction,
   fetchReservationsAction,
   title = 'Disponibilidad de canchas',
+  ladderReservation = null,
 }: Props) {
   const initialKey = `${initialYear}-${initialMonth.toString().padStart(2, '0')}`
   const [matchesByMonth, setMatchesByMonth] = useState<Map<string, CalendarMatch[]>>(
@@ -171,6 +191,10 @@ export function CourtAvailabilityCalendar({
     const dayKey = `${dayDate.getFullYear()}-${(dayDate.getMonth() + 1).toString().padStart(2, '0')}-${dayDate.getDate().toString().padStart(2, '0')}`
     const count = matchCounts[dayKey] || 0
     const isSelected = selectedDay && selectedDay.toDateString() === dayDate.toDateString()
+    // Marca (no deshabilita) los días en que La Escalera puede pedir cancha con
+    // anticipación. Se pinta todo el mes, no solo la ventana reservable de hoy:
+    // lo que se quiere leer de un vistazo es el patrón alternado de la semana.
+    const isLadderDay = ladderReservation != null && isLadderReservableDay(dayDate)
 
     return (
       <CalendarDayButton
@@ -178,6 +202,7 @@ export function CourtAvailabilityCalendar({
         className={cn(
           props.className,
           '!gap-0.5 !min-w-0 w-full',
+          isLadderDay && 'bg-emerald-500/15 dark:bg-emerald-400/15',
           isSelected && 'bg-primary/15 ring-2 ring-primary',
         )}
       >
@@ -216,8 +241,29 @@ export function CourtAvailabilityCalendar({
         />
       </div>
 
+      {ladderReservation && (
+        <div className="mt-1 space-y-0.5 text-center text-xs text-muted-foreground">
+          <p className="text-balance">
+            <span
+              aria-hidden="true"
+              className="mr-1.5 inline-block size-2.5 shrink-0 rounded-[3px] bg-emerald-500/40 align-middle dark:bg-emerald-400/40"
+            />
+            Días de reserva de La Escalera: se alternan cada semana.
+          </p>
+          <p className="text-balance">
+            Esta semana: <span className="font-medium text-foreground">{ladderReservation.daysThisWeek}</span>.
+            {' '}La siguiente: <span className="font-medium text-foreground">{ladderReservation.daysNextWeek}</span>.
+          </p>
+        </div>
+      )}
+
       {selectedDay && (
-        <DailyScheduleView matches={dayMatches} reservations={dayReservations} day={selectedDay} />
+        <DailyScheduleView
+          matches={dayMatches}
+          reservations={dayReservations}
+          day={selectedDay}
+          ladderReservation={ladderReservation}
+        />
       )}
     </div>
   )
