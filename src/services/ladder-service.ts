@@ -543,6 +543,7 @@ export interface LadderConfigData {
   acceptanceWindowDays: number
   rematchCooldownDays: number
   matchScheduleDeadlineDays: number
+  resultReminderAdminDays: number
   reservationLeadDays: number
   minMatchesPerMonth: number
   monthlyPenalty: number

@@ -22,10 +22,30 @@ import LadderStaleReservationEmail from '@/components/emails/ladder-stale-reserv
 import ReservationRejectedEmail from '@/components/emails/reservation-rejected-email'
 import PlayerWelcomeEmail from '@/components/emails/player-welcome-email'
 import AdminPendingReservationsEmail from '@/components/emails/admin-pending-reservations-email'
+import LadderResultReminderEmail from '@/components/emails/ladder-result-reminder-email'
+import AdminMissingResultsEmail from '@/components/emails/admin-missing-results-email'
 
 const isDev = process.env.NODE_ENV === 'development'
 const resend = new Resend(process.env.RESEND_API_KEY)
 const fromEmail = process.env.EMAIL_FROM || 'Life Tenis <life-tenis@raphauy.dev>'
+
+/**
+ * Único punto de envío. Resend NO lanza ante un error de API: devuelve `{ data, error }`,
+ * así que un `await resend.emails.send(...)` pelado da por exitosa una key inválida, un
+ * dominio sin verificar o un rate limit.
+ *
+ * Eso no es cosmético: `notifyBothPlayers` (ladder-cron-service) trata "no lanzó" como
+ * "el jugador fue avisado", sella `scheduleWarnedAt` con eso y al día siguiente cancela
+ * el partido. Sin este chequeo, un rechazo de Resend cancela partidos sin que nadie haya
+ * recibido nunca el aviso — justo la garantía que esa feature promete.
+ */
+async function deliver(payload: Parameters<typeof resend.emails.send>[0]) {
+  const { data, error } = await resend.emails.send(payload)
+  if (error) {
+    throw new Error(`Resend (${error.name ?? 'error'}): ${error.message ?? JSON.stringify(error)}`)
+  }
+  return data
+}
 
 // ===================== OTP =====================
 
@@ -33,7 +53,7 @@ export async function sendOtpEmail(input: { to: string; otp: string }) {
   console.log(`[EMAIL] OTP for ${input.to}: ${input.otp}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: 'Tu código de verificación - Life Tenis',
@@ -53,7 +73,7 @@ export async function sendPlayerInvitationEmail(input: {
   console.log(`[EMAIL] Player invitation to ${input.to} (${input.playerName}) - ${input.tournamentName}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Invitación al torneo ${input.tournamentName} - Life Tenis`,
@@ -76,7 +96,7 @@ export async function sendAdminInvitationEmail(input: {
   console.log(`[EMAIL] Admin invitation to ${input.to} by ${input.inviterName}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: 'Invitación de administrador - Life Tenis',
@@ -110,7 +130,7 @@ export async function sendMatchConfirmationEmail(input: {
       ? `${input.stageLabel} confirmada`
       : 'Partido confirmado'
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `${subjectLabel} - ${input.tournamentName} - Life Tenis`,
@@ -141,7 +161,7 @@ export async function sendMatchRescheduledEmail(input: {
   console.log(`[EMAIL] Match rescheduled to ${input.to} - ${input.playerName} vs ${input.rivalName} - ${input.date} ${input.time}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Partido reprogramado - ${input.tournamentName} - Life Tenis`,
@@ -172,7 +192,7 @@ export async function sendMatchCancelledEmail(input: {
   console.log(`[EMAIL] Match cancelled to ${input.to} - ${input.playerName} vs ${input.rivalName} - reason: ${input.reason}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Partido cancelado - ${input.tournamentName} - Life Tenis`,
@@ -207,7 +227,7 @@ export async function sendMatchResultEmail(input: {
   console.log(`[EMAIL] Match result: ${input.player1Name} vs ${input.player2Name} - ${input.score} -> to ${input.to.length} recipients, bcc ${input.bcc.length}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     bcc: input.bcc,
@@ -244,7 +264,7 @@ export async function sendMatchResultEditedEmail(input: {
   console.log(`[EMAIL] Match result edited by ${input.adminName}: ${input.player1Name} vs ${input.player2Name} - ${input.score} -> to ${input.to.length} recipients, bcc ${input.bcc.length}`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     bcc: input.bcc,
@@ -277,7 +297,7 @@ export async function sendChallengeReceivedEmail(input: {
   console.log(`[EMAIL] Challenge received -> ${input.to} (de ${input.challengerName})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `${input.challengerName} te retó en La Escalera - Life Tenis`,
@@ -301,7 +321,7 @@ export async function sendChallengeAcceptedEmail(input: {
   console.log(`[EMAIL] Challenge accepted -> ${input.to} (por ${input.challengedName})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `${input.challengedName} aceptó tu reto - La Escalera - Life Tenis`,
@@ -321,7 +341,7 @@ export async function sendChallengeRejectedEmail(input: {
   console.log(`[EMAIL] Challenge rejected -> ${input.to} (por ${input.challengedName})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Tu reto en La Escalera - Life Tenis`,
@@ -341,7 +361,7 @@ export async function sendChallengeCancelledEmail(input: {
   console.log(`[EMAIL] Challenge cancelled -> ${input.to} (reto de ${input.challengerName})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Un reto en La Escalera se canceló - Life Tenis`,
@@ -365,7 +385,7 @@ export async function sendLadderMatchCancelledEmail(input: {
   console.log(`[EMAIL] Ladder match cancelled -> ${input.to} (por ${input.cancelledByName}${input.reopened ? ', reto reabierto' : ''})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: input.reopened
@@ -391,7 +411,7 @@ export async function sendLadderProtectionCancelledEmail(input: {
   console.log(`[EMAIL] Ladder protection cancelled ${input.kind} -> ${input.to} (${input.protectedName} protegido)`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `${input.protectedName} entró en Ranking protegido - Life Tenis`,
@@ -419,7 +439,7 @@ export async function sendLadderPenaltyAppliedEmail(input: {
   console.log(`[EMAIL] Ladder penalty -> ${input.to} (−${input.points}, nuevo ${input.newRating}, ${input.monthLabel})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Penalización mensual en La Escalera - Life Tenis`,
@@ -445,7 +465,7 @@ export async function sendLadderPenaltyRevertedEmail(input: {
   console.log(`[EMAIL] Ladder penalty reverted -> ${input.to} (+${input.points}, nuevo ${input.newRating}, ${input.monthLabel})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Se te devolvieron los puntos de la penalización - Life Tenis`,
@@ -471,7 +491,7 @@ export async function sendLadderMonthClosingWarningEmail(input: {
   console.log(`[EMAIL] Ladder month-closing warning -> ${input.to} (${input.played}/${input.min}, ${input.daysLeft}d)`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Te faltan partidos este mes en La Escalera - Life Tenis`,
@@ -496,7 +516,7 @@ export async function sendLadderMatchExpiryWarningEmail(input: {
   console.log(`[EMAIL] Ladder match expiry warning -> ${input.to} (vs ${input.rivalName}, hasta ${input.deadlineLabel})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Coordiná tu partido de La Escalera - Life Tenis`,
@@ -518,7 +538,7 @@ export async function sendLadderMatchAutoCancelledEmail(input: {
   console.log(`[EMAIL] Ladder match auto-cancelled -> ${input.to} (vs ${input.rivalName})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `Partido de La Escalera cancelado - Life Tenis`,
@@ -545,7 +565,7 @@ export async function sendLadderStaleReservationEmail(input: {
   console.log(`[EMAIL] Ladder stale reservation -> ${input.to} (vs ${input.rivalName}, turno ${input.slotLabel})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `El turno que pediste no se confirmó - Life Tenis`,
@@ -572,7 +592,7 @@ export async function sendReservationRejectedEmail(input: {
   console.log(`[EMAIL] Reservation rejected -> ${input.to} (${input.slotLabel}, ${input.reasonLabel})`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: `No pudimos confirmar el horario que pediste - Life Tenis`,
@@ -598,7 +618,7 @@ export async function sendPlayerWelcomeEmail(input: {
   console.log(`[EMAIL] Bienvenida a La Escalera -> ${input.to} (${input.playerName}, ${input.rating} pts)`)
   if (isDev) return
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject: '¡Bienvenido a La Escalera! - Life Tenis',
@@ -636,7 +656,7 @@ export async function sendAdminPendingReservationsEmail(input: {
     ? `${urgentCount} ${urgentCount === 1 ? 'reserva' : 'reservas'} para el ${input.urgent.dayLabel} sin confirmar - Life Tenis`
     : 'Reservas pendientes de confirmar - Life Tenis'
 
-  await resend.emails.send({
+  await deliver({
     from: fromEmail,
     to: input.to,
     subject,
@@ -647,6 +667,66 @@ export async function sendAdminPendingReservationsEmail(input: {
       tomorrow: input.tomorrow,
       today: input.today,
       laterCount: input.laterCount,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+/**
+ * Recordatorio diario al jugador: el partido ya se jugó (o su horario pasó) y sigue sin
+ * resultado. Insiste hasta que lo carguen o cancelen el partido — las dos salidas están
+ * en la misma pantalla a la que apunta `actionUrl` (el detalle del partido, no el panel).
+ */
+export async function sendLadderResultReminderEmail(input: {
+  to: string
+  playerName: string
+  rivalName: string
+  matchLabel: string
+  daysLate: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Ladder result reminder -> ${input.to} (vs ${input.rivalName}, hace ${input.daysLate}d)`)
+  if (isDev) return
+
+  await deliver({
+    from: fromEmail,
+    to: input.to,
+    subject: `Falta cargar el resultado de tu partido - Life Tenis`,
+    react: LadderResultReminderEmail({
+      playerName: input.playerName,
+      rivalName: input.rivalName,
+      matchLabel: input.matchLabel,
+      daysLate: input.daysLate,
+      actionUrl: input.actionUrl,
+    }),
+  })
+}
+
+/**
+ * Digest diario (9 hs UY) a los admins con los partidos de escalera sin resultado.
+ * Solo sale cuando alguno superó `resultReminderAdminDays`, pero lista todos: el que
+ * lleva un día contextualiza al que lleva cinco. Los labels vienen ya formateados.
+ */
+export async function sendAdminMissingResultsEmail(input: {
+  to: string
+  adminName: string
+  items: string[]
+  overThresholdCount: number
+  thresholdDays: number
+  actionUrl: string
+}) {
+  console.log(`[EMAIL] Resultados sin cargar (admin) -> ${input.to} (${input.items.length} partidos, ${input.overThresholdCount} pasados de plazo)`)
+  if (isDev) return
+
+  await deliver({
+    from: fromEmail,
+    to: input.to,
+    subject: `${input.items.length} ${input.items.length === 1 ? 'partido' : 'partidos'} sin resultado en La Escalera - Life Tenis`,
+    react: AdminMissingResultsEmail({
+      adminName: input.adminName,
+      items: input.items,
+      overThresholdCount: input.overThresholdCount,
+      thresholdDays: input.thresholdDays,
       actionUrl: input.actionUrl,
     }),
   })
@@ -684,4 +764,10 @@ export function generateAdminInviteUrl(token: string): string {
 export function generateAdminPanelUrl(): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   return `${baseUrl}/admin`
+}
+
+/** Monitor de La Escalera: ahí están los partidos en curso, para cargar o cancelar. */
+export function generateAdminLadderUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return `${baseUrl}/admin/escalera`
 }

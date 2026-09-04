@@ -34,6 +34,7 @@ export interface LadderConfig {
   acceptanceWindowDays: number
   rematchCooldownDays: number
   matchScheduleDeadlineDays: number
+  resultReminderAdminDays: number
   reservationLeadDays: number
   minMatchesPerMonth: number
   monthlyPenalty: number
@@ -51,6 +52,7 @@ const NUM_FIELDS = [
   { key: 'acceptanceWindowDays', label: 'Días para responder', hint: 'Plazo del retado para aceptar o rechazar antes de que venza.', min: 1, max: 30, group: 'retos' },
   { key: 'rematchCooldownDays', label: 'Cooldown de revancha (días)', hint: 'Días de espera para volver a retar al mismo rival tras jugar. 0 = sin espera.', min: 0, max: 60, group: 'retos' },
   { key: 'matchScheduleDeadlineDays', label: 'Días para concretar', hint: 'Plazo para agendar el partido aceptado. Queda en pausa mientras una reserva espera confirmación, y arranca de nuevo si esa reserva no prospera.', min: 1, max: 30, group: 'partidos' },
+  { key: 'resultReminderAdminDays', label: 'Aviso al admin (días)', hint: 'Cuando un resultado sin cargar llega a estos días de atraso, el recordatorio diario a los jugadores te llega también a vos.', min: 1, max: 30, group: 'partidos' },
   { key: 'reservationLeadDays', label: 'Anticipación de reserva (días)', hint: 'Hasta cuántos días adelante se pueden reservar canchas.', min: 1, max: 120, group: 'partidos' },
   { key: 'minMatchesPerMonth', label: 'Mínimo de partidos al mes', hint: 'Partidos a jugar por mes para no recibir la multa de puntos.', min: 0, max: 30, group: 'fase3' },
   { key: 'monthlyPenalty', label: 'Penalización mensual', hint: 'Puntos a descontar por no llegar al mínimo.', min: 0, max: 500, group: 'fase3' },

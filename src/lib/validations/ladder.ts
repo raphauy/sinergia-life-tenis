@@ -39,6 +39,7 @@ export const ladderConfigSchema = z.object({
   acceptanceWindowDays: intField(1, 30),
   rematchCooldownDays: intField(0, 60),
   matchScheduleDeadlineDays: intField(1, 30),
+  resultReminderAdminDays: intField(1, 30),
   reservationLeadDays: intField(1, 120),
   minMatchesPerMonth: intField(0, 30),
   monthlyPenalty: intField(0, 500),

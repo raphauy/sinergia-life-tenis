@@ -199,7 +199,8 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
 
     const { reopened } = await cancelLadderMatch(matchId, session.user.id, isAdmin)
 
-    // Avisar al otro jugador (o a ambos si lo canceló un admin).
+    // Avisar al otro jugador (o a ambos si lo canceló un admin). El try va POR
+    // destinatario: si el envío al primero falla, el segundo tiene que recibir igual.
     try {
       if (match?.player1Id && match?.player2Id) {
         const canceller = await userBrief(session.user.id)
@@ -210,7 +211,8 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
         for (const rid of recipients) {
           const otherId = rid === match.player1Id ? match.player2Id : match.player1Id
           const [recipient, other] = await Promise.all([userBrief(rid), userBrief(otherId)])
-          if (recipient?.email) {
+          if (!recipient?.email) continue
+          try {
             await sendLadderMatchCancelledEmail({
               to: recipient.email,
               recipientName: fullName(recipient.firstName, recipient.lastName) || 'Jugador',
@@ -218,6 +220,8 @@ export async function cancelLadderMatchAction(matchId: string): Promise<ActionRe
               cancelledByName,
               reopened,
             })
+          } catch (e) {
+            console.error(`[EMAIL] ladder match cancelled -> ${recipient.email}:`, e)
           }
         }
       }

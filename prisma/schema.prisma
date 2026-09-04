@@ -410,6 +410,7 @@ model Ladder {
   reservationLeadDays   Int      @default(7)
   rematchCooldownDays   Int      @default(3)    // días para re-retar al mismo rival tras jugar
   matchScheduleDeadlineDays Int  @default(5)    // días para concretar el partido aceptado
+  resultReminderAdminDays Int    @default(3)    // atraso (en días) a partir del cual el recordatorio de resultado sin cargar suma a los admins
   gallinaEnabled        Boolean  @default(true)  // muestra/oculta la Sección Gallina (home + doc)
   gallinaPositionRange  Int      @default(10)   // ±N puestos para que un rechazo cuente como "gallina"
   matchFormat           MatchFormat @default(SINGLE_SET) // formato de los partidos de escalera

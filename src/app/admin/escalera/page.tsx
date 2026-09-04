@@ -135,6 +135,7 @@ export default async function AdminEscaleraPage() {
                 acceptanceWindowDays: ladder.acceptanceWindowDays,
                 rematchCooldownDays: ladder.rematchCooldownDays,
                 matchScheduleDeadlineDays: ladder.matchScheduleDeadlineDays,
+                resultReminderAdminDays: ladder.resultReminderAdminDays,
                 reservationLeadDays: ladder.reservationLeadDays,
                 minMatchesPerMonth: ladder.minMatchesPerMonth,
                 monthlyPenalty: ladder.monthlyPenalty,

@@ -213,6 +213,13 @@ export default async function EscaleraDocPage() {
             arranca de nuevo. Si no lo agendan a tiempo, se cancela solo (no afecta los puntos) y
             nunca sin haberte avisado antes.
           </p>
+          <p>
+            <span className="font-medium text-foreground">Después de jugar, carguen el resultado.</span>{' '}
+            Mientras un partido que ya pasó siga sin resultado, les va a llegar{' '}
+            <Hl>un recordatorio por mail todos los días</Hl> a los dos, hasta que lo carguen o
+            cancelen el partido. Lo puede cargar cualquiera de los dos, y hasta que no esté cargado
+            los puntos no se mueven ni cuenta para el mínimo del mes.
+          </p>
           <p className="text-xs">
             Formato de los partidos: <Hl>{matchFormatLabel(cfg.matchFormat)}</Hl>.
           </p>

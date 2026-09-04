@@ -14,6 +14,10 @@ import { monthRangeUY, daysUntilEndOfMonthUY, monthLabelUY, endOfDayInDaysUY, lo
 import { renewScheduleDeadline } from '@/services/match-service'
 import {
   generatePlayerPanelUrl,
+  generatePlayerMatchUrl,
+  generateAdminLadderUrl,
+  sendLadderResultReminderEmail,
+  sendAdminMissingResultsEmail,
   sendLadderPenaltyAppliedEmail,
   sendLadderMonthClosingWarningEmail,
   sendLadderMatchExpiryWarningEmail,
@@ -674,4 +678,173 @@ export async function notifyAdminsPendingReservations(): Promise<{
     recipients: admins.length,
     ...counts,
   }
+}
+
+// ============================================================================
+// Resultados sin cargar — recordatorio diario a los jugadores + aviso al admin
+// ============================================================================
+
+/**
+ * Resend limita a 2 req/s: con envíos en paralelo o pegados, un lote grande empieza a
+ * cobrar 429 — y desde que `deliver()` propaga el error de la API, un 429 es un fallo
+ * real que deja a ese jugador sin el recordatorio del día.
+ */
+const RESEND_GAP_MS = 600
+const pause = () => new Promise((r) => setTimeout(r, RESEND_GAP_MS))
+
+export interface MissingResultsResult {
+  /** Partidos confirmados de un día UY anterior que siguen sin resultado. */
+  overdue: number
+  /** En cuántos de esos quedó dado el recordatorio (al menos un jugador recibió el mail). */
+  matchesReminded: number
+  /** Cuántos superaron `resultReminderAdminDays`. Son los que disparan el aviso al admin. */
+  overThreshold: number
+  adminsNotified: number
+}
+
+/**
+ * Persigue los partidos que ya se jugaron (o cuyo horario pasó) y nadie cargó. Insiste
+ * todos los días, sin tope: la salida no es dejar de molestar sino cargar el resultado
+ * o cancelar el partido, y las dos están en la pantalla a la que apunta el mail.
+ *
+ * Sin marca de "ya avisé": el atraso se deriva de `scheduledAt` y cada corrida recalcula
+ * de cero. Si Resend falla, mañana se reintenta solo — no hay nada que destrabar a mano.
+ *
+ * Nada se auto-cancela acá. Un partido sin resultado puede ser uno que se jugó y no
+ * cargaron (hay que cargarlo) o uno que nunca se jugó (hay que cancelarlo), y desde
+ * afuera no se distingue: por eso a partir del umbral entra el admin.
+ */
+export async function remindMissingResults(): Promise<MissingResultsResult> {
+  const result: MissingResultsResult = { overdue: 0, matchesReminded: 0, overThreshold: 0, adminsNotified: 0 }
+  const ladder = await getLadder()
+  if (!ladder) return result
+
+  const now = new Date()
+  const nowUY = toZonedTime(now, TIMEZONE)
+
+  const matches = await prisma.match.findMany({
+    where: { ladderId: ladder.id, status: 'CONFIRMED', result: null, scheduledAt: { lt: now } },
+    select: {
+      id: true,
+      scheduledAt: true,
+      confirmedAt: true,
+      player1Id: true,
+      player2Id: true,
+      player1: { select: { email: true, firstName: true, lastName: true } },
+      player2: { select: { email: true, firstName: true, lastName: true } },
+    },
+  })
+  if (matches.length === 0) return result
+
+  // El atraso se cuenta desde el más tardío entre el horario del partido y su confirmación.
+  // `confirmedAt` importa porque un partido se puede autoagendar hacia atrás (hasta
+  // SELF_SCHEDULE_PAST_DAYS): sin esto, el que registra anoche un partido de hace cuatro
+  // días amanece con un mail que le reclama cuatro días de atraso — y encima escala al
+  // admin — por algo que hizo ayer.
+  //
+  // El primer recordatorio sale a la mañana siguiente: el partido de anoche entra, el de
+  // hoy más temprano espera a mañana. Por día calendario UY, no por 24 h corridas — un
+  // partido de ayer a las 21 hs tiene que contar como "de ayer" a las 9 de la mañana.
+  const overdue = matches
+    .map((m) => {
+      const scheduledAt = m.scheduledAt as Date
+      const since = m.confirmedAt && m.confirmedAt > scheduledAt ? m.confirmedAt : scheduledAt
+      return { m, daysLate: differenceInCalendarDays(nowUY, toZonedTime(since, TIMEZONE)) }
+    })
+    .filter((row) => row.daysLate >= 1)
+    .sort((a, b) => b.daysLate - a.daysLate)
+  if (overdue.length === 0) return result
+  result.overdue = overdue.length
+
+  // El digest al admin sale ANTES que los mails a los jugadores. El bucle de abajo es
+  // secuencial y sin cota (dos envíos por partido): si la corrida se corta por timeout o
+  // Resend empieza a rechazar, lo último que queremos perder es justo el aviso que
+  // dispara la acción humana.
+  //
+  // Lo dispara el más atrasado, pero lista todos: el de un día contextualiza al de cinco,
+  // y así el digest se lee de una.
+  result.overThreshold = overdue.filter((r) => r.daysLate >= ladder.resultReminderAdminDays).length
+  if (result.overThreshold > 0) {
+    const admins = await getAdminUsers()
+    if (admins.length > 0) {
+      const items = overdue.map(({ m, daysLate }) => {
+        const p1 = fullName(m.player1?.firstName, m.player1?.lastName) || 'Jugador'
+        const p2 = fullName(m.player2?.firstName, m.player2?.lastName) || 'Jugador'
+        return `${longDateTimeUY(m.scheduledAt as Date)} · ${p1} vs ${p2} · hace ${daysLate} ${daysLate === 1 ? 'día' : 'días'}`
+      })
+      const actionUrl = generateAdminLadderUrl()
+
+      for (const a of admins) {
+        try {
+          await sendAdminMissingResultsEmail({
+            to: a.email,
+            adminName: a.firstName || 'admin',
+            items,
+            overThresholdCount: result.overThreshold,
+            thresholdDays: ladder.resultReminderAdminDays,
+            actionUrl,
+          })
+          result.adminsNotified++
+        } catch (e) {
+          console.error('[CRON] email resultados sin cargar (admin):', e)
+        }
+        await pause()
+      }
+    }
+  }
+
+  const userIds = overdue.flatMap(({ m }) => [m.player1Id, m.player2Id]).filter((id): id is string => !!id)
+  const slugMap = await getPlayerSlugsByUserIds(userIds)
+
+  for (const { m, daysLate } of overdue) {
+    if (await notifyBothPlayersMissingResult(m, slugMap, daysLate)) result.matchesReminded++
+    await pause()
+  }
+
+  return result
+}
+
+/**
+ * Recordatorio a los dos jugadores: cualquiera de los dos puede cargar. Devuelve si el
+ * mail salió para al menos uno — solo alimenta el contador de la corrida, no hay nada
+ * que sellar, así que un fallo se corrige solo mañana.
+ */
+async function notifyBothPlayersMissingResult(
+  m: MatchPlayers & { scheduledAt: Date | null },
+  slugMap: Map<string, string>,
+  daysLate: number
+): Promise<boolean> {
+  const p1Name = fullName(m.player1?.firstName, m.player1?.lastName) || 'Jugador'
+  const p2Name = fullName(m.player2?.firstName, m.player2?.lastName) || 'Jugador'
+  const matchLabel = m.scheduledAt ? longDateTimeUY(m.scheduledAt) : ''
+
+  const sendTo = async (
+    email: string | null,
+    selfName: string,
+    rivalName: string,
+    selfUserId: string | null
+  ): Promise<boolean> => {
+    if (!email) return false
+    try {
+      await sendLadderResultReminderEmail({
+        to: email,
+        playerName: selfName,
+        rivalName,
+        matchLabel,
+        daysLate,
+        actionUrl: generatePlayerMatchUrl(selfUserId ? slugMap.get(selfUserId) ?? null : null, m.id),
+      })
+      return true
+    } catch (e) {
+      console.error('[CRON] email resultado sin cargar:', e)
+      return false
+    }
+  }
+
+  // En serie y con pausa: en paralelo los dos envíos del mismo partido ya rozan el
+  // límite de Resend, y el segundo se comería el 429.
+  const first = await sendTo(m.player1?.email ?? null, p1Name, p2Name, m.player1Id)
+  await pause()
+  const second = await sendTo(m.player2?.email ?? null, p2Name, p1Name, m.player2Id)
+  return first || second
 }

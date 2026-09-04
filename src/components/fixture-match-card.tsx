@@ -155,6 +155,15 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   const winnerIs2 = match.result?.winnerId != null && match.result.winnerId === match.player2Id
   const hasDateTime = !!match.scheduledAt
   const showFallbackDate = !hasDateTime && !!fallbackDate && (match.stage === 'SEMIFINAL' || match.stage === 'FINAL')
+  const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
+  // Confirmado, su horario ya pasó y nadie cargó el resultado. Se muestra como lo que es:
+  // "Confirmado" lo hacía parecer por jugarse. La card es compartida, así que el badge sale
+  // también en partidos de torneo — ahí es igual de cierto, pero el recordatorio diario por
+  // mail solo existe para los de escalera (`remindMissingResults` filtra por ladderId).
+  // Exige fecha explícita (`matchPassed` da true sin fecha, para habilitar la carga de
+  // resultado): sin esto un confirmado sin horario decía "Falta resultado" acá y
+  // "Confirmado" en el panel admin, que resuelve el mismo null al revés.
+  const awaitingResult = match.status === 'CONFIRMED' && !match.result && !!match.scheduledAt && matchPassed
 
   const stageLabel = match.stage && match.stage !== 'GROUP'
     ? (match.stage === 'QUARTERFINAL' ? 'Cuartos de final'
@@ -175,9 +184,11 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         ? <Badge variant="success" className={badgeClass}>Ganado</Badge>
         : <Badge variant="destructive" className={`${badgeClass} border-destructive/30 dark:border-destructive/40`}>Perdido</Badge>
       : <Badge variant="success" className={badgeClass}>Jugado</Badge>
-    : match.status === 'CONFIRMED'
-      ? <Badge variant="default" className={badgeClass}>Confirmado</Badge>
-      : <Badge variant="warning" className={badgeClass}>Pendiente</Badge>
+    : awaitingResult
+      ? <Badge variant="warning" className={badgeClass}>Falta resultado</Badge>
+      : match.status === 'CONFIRMED'
+        ? <Badge variant="default" className={badgeClass}>Confirmado</Badge>
+        : <Badge variant="warning" className={badgeClass}>Pendiente</Badge>
 
   function getDateTimeLabel() {
     if (!hasDateTime) return null
@@ -198,9 +209,8 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       <Link href={matchHref} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-primary hover:underline">
         Coordinar con tu rival →
       </Link>
-    ) : match.status === 'CONFIRMED' && !match.result ? (() => {
-      const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
-      return matchPassed ? (
+    ) : match.status === 'CONFIRMED' && !match.result ? (
+      matchPassed ? (
         <Link href={matchHref} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-primary hover:underline">
           Cargar resultado →
         </Link>
@@ -214,17 +224,19 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
           </Tooltip>
         </TooltipProvider>
       )
-    })() : null
+    ) : null
 
-  // Link "Agendar" (Google Calendar) en todo partido confirmado sin resultado y con
-  // fecha/hora: público. El título depende del viewer: participante → "Tenis vs {su rival}",
+  // Link "Agendar" (Google Calendar) en todo partido confirmado sin resultado, con
+  // fecha/hora y todavía por jugarse: público. Si el horario ya pasó no se ofrece —
+  // agendar un partido de la semana pasada no tiene sentido, ahí lo que falta es el
+  // resultado. El título depende del viewer: participante → "Tenis vs {su rival}",
   // espectador → "{p1} vs {p2}". El court va en la ubicación del evento.
   // Invitar al rival solo si el viewer es participante (un espectador no debe invitar a
   // los jugadores). El rival es el otro jugador del partido.
   const rivalEmail = isParticipant
     ? (currentUserId === match.player1Id ? match.player2?.email : match.player1?.email) ?? null
     : null
-  const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt ? (
+  const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt && !matchPassed ? (
     <span onClick={(e) => e.stopPropagation()}>
       <AddToCalendarLink
         start={match.scheduledAt}
@@ -308,8 +320,8 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
 
       {/* Row 3: Date/Time - Court + badge (only if has date/time) */}
       {hasDateTime && (
-        <div className="mt-0.5 flex items-center justify-between text-sm text-muted-foreground">
-          <span>
+        <div className="mt-0.5 flex items-center justify-between gap-2 text-sm text-muted-foreground">
+          <span className="min-w-0 truncate">
             <span className="font-bold text-foreground">{dateTimeLabel}</span>
             {match.externalCourt ? ' - Fuera del club' : court && ` - ${court.name}`}
           </span>

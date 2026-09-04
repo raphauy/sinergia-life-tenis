@@ -33,15 +33,26 @@ function PlayerLink({ name, slug, className }: { name: string; slug: string | nu
 
 function matchStatusBadge(m: AdminLadderMatchRow) {
   if (m.status === 'CONFIRMED') {
+    // "Falta resultado" y el origen de la cancha son ortogonales: un autoagendado cuyo
+    // horario ya pasó necesita las dos señales. Mostrar solo la primera hacía desaparecer
+    // para siempre el "verificar" de un partido que el admin no llegó a mirar ese día.
+    const badges = []
     // El jugador dice haber sacado la cancha por la app del club: nadie la reservó
     // desde acá, así que se marca para poder verificarla.
     if (m.selfScheduled && !m.externalCourt) {
-      return <Badge className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Cancha del jugador · verificar</Badge>
+      badges.push(<Badge key="verificar" className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Cancha del jugador · verificar</Badge>)
+    } else if (m.selfScheduled) {
+      badges.push(<Badge key="fuera" className="border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">Fuera del club</Badge>)
     }
-    if (m.selfScheduled) {
-      return <Badge className="border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">Fuera del club</Badge>
+    // En "Partidos en curso" no hay jugados, así que un confirmado cuyo horario ya pasó
+    // es exactamente uno sin resultado cargado.
+    if (m.scheduledAt && m.scheduledAt.getTime() <= Date.now()) {
+      badges.push(<Badge key="resultado" className="border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">Falta resultado</Badge>)
     }
-    return <Badge className="border-green-300 bg-green-100 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">Confirmado</Badge>
+    if (badges.length === 0) {
+      return <Badge className="border-green-300 bg-green-100 text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300">Confirmado</Badge>
+    }
+    return <>{badges}</>
   }
   if (m.scheduledAt) {
     return <Badge className="border-blue-300 bg-blue-100 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">Reservado · a confirmar</Badge>
