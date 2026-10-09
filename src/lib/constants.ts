@@ -36,9 +36,9 @@ export const CLASS_SCHEDULE: Record<number, string[]> = {
   6: ['09:00', '10:00'],    // sábado
 }
 
-// Sábado solo mañana (cierra 13hs), domingo cerrado (excepto en dev)
+// Sábado solo mañana (abre 8hs, cierra 13hs), domingo cerrado (excepto en dev)
 const SATURDAY_SLOTS = [
-  '07:00', '08:00', '09:00', '10:00', '11:00', '12:00',
+  '08:00', '09:00', '10:00', '11:00', '12:00',
 ]
 
 // Días mínimos de adelanto para reservar (saltar 1 día hábil)
