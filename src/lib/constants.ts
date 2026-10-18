@@ -26,6 +26,12 @@ export const TIME_SLOTS = [
   '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30', '19:30', '20:30',
 ]
 
+// Fuera del club no rigen los turnos del club: cada media hora, 7:00–22:00, cualquier día.
+export const EXTERNAL_TIME_SLOTS = Array.from({ length: 31 }, (_, i) => {
+  const minutes = 7 * 60 + i * 30
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${minutes % 60 === 0 ? '00' : '30'}`
+})
+
 // Clases grupales que ocupan ambas canchas (day of week: 0=dom, 1=lun, ..., 6=sáb)
 export const CLASS_SCHEDULE: Record<number, string[]> = {
   1: ['08:00'],             // lunes

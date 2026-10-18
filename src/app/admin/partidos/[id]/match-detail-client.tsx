@@ -17,10 +17,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { COURTS, TIME_SLOTS, getSlotsForDay } from '@/lib/constants'
+import { COURTS, EXTERNAL_TIME_SLOTS, TIME_SLOTS, getSlotsForDay } from '@/lib/constants'
 import { MatchResultForm } from '@/components/match-result-form'
 import { confirmMatchAction, rescheduleMatchAction, cancelMatchAction, adminLoadResultAction } from '../actions'
 import type { MatchFormat, MatchStage, MatchStatus } from '@prisma/client'
+
+/** Valor del selector de cancha para "fuera del club" (se envía sin courtNumber). */
+const EXTERNAL = 'EXTERNAL'
 
 interface Props {
   matchId: string
@@ -34,6 +37,9 @@ interface Props {
   hasResult: boolean
   scheduledAt?: string | null
   courtNumber?: number | null
+  /** Solo la escalera admite partidos fuera del club. */
+  isLadder: boolean
+  externalCourt: boolean
   finalsDate?: string | null
   result?: {
     walkover?: boolean
@@ -63,6 +69,8 @@ export function MatchDetailClient({
   hasResult,
   scheduledAt,
   courtNumber,
+  isLadder,
+  externalCourt,
   finalsDate,
   result,
 }: Props) {
@@ -80,22 +88,30 @@ export function MatchDetailClient({
     scheduledAt ? format(toZonedTime(new Date(scheduledAt), TIMEZONE), 'HH:mm') : ''
   )
   const [rescheduleCourt, setRescheduleCourt] = useState(
-    courtNumber?.toString() ?? '2'
+    externalCourt ? EXTERNAL : courtNumber?.toString() ?? '2'
   )
   const [showCancelForm, setShowCancelForm] = useState(false)
   const [cancelReason, setCancelReason] = useState('Cancelado por lluvia')
 
   // Los horarios dependen del día: el sábado el club cierra a las 13 (y tiene el
   // slot de las 12:00, que entre semana no existe) y el domingo no abre. Sin fecha
-  // elegida todavía, se muestra la grilla de día de semana.
-  const confirmSlots = confirmDate ? getSlotsForDay(confirmDate.getDay()) : TIME_SLOTS
-  const rescheduleSlots = rescheduleDate ? getSlotsForDay(rescheduleDate.getDay()) : TIME_SLOTS
+  // elegida todavía, se muestra la grilla de día de semana. Fuera del club no rigen
+  // los turnos del club: cada media hora, cualquier día.
+  function slotsFor(date: Date | undefined, court: string) {
+    if (court === EXTERNAL) return EXTERNAL_TIME_SLOTS
+    return date ? getSlotsForDay(date.getDay()) : TIME_SLOTS
+  }
+  const confirmSlots = slotsFor(confirmDate, confirmCourt)
+  const rescheduleSlots = slotsFor(rescheduleDate, rescheduleCourt)
   const toItems = (slots: string[]) => slots.map((t) => ({ value: t, label: t }))
+  const courtOptions = [
+    ...COURTS.map((c) => ({ value: c.number.toString(), label: c.name })),
+    ...(isLadder ? [{ value: EXTERNAL, label: 'Fuera del club' }] : []),
+  ]
 
-  /** Al cambiar de día, la hora elegida puede dejar de existir (ej. 18:30 → sábado). */
-  function pickDate(date: Date | undefined, time: string, setDate: (d: Date | undefined) => void, setTime: (t: string) => void) {
-    setDate(date)
-    if (date && time && !getSlotsForDay(date.getDay()).includes(time)) setTime('')
+  /** Al cambiar de día o de cancha, la hora elegida puede dejar de existir (ej. 18:30 → sábado). */
+  function keepTimeIfValid(date: Date | undefined, court: string, time: string, setTime: (t: string) => void) {
+    if (time && !slotsFor(date, court).includes(time)) setTime('')
   }
 
   function handleConfirm(e: React.FormEvent<HTMLFormElement>) {
@@ -107,7 +123,7 @@ export function MatchDetailClient({
       const res = await confirmMatchAction(matchId, {
         date: confirmDate ? format(confirmDate, 'yyyy-MM-dd') : null,
         time: confirmTime,
-        courtNumber: confirmCourt,
+        courtNumber: confirmCourt === EXTERNAL ? undefined : confirmCourt,
       })
       if (res.success) {
         toast.success('Partido confirmado. Emails enviados.')
@@ -145,7 +161,7 @@ export function MatchDetailClient({
       const res = await rescheduleMatchAction(matchId, {
         date: format(rescheduleDate, 'yyyy-MM-dd'),
         time: rescheduleTime,
-        courtNumber: rescheduleCourt,
+        courtNumber: rescheduleCourt === EXTERNAL ? undefined : rescheduleCourt,
       })
       if (res.success) {
         toast.success('Partido reprogramado')
@@ -171,12 +187,29 @@ export function MatchDetailClient({
         <div className="rounded-lg border p-4">
           <h2 className="font-semibold mb-3">Confirmar partido</h2>
           <form onSubmit={handleConfirm} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cancha</Label>
+              <div className="flex gap-1.5">
+                {courtOptions.map((c) => (
+                  <Button
+                    key={c.value}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                      className={confirmCourt === c.value ? 'border-foreground bg-foreground text-background' : ''}
+                    onClick={() => { setConfirmCourt(c.value); keepTimeIfValid(confirmDate, c.value, confirmTime, setConfirmTime) }}
+                  >
+                    {c.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <DatePicker
                   value={confirmDate}
-                  onChange={(d) => pickDate(d, confirmTime, setConfirmDate, setConfirmTime)}
+                  onChange={(d) => { setConfirmDate(d); keepTimeIfValid(d, confirmCourt, confirmTime, setConfirmTime) }}
                 />
               </div>
               <div className="space-y-2">
@@ -197,25 +230,10 @@ export function MatchDetailClient({
                   </SelectContent>
                 </Select>
                 {confirmSlots.length === 0 && (
-                  <p className="text-xs text-muted-foreground">El club está cerrado ese día.</p>
+                  <p className="text-xs text-muted-foreground">
+                    El club está cerrado ese día.{isLadder && ' Si juegan en otra cancha, elegí "Fuera del club".'}
+                  </p>
                 )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Cancha</Label>
-              <div className="flex gap-1.5">
-                {COURTS.map((c) => (
-                  <Button
-                    key={c.number}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                      className={confirmCourt === c.number.toString() ? 'border-foreground bg-foreground text-background' : ''}
-                    onClick={() => setConfirmCourt(c.number.toString())}
-                  >
-                    {c.name}
-                  </Button>
-                ))}
               </div>
             </div>
             <div className="flex gap-2 pt-2">
@@ -232,12 +250,29 @@ export function MatchDetailClient({
         <div className="rounded-lg border p-4 space-y-4">
           <h2 className="font-semibold">Reprogramar partido</h2>
           <form onSubmit={handleReschedule} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cancha</Label>
+              <div className="flex gap-1.5">
+                {courtOptions.map((c) => (
+                  <Button
+                    key={c.value}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                      className={rescheduleCourt === c.value ? 'border-foreground bg-foreground text-background' : ''}
+                    onClick={() => { setRescheduleCourt(c.value); keepTimeIfValid(rescheduleDate, c.value, rescheduleTime, setRescheduleTime) }}
+                  >
+                    {c.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Fecha</Label>
                 <DatePicker
                   value={rescheduleDate}
-                  onChange={(d) => pickDate(d, rescheduleTime, setRescheduleDate, setRescheduleTime)}
+                  onChange={(d) => { setRescheduleDate(d); keepTimeIfValid(d, rescheduleCourt, rescheduleTime, setRescheduleTime) }}
                 />
               </div>
               <div className="space-y-2">
@@ -258,25 +293,10 @@ export function MatchDetailClient({
                   </SelectContent>
                 </Select>
                 {rescheduleSlots.length === 0 && (
-                  <p className="text-xs text-muted-foreground">El club está cerrado ese día.</p>
+                  <p className="text-xs text-muted-foreground">
+                    El club está cerrado ese día.{isLadder && ' Si juegan en otra cancha, elegí "Fuera del club".'}
+                  </p>
                 )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Cancha</Label>
-              <div className="flex gap-1.5">
-                {COURTS.map((c) => (
-                  <Button
-                    key={c.number}
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                      className={rescheduleCourt === c.number.toString() ? 'border-foreground bg-foreground text-background' : ''}
-                    onClick={() => setRescheduleCourt(c.number.toString())}
-                  >
-                    {c.name}
-                  </Button>
-                ))}
               </div>
             </div>
             <div className="flex gap-2 pt-2">

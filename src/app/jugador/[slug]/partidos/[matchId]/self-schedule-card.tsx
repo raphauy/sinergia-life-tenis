@@ -11,7 +11,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { format, addDays, startOfDay } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { CLASS_SCHEDULE, COURTS, getSlotsForDay, TIME_SLOTS, TIMEZONE, SELF_SCHEDULE_PAST_DAYS } from '@/lib/constants'
+import { CLASS_SCHEDULE, COURTS, getSlotsForDay, EXTERNAL_TIME_SLOTS, TIMEZONE, SELF_SCHEDULE_PAST_DAYS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { selfScheduleMatchAction } from './actions'
 
@@ -68,9 +68,9 @@ export function SelfScheduleCard({ matchId, reservationLeadDays, occupiedSlots =
 
   const canSubmit = date != null && time !== '' && (location === 'EXTERNAL' || courtNumber !== '')
 
-  // Fuera del club no rigen los horarios del club: se ofrece la grilla completa
-  // cualquier día (incluso domingo, que acá está cerrado).
-  const slotOptions = location === 'CLUB' ? clubSlots : TIME_SLOTS
+  // Fuera del club no rigen los horarios del club: cada media hora cualquier día
+  // (incluso domingo, que acá está cerrado).
+  const slotOptions = location === 'CLUB' ? clubSlots : EXTERNAL_TIME_SLOTS
   const timeItems = useMemo(() => slotOptions.map((s) => ({ value: s, label: s })), [slotOptions])
   const courtItems = useMemo(() => COURTS.map((c) => ({ value: c.number.toString(), label: c.name })), [])
 

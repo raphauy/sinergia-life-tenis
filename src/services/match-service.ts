@@ -104,6 +104,13 @@ export async function renewScheduleDeadline(
   return scheduleDeadlineAt
 }
 
+/** Sin cancha (courtNumber null) = fuera del club, que solo existe en La Escalera. */
+function assertCourtAllowed(ladderId: string | null, courtNumber: number | null) {
+  if (courtNumber == null && !ladderId) {
+    throw new Error('Los partidos de torneo se juegan en una cancha del club')
+  }
+}
+
 /**
  * Confirma un partido y consume, en la misma transacción, cualquier `SlotReservation`
  * que tuviera: un partido CONFIRMED con la reserva viva la deja **huérfana**, y nadie
@@ -122,7 +129,7 @@ export async function renewScheduleDeadline(
  */
 export async function confirmMatch(
   id: string,
-  data: { scheduledAt: Date; courtNumber: number },
+  data: { scheduledAt: Date; courtNumber: number | null },
   tx?: Prisma.TransactionClient
 ) {
   return tx ? confirmMatchTx(tx, id, data) : prisma.$transaction((t) => confirmMatchTx(t, id, data))
@@ -131,7 +138,7 @@ export async function confirmMatch(
 async function confirmMatchTx(
   tx: Prisma.TransactionClient,
   id: string,
-  data: { scheduledAt: Date; courtNumber: number }
+  data: { scheduledAt: Date; courtNumber: number | null }
 ) {
   const match = await tx.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')
@@ -139,13 +146,14 @@ async function confirmMatchTx(
   if (!match.player1Id || !match.player2Id) {
     throw new Error('El partido aún no tiene ambos jugadores definidos')
   }
+  assertCourtAllowed(match.ladderId, data.courtNumber)
 
   const confirmed = await tx.match.update({
     where: { id },
     data: {
       scheduledAt: data.scheduledAt,
       courtNumber: data.courtNumber,
-      externalCourt: false,
+      externalCourt: data.courtNumber == null,
       selfScheduled: false, // lo confirma el admin
       status: 'CONFIRMED',
       confirmedAt: new Date(),
@@ -267,18 +275,19 @@ export async function selfScheduleLadderMatch(
 
 export async function rescheduleMatch(
   id: string,
-  data: { scheduledAt: Date; courtNumber: number }
+  data: { scheduledAt: Date; courtNumber: number | null }
 ) {
   const match = await prisma.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'CONFIRMED') throw new Error('Solo se pueden reprogramar partidos confirmados')
+  assertCourtAllowed(match.ladderId, data.courtNumber)
 
   return prisma.match.update({
     where: { id },
     data: {
       scheduledAt: data.scheduledAt,
       courtNumber: data.courtNumber,
-      externalCourt: false,
+      externalCourt: data.courtNumber == null,
       selfScheduled: false, // pasa a ser una cancha que gestiona el admin
     },
     include: matchIncludes,

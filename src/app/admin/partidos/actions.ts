@@ -15,6 +15,11 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
+function courtLabel(match: { courtNumber: number | null; externalCourt: boolean }) {
+  if (match.externalCourt) return 'Fuera del club'
+  return COURTS.find((c) => c.number === match.courtNumber)?.name || `Cancha ${match.courtNumber}`
+}
+
 function isAdmin(role: string) {
   return role === 'SUPERADMIN' || role === 'ADMIN'
 }
@@ -64,11 +69,10 @@ export async function confirmMatchAction(
     const scheduledAt = parseFromUY(validated.data.date, validated.data.time)
     const match = await confirmMatch(matchId, {
       scheduledAt,
-      courtNumber: validated.data.courtNumber,
+      courtNumber: validated.data.courtNumber ?? null,
     })
 
     // Send emails to both players
-    const court = COURTS.find((c) => c.number === match.courtNumber)
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
@@ -82,7 +86,7 @@ export async function confirmMatchAction(
         tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
-        courtName: court?.name || `Cancha ${match.courtNumber}`,
+        courtName: courtLabel(match),
         stageLabel: label,
       }))
     }
@@ -94,7 +98,7 @@ export async function confirmMatchAction(
         tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
-        courtName: court?.name || `Cancha ${match.courtNumber}`,
+        courtName: courtLabel(match),
         stageLabel: label,
       }))
     }
@@ -127,11 +131,10 @@ export async function rescheduleMatchAction(
     const scheduledAt = parseFromUY(validated.data.date, validated.data.time)
     const match = await rescheduleMatch(matchId, {
       scheduledAt,
-      courtNumber: validated.data.courtNumber,
+      courtNumber: validated.data.courtNumber ?? null,
     })
 
     // Send emails to both players
-    const court = COURTS.find((c) => c.number === match.courtNumber)
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
 
@@ -144,7 +147,7 @@ export async function rescheduleMatchAction(
         tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
-        courtName: court?.name || `Cancha ${match.courtNumber}`,
+        courtName: courtLabel(match),
       }))
     }
     if (match.player2?.email) {
@@ -155,7 +158,7 @@ export async function rescheduleMatchAction(
         tournamentName: match.ladderId ? 'La Escalera' : match.tournament?.name ?? '',
         date: dateStr,
         time: timeStr,
-        courtName: court?.name || `Cancha ${match.courtNumber}`,
+        courtName: courtLabel(match),
       }))
     }
     await Promise.allSettled(emailPromises)
@@ -188,7 +191,6 @@ export async function cancelMatchAction(matchId: string, reason: string): Promis
 
     // Send cancellation emails with the original schedule data
     if (matchBefore.scheduledAt) {
-      const court = COURTS.find((c) => c.number === matchBefore.courtNumber)
       const dateStr = formatDateUY(matchBefore.scheduledAt)
       const timeStr = formatTimeUY(matchBefore.scheduledAt)
 
@@ -198,10 +200,10 @@ export async function cancelMatchAction(matchId: string, reason: string): Promis
           to: matchBefore.player1.email,
           playerName: fullName(matchBefore.player1.firstName, matchBefore.player1.lastName) || 'Jugador',
           rivalName: fullName(matchBefore.player2?.firstName, matchBefore.player2?.lastName) || 'Rival',
-          tournamentName: matchBefore.tournament?.name ?? '',
+          tournamentName: matchBefore.ladderId ? 'La Escalera' : matchBefore.tournament?.name ?? '',
           date: dateStr,
           time: timeStr,
-          courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
+          courtName: courtLabel(matchBefore),
           reason,
           cancelledByName: adminName,
         }))
@@ -211,10 +213,10 @@ export async function cancelMatchAction(matchId: string, reason: string): Promis
           to: matchBefore.player2.email,
           playerName: fullName(matchBefore.player2.firstName, matchBefore.player2.lastName) || 'Jugador',
           rivalName: fullName(matchBefore.player1?.firstName, matchBefore.player1?.lastName) || 'Rival',
-          tournamentName: matchBefore.tournament?.name ?? '',
+          tournamentName: matchBefore.ladderId ? 'La Escalera' : matchBefore.tournament?.name ?? '',
           date: dateStr,
           time: timeStr,
-          courtName: court?.name || `Cancha ${matchBefore.courtNumber}`,
+          courtName: courtLabel(matchBefore),
           reason,
           cancelledByName: adminName,
         }))

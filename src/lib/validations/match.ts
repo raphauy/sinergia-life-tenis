@@ -19,10 +19,11 @@ export const createMatchSchema = z
     path: ['date'],
   })
 
+// courtNumber ausente = fuera del club (solo escalera; lo valida el service).
 export const confirmMatchSchema = z.object({
   date: z.string().min(1, 'Fecha requerida'),
   time: z.string().min(1, 'Hora requerida'),
-  courtNumber: z.coerce.number().int().min(1).max(2, 'Cancha debe ser 1 o 2'),
+  courtNumber: z.coerce.number().int().min(1).max(2, 'Cancha debe ser 1 o 2').optional(),
 })
 
 // Autoagendado de escalera: el jugador ya consiguió cancha por su cuenta.

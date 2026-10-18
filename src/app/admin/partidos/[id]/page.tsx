@@ -94,6 +94,8 @@ export default async function MatchDetailPage({ params }: Props) {
         hasResult={!!match.result}
         scheduledAt={match.scheduledAt?.toISOString()}
         courtNumber={match.courtNumber}
+        isLadder={isLadder}
+        externalCourt={match.externalCourt}
         finalsDate={match.tournament?.finalsDate?.toISOString() ?? null}
         result={
           match.result
