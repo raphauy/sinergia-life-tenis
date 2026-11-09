@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ChevronRight, Trophy } from 'lucide-react'
-import { formatDateUY } from '@/lib/date-utils'
+import { formatDateOnly } from '@/lib/date-utils'
 import type { getTournamentArchive } from '@/services/tournament-service'
 
 type ArchiveTournament = Awaited<ReturnType<typeof getTournamentArchive>>[number]
@@ -24,7 +24,7 @@ export function TournamentArchive({ tournaments }: { tournaments: ArchiveTournam
                 <span className="block font-medium truncate">{t.name}</span>
                 <span className="block text-xs text-muted-foreground">
                   {/* Hoy todos los torneos son de singles; con Tournament.modality va "Dobles". */}
-                  {formatDateUY(t.startDate)} · Singles
+                  {formatDateOnly(t.startDate)} · Singles
                 </span>
               </span>
               <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

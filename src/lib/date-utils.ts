@@ -7,6 +7,15 @@ export function formatDateUY(date: Date, fmt: string = 'dd/MM/yyyy') {
   return format(toZonedTime(date, TIMEZONE), fmt)
 }
 
+/**
+ * Formatear un campo que es solo fecha (p.ej. Tournament.startDate/endDate).
+ * Esos campos se guardan como `new Date('yyyy-MM-dd')`, o sea medianoche UTC;
+ * pasarlos a UY (UTC-3) los corre al día anterior. Se formatean en UTC.
+ */
+export function formatDateOnly(date: Date, fmt: string = 'dd/MM/yyyy') {
+  return format(toZonedTime(date, 'UTC'), fmt)
+}
+
 /** Formatear hora en UY */
 export function formatTimeUY(date: Date) {
   return format(toZonedTime(date, TIMEZONE), 'HH:mm')

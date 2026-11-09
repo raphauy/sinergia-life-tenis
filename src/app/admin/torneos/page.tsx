@@ -3,7 +3,7 @@ import { getTournaments } from '@/services/tournament-service'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
-import { formatDateUY } from '@/lib/date-utils'
+import { formatDateOnly } from '@/lib/date-utils'
 import { Plus } from 'lucide-react'
 
 export const metadata = { title: 'Torneos' }
@@ -41,7 +41,7 @@ export default async function TorneosPage() {
                     {t.isActive && <Badge>Activo</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {formatDateUY(t.startDate)} - {formatDateUY(t.endDate)}
+                    {formatDateOnly(t.startDate)} - {formatDateOnly(t.endDate)}
                   </p>
                 </div>
                 <div className="text-right text-sm text-muted-foreground">
