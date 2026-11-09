@@ -76,7 +76,7 @@ export default async function FixturePage() {
     ...upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id),
     ...bracket.quarterfinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
     ...bracket.semifinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
-    ...(bracket.final && bracket.final.status === 'PENDING' ? [bracket.final.id] : []),
+    ...bracket.cups.flatMap((c) => (c.final && c.final.status === 'PENDING' ? [c.final.id] : [])),
   ])
   const reservations = await getReservationsByMatchIds(allPendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
@@ -112,11 +112,9 @@ export default async function FixturePage() {
           {fixtureData.map(({ cat, upcoming, played, confirmed, playerMap, groups, bracket }) => (
             <TabsContent key={cat.id} value={cat.id}>
               <div className="space-y-10">
-                {(bracket.quarterfinals.length > 0 || bracket.semifinals.length > 0 || bracket.final) && (
+                {bracket.cups.length > 0 && (
                   <BracketView
-                    quarterfinals={bracket.quarterfinals}
-                    semifinals={bracket.semifinals}
-                    final={bracket.final}
+                    cups={bracket.cups}
                     finalsDate={tournament.finalsDate}
                     playerSlugs={playerMap}
                     currentUserId={currentUserId}

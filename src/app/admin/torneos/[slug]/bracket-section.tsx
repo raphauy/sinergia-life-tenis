@@ -37,6 +37,8 @@ interface BracketPlayer {
 interface BracketMatchView {
   id: string
   stage: string
+  /** null = cuadro único (singles) */
+  cup: 'GOLD' | 'SILVER' | null
   bracketPosition: number | null
   status: string
   player1: BracketPlayer | null
@@ -146,6 +148,54 @@ function BracketMatchRow({
   )
 }
 
+const CUP_ORDER: BracketMatchView['cup'][] = ['GOLD', 'SILVER', null]
+
+const CUP_TITLES: Record<'GOLD' | 'SILVER', string> = {
+  GOLD: 'Copa de Oro',
+  SILVER: 'Copa de Plata',
+}
+
+/** Cuartos, semis y final de un cuadro (una copa, o el único de singles). */
+function BracketRounds({ matches, tournamentSlug }: { matches: BracketMatchView[]; tournamentSlug: string }) {
+  const byPosition = (a: BracketMatchView, b: BracketMatchView) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0)
+  const qfs = matches.filter((m) => m.stage === 'QUARTERFINAL').sort(byPosition)
+  const sfs = matches.filter((m) => m.stage === 'SEMIFINAL').sort(byPosition)
+  const final = matches.find((m) => m.stage === 'FINAL')
+
+  return (
+    <div className="space-y-4">
+      {qfs.length > 0 && (
+        <div>
+          <StageRoundHeader stage="QUARTERFINAL" matches={qfs} />
+          <div className="space-y-1">
+            {qfs.map((m) => (
+              <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
+            ))}
+          </div>
+        </div>
+      )}
+      {sfs.length > 0 && (
+        <div>
+          <StageRoundHeader stage="SEMIFINAL" matches={sfs} />
+          <div className="space-y-1">
+            {sfs.map((m) => (
+              <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
+            ))}
+          </div>
+        </div>
+      )}
+      {final && (
+        <div>
+          <StageRoundHeader stage="FINAL" matches={[final]} />
+          <div className="space-y-1">
+            <BracketMatchRow match={final} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function BracketSection({ tournamentSlug, categories }: Props) {
   const [expanded, setExpanded] = useState(true)
   const router = useRouter()
@@ -191,9 +241,11 @@ function CategoryBracketCard({
   const [previewInfo, setPreviewInfo] = useState<{ pendingGroupNumbers: number[] } | null>(null)
 
   const hasBracket = category.bracket.length > 0
-  const qfs = category.bracket.filter((m) => m.stage === 'QUARTERFINAL').sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0))
-  const sfs = category.bracket.filter((m) => m.stage === 'SEMIFINAL').sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0))
-  const final = category.bracket.find((m) => m.stage === 'FINAL')
+  const hasCups = category.bracket.some((m) => m.cup != null)
+  const cupBoards = CUP_ORDER.map((cup) => ({
+    cup,
+    matches: category.bracket.filter((m) => m.cup === cup),
+  })).filter((b) => b.matches.length > 0)
   const advanced = category.bracket.filter((m) => m.status === 'CONFIRMED' || m.status === 'PLAYED').length
 
   async function openGenerate() {
@@ -272,10 +324,13 @@ function CategoryBracketCard({
             )}
             {hasBracket && (
               <>
-                <Button size="sm" variant="outline" onClick={openRegenerate} disabled={isPending}>
-                  <RefreshCw className="h-4 w-4 mr-1" />
-                  Regenerar
-                </Button>
+                {/* Los cuadros por copa los arma el script de carga: no se regeneran. */}
+                {!hasCups && (
+                  <Button size="sm" variant="outline" onClick={openRegenerate} disabled={isPending}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Regenerar
+                  </Button>
+                )}
                 <Button size="sm" variant="destructive" onClick={() => setConfirmOpen('delete')} disabled={isPending}>
                   <Trash2 className="h-4 w-4 mr-1" />
                   Eliminar
@@ -291,34 +346,25 @@ function CategoryBracketCard({
             Todavía no generaste la fase eliminatoria. Al generarla se crean los partidos de cuartos, semis y final.
           </p>
         ) : (
-          <div className="space-y-4">
-            {qfs.length > 0 && (
-              <div>
-                <StageRoundHeader stage="QUARTERFINAL" matches={qfs} />
-                <div className="space-y-1">
-                  {qfs.map((m) => (
-                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
-                  ))}
+          <div className="space-y-6">
+            {cupBoards.map((b) =>
+              b.cup == null ? (
+                <BracketRounds key="single" matches={b.matches} tournamentSlug={tournamentSlug} />
+              ) : (
+                <div key={b.cup} className="space-y-3">
+                  <h3
+                    className={
+                      b.cup === 'GOLD'
+                        ? 'flex items-center gap-1.5 text-base font-bold text-amber-600 dark:text-amber-400'
+                        : 'flex items-center gap-1.5 text-base font-bold text-slate-500 dark:text-slate-300'
+                    }
+                  >
+                    <Trophy className="h-4 w-4" />
+                    {CUP_TITLES[b.cup]}
+                  </h3>
+                  <BracketRounds matches={b.matches} tournamentSlug={tournamentSlug} />
                 </div>
-              </div>
-            )}
-            {sfs.length > 0 && (
-              <div>
-                <StageRoundHeader stage="SEMIFINAL" matches={sfs} />
-                <div className="space-y-1">
-                  {sfs.map((m) => (
-                    <BracketMatchRow key={m.id} match={m} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {final && (
-              <div>
-                <StageRoundHeader stage="FINAL" matches={[final]} />
-                <div className="space-y-1">
-                  <BracketMatchRow match={final} tournamentSlug={tournamentSlug} qfCount={qfs.length} />
-                </div>
-              </div>
+              ),
             )}
           </div>
         )}
@@ -396,6 +442,14 @@ function CategoryBracketCard({
             <AlertDialogTitle>Eliminar bracket de Categoría {category.name}</AlertDialogTitle>
             <AlertDialogDescription>
               Se borran los partidos de cuartos, semis y final (incluyendo resultados y reservas si existen). La fase de grupos no se toca.
+              {hasCups && (
+                <>
+                  {' '}
+                  <strong>
+                    Esta categoría tiene Copa de Oro y Copa de Plata. Si eliminás el cuadro, no se puede volver a armar desde acá: hay que correr de nuevo el script de carga.
+                  </strong>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

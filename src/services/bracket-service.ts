@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getRankingByGroup, type RankingEntry } from './ranking-service'
-import type { Prisma } from '@prisma/client'
+import type { Cup, Prisma } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
 
@@ -18,11 +18,26 @@ const bracketMatchIncludes = {
 
 export type BracketMatch = Prisma.MatchGetPayload<{ include: typeof bracketMatchIncludes }>
 
-export interface BracketSummary {
+/** Un cuadro de la Definición. `cup = null` es el cuadro único de singles. */
+export interface CupBracket {
+  cup: Cup | null
   quarterfinals: BracketMatch[]
   semifinals: BracketMatch[]
   final: BracketMatch | null
 }
+
+export interface BracketSummary {
+  /** Todos los cuartos de la categoría, de todas las copas. */
+  quarterfinals: BracketMatch[]
+  /** Todas las semis de la categoría, de todas las copas. */
+  semifinals: BracketMatch[]
+  /** Final del primer cuadro (la única en singles; la de oro con dos copas). */
+  final: BracketMatch | null
+  /** Cuadros por copa: oro, plata y después el cuadro sin copa (singles). */
+  cups: CupBracket[]
+}
+
+const CUP_ORDER: (Cup | null)[] = ['GOLD', 'SILVER', null]
 
 type GroupQualifiers = {
   first: string | null
@@ -69,9 +84,21 @@ export async function getBracketByCategory(categoryId: string): Promise<BracketS
 
   const quarterfinals = matches.filter((m) => m.stage === 'QUARTERFINAL')
   const semifinals = matches.filter((m) => m.stage === 'SEMIFINAL')
-  const final = matches.find((m) => m.stage === 'FINAL') ?? null
 
-  return { quarterfinals, semifinals, final }
+  const cups: CupBracket[] = []
+  for (const cup of CUP_ORDER) {
+    const own = matches.filter((m) => m.cup === cup)
+    if (own.length === 0) continue
+    cups.push({
+      cup,
+      quarterfinals: own.filter((m) => m.stage === 'QUARTERFINAL'),
+      semifinals: own.filter((m) => m.stage === 'SEMIFINAL'),
+      final: own.find((m) => m.stage === 'FINAL') ?? null,
+    })
+  }
+  const final = cups.find((c) => c.final)?.final ?? null
+
+  return { quarterfinals, semifinals, final, cups }
 }
 
 /**
@@ -442,7 +469,22 @@ async function insertQFsAndSFs3Groups(
   })
 }
 
+/**
+ * Los cuadros por copa los arma el script de carga; generar o regenerar desde
+ * el admin los reemplazaría por el cuadro único de singles.
+ */
+async function assertNoCupBracket(categoryId: string): Promise<void> {
+  const cupMatches = await prisma.match.count({
+    where: { categoryId, stage: { not: 'GROUP' }, cup: { not: null } },
+  })
+  if (cupMatches > 0) {
+    throw new Error('Esta categoría tiene copa de oro y de plata: el cuadro no se puede regenerar desde acá.')
+  }
+}
+
 export async function generateBracket(categoryId: string): Promise<BracketSummary> {
+  await assertNoCupBracket(categoryId)
+
   const category = await prisma.tournamentCategory.findUniqueOrThrow({
     where: { id: categoryId },
     select: { id: true, tournamentId: true },
@@ -477,6 +519,8 @@ export async function regenerateBracket(
     where: { id: categoryId },
     select: { id: true, tournamentId: true },
   })
+
+  await assertNoCupBracket(categoryId)
 
   const preview = await previewBracket(categoryId)
 
@@ -528,6 +572,10 @@ export async function deleteBracket(categoryId: string): Promise<number> {
  * - Else if a tentative player is known (qualifiers set locked): assigns
  *   player, keeps source so future results can re-assign.
  * - Else: sets player to null, keeps source.
+ *
+ * With two cups the filter by source is already per cup: the 1º of a group
+ * only feeds gold slots and the 2º only silver ones (SourcePosition 1/2 set by
+ * the loading script), so no `cup` filter is needed here.
  */
 export async function refreshBracketSlotsFromGroup(groupId: string, tx?: Tx): Promise<void> {
   const client = tx ?? prisma
@@ -576,6 +624,7 @@ export async function propagateWinner(matchId: string, tx?: Tx): Promise<void> {
       id: true,
       categoryId: true,
       stage: true,
+      cup: true,
       bracketPosition: true,
       result: { select: { winnerId: true } },
     },
@@ -589,7 +638,7 @@ export async function propagateWinner(matchId: string, tx?: Tx): Promise<void> {
   if (match.stage === 'QUARTERFINAL') {
     // Determine format by counting QFs in this category
     const qfCount = await client.match.count({
-      where: { categoryId: match.categoryId, stage: 'QUARTERFINAL' },
+      where: { categoryId: match.categoryId, cup: match.cup, stage: 'QUARTERFINAL' },
     })
 
     if (qfCount === 4) {
@@ -598,14 +647,14 @@ export async function propagateWinner(matchId: string, tx?: Tx): Promise<void> {
       const sfPos = qfPos <= 2 ? 1 : 2
       const slot: 'player1Id' | 'player2Id' = qfPos % 2 === 1 ? 'player1Id' : 'player2Id'
       await client.match.updateMany({
-        where: { categoryId: match.categoryId, stage: 'SEMIFINAL', bracketPosition: sfPos },
+        where: { categoryId: match.categoryId, cup: match.cup, stage: 'SEMIFINAL', bracketPosition: sfPos },
         data: { [slot]: winnerId },
       })
     } else if (qfCount === 2) {
       // Format C: QF1→SF1.p2, QF2→SF2.p2
       const sfPos = match.bracketPosition // 1 → SF1, 2 → SF2
       await client.match.updateMany({
-        where: { categoryId: match.categoryId, stage: 'SEMIFINAL', bracketPosition: sfPos },
+        where: { categoryId: match.categoryId, cup: match.cup, stage: 'SEMIFINAL', bracketPosition: sfPos },
         data: { player2Id: winnerId },
       })
     }
@@ -616,7 +665,7 @@ export async function propagateWinner(matchId: string, tx?: Tx): Promise<void> {
     // SF1→F.p1, SF2→F.p2
     const slot: 'player1Id' | 'player2Id' = match.bracketPosition === 1 ? 'player1Id' : 'player2Id'
     await client.match.updateMany({
-      where: { categoryId: match.categoryId, stage: 'FINAL' },
+      where: { categoryId: match.categoryId, cup: match.cup, stage: 'FINAL' },
       data: { [slot]: winnerId },
     })
   }
@@ -634,7 +683,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
   const client = tx ?? prisma
   const match = await client.match.findUnique({
     where: { id: matchId },
-    select: { id: true, categoryId: true, stage: true, bracketPosition: true },
+    select: { id: true, categoryId: true, stage: true, cup: true, bracketPosition: true },
   })
   if (!match || match.bracketPosition == null) return
   if (match.stage === 'GROUP' || match.stage === 'FINAL') return
@@ -642,14 +691,14 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
 
   if (match.stage === 'QUARTERFINAL') {
     const qfCount = await client.match.count({
-      where: { categoryId: match.categoryId, stage: 'QUARTERFINAL' },
+      where: { categoryId: match.categoryId, cup: match.cup, stage: 'QUARTERFINAL' },
     })
     if (qfCount === 4) {
       const qfPos = match.bracketPosition
       const sfPos = qfPos <= 2 ? 1 : 2
       const slot: 'player1Id' | 'player2Id' = qfPos % 2 === 1 ? 'player1Id' : 'player2Id'
       const nextMatch = await client.match.findFirst({
-        where: { categoryId: match.categoryId, stage: 'SEMIFINAL', bracketPosition: sfPos },
+        where: { categoryId: match.categoryId, cup: match.cup, stage: 'SEMIFINAL', bracketPosition: sfPos },
         include: { result: true },
       })
       if (nextMatch?.result) {
@@ -660,6 +709,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
       await client.match.updateMany({
         where: {
           categoryId: match.categoryId,
+          cup: match.cup,
           stage: 'SEMIFINAL',
           bracketPosition: sfPos,
           [slot]: previousWinnerId,
@@ -669,7 +719,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
     } else if (qfCount === 2) {
       const sfPos = match.bracketPosition
       const nextMatch = await client.match.findFirst({
-        where: { categoryId: match.categoryId, stage: 'SEMIFINAL', bracketPosition: sfPos },
+        where: { categoryId: match.categoryId, cup: match.cup, stage: 'SEMIFINAL', bracketPosition: sfPos },
         include: { result: true },
       })
       if (nextMatch?.result) {
@@ -680,6 +730,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
       await client.match.updateMany({
         where: {
           categoryId: match.categoryId,
+          cup: match.cup,
           stage: 'SEMIFINAL',
           bracketPosition: sfPos,
           player2Id: previousWinnerId,
@@ -693,7 +744,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
   if (match.stage === 'SEMIFINAL') {
     const slot: 'player1Id' | 'player2Id' = match.bracketPosition === 1 ? 'player1Id' : 'player2Id'
     const nextMatch = await client.match.findFirst({
-      where: { categoryId: match.categoryId, stage: 'FINAL' },
+      where: { categoryId: match.categoryId, cup: match.cup, stage: 'FINAL' },
       include: { result: true },
     })
     if (nextMatch?.result) {
@@ -702,7 +753,7 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
       )
     }
     await client.match.updateMany({
-      where: { categoryId: match.categoryId, stage: 'FINAL', [slot]: previousWinnerId },
+      where: { categoryId: match.categoryId, cup: match.cup, stage: 'FINAL', [slot]: previousWinnerId },
       data: { [slot]: null },
     })
   }

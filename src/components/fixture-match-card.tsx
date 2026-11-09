@@ -32,6 +32,7 @@ interface FixtureMatchCardProps {
     player1SourcePosition?: number | null
     player2SourcePosition?: number | null
     bracketPosition?: number | null
+    cup?: 'GOLD' | 'SILVER' | null
     category: { name: string; _count?: { matches: number } } | null
     group?: { id: string; number: number } | null
     result: {
@@ -168,7 +169,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   const stageLabel = match.stage && match.stage !== 'GROUP'
     ? (match.stage === 'QUARTERFINAL' ? 'Cuartos de final'
       : match.stage === 'SEMIFINAL' ? `Semifinal${match.bracketPosition ? ' ' + match.bracketPosition : ''}`
-      : 'Final')
+      : 'Final') + (match.cup === 'GOLD' ? ' · Oro' : match.cup === 'SILVER' ? ' · Plata' : '')
     : null
 
   const badgeClass = "text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold"
