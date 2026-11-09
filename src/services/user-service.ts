@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { Role } from '@prisma/client'
+import { getCanonicalPlayerSlug } from './player-service'
 
 export async function getUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email } })
@@ -92,13 +93,9 @@ export async function removeAdminRole(userId: string, removedById: string) {
   return prisma.user.update({ where: { id: userId }, data: { role: 'PLAYER', isActive: false } })
 }
 
+// Perfil canónico (inscripción más antigua), no la ficha de dobles.
 export async function getPlayerSlugForUser(userId: string): Promise<string | null> {
-  const player = await prisma.player.findFirst({
-    where: { userId, isActive: true },
-    orderBy: { createdAt: 'desc' },
-    select: { slug: true },
-  })
-  return player?.slug ?? null
+  return getCanonicalPlayerSlug(userId)
 }
 
 // Destino post-login según rol: admins al panel admin; jugadores a su panel (o /perfil si aún no tienen Player)

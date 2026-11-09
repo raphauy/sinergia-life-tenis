@@ -1,4 +1,15 @@
 import { prisma } from '@/lib/prisma'
+import { assertCategoryNotDoubles } from './doubles-pair-service'
+
+const DOUBLES_GROUPS_MSG =
+  'Es un torneo de dobles: los grupos y sus partidos los arma el script de carga, no se pueden modificar desde acá.'
+
+/** Los grupos de un torneo de dobles (parejas y partidos) los arma solo el script de carga. Devuelve el grupo. */
+async function assertGroupNotDoubles(groupId: string): Promise<{ categoryId: string }> {
+  const group = await prisma.group.findUniqueOrThrow({ where: { id: groupId }, select: { categoryId: true } })
+  await assertCategoryNotDoubles(group.categoryId, DOUBLES_GROUPS_MSG)
+  return group
+}
 
 export async function getGroupsByCategory(categoryId: string) {
   const groups = await prisma.group.findMany({
@@ -46,6 +57,7 @@ export async function getGroupById(groupId: string) {
 }
 
 export async function createGroup(categoryId: string) {
+  await assertCategoryNotDoubles(categoryId, DOUBLES_GROUPS_MSG)
   const maxGroup = await prisma.group.findFirst({
     where: { categoryId },
     orderBy: { number: 'desc' },
@@ -61,6 +73,7 @@ export async function createGroup(categoryId: string) {
 }
 
 export async function deleteGroup(groupId: string) {
+  await assertGroupNotDoubles(groupId)
   return prisma.group.delete({ where: { id: groupId } })
 }
 
@@ -97,10 +110,7 @@ export async function getAffectedPendingMatches(groupId: string, newPlayerIds: s
 }
 
 export async function setGroupPlayers(groupId: string, playerIds: string[], cancelPending: boolean = false) {
-  const group = await prisma.group.findUniqueOrThrow({
-    where: { id: groupId },
-    select: { categoryId: true },
-  })
+  const group = await assertGroupNotDoubles(groupId)
 
   // Validate all players belong to the same category
   if (playerIds.length > 0) {
@@ -167,6 +177,7 @@ export async function setGroupPlayers(groupId: string, playerIds: string[], canc
 }
 
 export async function deletePendingMatches(groupId: string) {
+  await assertGroupNotDoubles(groupId)
   const result = await prisma.match.deleteMany({
     where: { groupId, status: 'PENDING' },
   })

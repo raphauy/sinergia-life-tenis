@@ -141,22 +141,37 @@ export async function linkPlayerToUser(playerId: string, userId: string) {
   })
 }
 
-export async function getActivePlayerSlugByUserId(userId: string): Promise<string | null> {
-  const player = await prisma.player.findFirst({
-    where: { userId, isActive: true },
-    select: { slug: true },
-  })
-  return player?.slug ?? null
-}
-
-export async function getPlayerSlugsByUserIds(userIds: string[]): Promise<Map<string, string>> {
+/**
+ * Slug canónico del perfil de cada usuario. Una persona puede tener varios `Player`
+ * (uno por torneo; en dobles, uno más en la categoría Dobles que nunca se linkea): el
+ * perfil es el de su inscripción MÁS ANTIGUA (ADR 0002), y una ficha de dobles solo
+ * si no tiene otra (quien juega únicamente dobles necesita un panel para cargar
+ * resultados). Toda resolución usuario → slug de perfil pasa por acá.
+ */
+export async function getCanonicalPlayerSlugs(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map()
   const players = await prisma.player.findMany({
     where: { userId: { in: userIds }, isActive: true },
     select: { slug: true, userId: true },
+    // modality asc = SINGLES antes que DOUBLES (orden del enum en Postgres).
+    orderBy: [{ tournament: { modality: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
   })
-  return new Map(players.map((p) => [p.userId!, p.slug]))
+  const map = new Map<string, string>()
+  for (const p of players) {
+    if (!map.has(p.userId!)) map.set(p.userId!, p.slug)
+  }
+  return map
 }
+
+export async function getCanonicalPlayerSlug(userId: string): Promise<string | null> {
+  return (await getCanonicalPlayerSlugs([userId])).get(userId) ?? null
+}
+
+/** @see getCanonicalPlayerSlug */
+export const getActivePlayerSlugByUserId = getCanonicalPlayerSlug
+
+/** @see getCanonicalPlayerSlugs */
+export const getPlayerSlugsByUserIds = getCanonicalPlayerSlugs
 
 export async function getPlayerMapByCategory(categoryId: string): Promise<Map<string, string>> {
   const players = await prisma.player.findMany({
@@ -179,18 +194,26 @@ export async function getPlayerMapByCategory(categoryId: string): Promise<Map<st
 export async function withdrawPlayer(playerId: string, reportedById: string) {
   const player = await prisma.player.findUnique({
     where: { id: playerId },
-    include: { user: { select: { firstName: true, lastName: true } } },
+    include: {
+      user: { select: { firstName: true, lastName: true } },
+      tournament: { select: { modality: true } },
+    },
   })
   if (!player) throw new Error('Jugador no encontrado')
+  if (player.tournament.modality === 'DOUBLES') {
+    throw new Error('Es un torneo de dobles: las parejas se administran con el script de carga, no se puede retirar a un jugador desde acá.')
+  }
   if (player.withdrawnAt) throw new Error('Este jugador ya está retirado')
   if (!player.userId) throw new Error('El jugador no tiene cuenta vinculada y no participa en partidos')
 
   const userId = player.userId
   const groupId = player.groupId
 
-  // 1. Block withdrawal if the player has advanced bracket matches
+  // 1. Block withdrawal if the player has advanced bracket matches (de ESTE torneo:
+  //    la misma persona puede jugar otros torneos con otro Player)
   const conflictBracketMatches = await prisma.match.findMany({
     where: {
+      tournamentId: player.tournamentId,
       stage: { not: 'GROUP' },
       OR: [{ player1Id: userId }, { player2Id: userId }],
       status: { in: ['CONFIRMED', 'PLAYED'] },
@@ -225,6 +248,7 @@ export async function withdrawPlayer(playerId: string, reportedById: string) {
     // 4. Walkover pending/confirmed group matches
     const pendingGroupMatches = await tx.match.findMany({
       where: {
+        tournamentId: player.tournamentId,
         groupId: groupId ?? undefined,
         stage: 'GROUP',
         status: { in: ['PENDING', 'CONFIRMED'] },

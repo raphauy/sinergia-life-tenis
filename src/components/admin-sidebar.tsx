@@ -37,7 +37,7 @@ import {
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth, signOut } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getCanonicalPlayerSlug } from '@/services/player-service'
 import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
@@ -56,10 +56,7 @@ export async function AdminSidebar() {
 
   const isSuperadmin = session.user.role === 'SUPERADMIN'
 
-  const playerLink = await prisma.player.findFirst({
-    where: { userId: session.user.id, isActive: true },
-    select: { slug: true },
-  })
+  const playerSlug = await getCanonicalPlayerSlug(session.user.id)
 
   return (
     <Sidebar>
@@ -89,13 +86,13 @@ export async function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {playerLink && (
+        {playerSlug && (
           <SidebarGroup>
             <SidebarGroupLabel>Jugador</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton render={<Link href={`/jugador/${playerLink.slug}`} />}>
+                  <SidebarMenuButton render={<Link href={`/jugador/${playerSlug}`} />}>
                     <UserCircle className="h-4 w-4" />
                     <span>Mi panel de jugador</span>
                   </SidebarMenuButton>

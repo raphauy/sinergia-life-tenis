@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getRankingByGroup, type RankingEntry } from './ranking-service'
+import { assertCategoryNotDoubles } from './doubles-pair-service'
 import type { Cup, Prisma } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
@@ -483,14 +484,11 @@ async function assertNoCupBracket(categoryId: string): Promise<void> {
 }
 
 /** El cuadro de un torneo de dobles lo arma solo el script de carga (scripts/cargar-dobles.ts). */
-async function assertNotDoubles(categoryId: string): Promise<void> {
-  const category = await prisma.tournamentCategory.findUnique({
-    where: { id: categoryId },
-    select: { tournament: { select: { modality: true } } },
-  })
-  if (category?.tournament.modality === 'DOUBLES') {
-    throw new Error('Es un torneo de dobles: el cuadro lo arma el script de carga, no se puede generar ni borrar desde acá.')
-  }
+function assertNotDoubles(categoryId: string): Promise<void> {
+  return assertCategoryNotDoubles(
+    categoryId,
+    'Es un torneo de dobles: el cuadro lo arma el script de carga, no se puede generar ni borrar desde acá.',
+  )
 }
 
 export async function generateBracket(categoryId: string): Promise<BracketSummary> {
