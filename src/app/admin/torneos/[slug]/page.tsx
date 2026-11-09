@@ -63,7 +63,7 @@ export default async function TournamentDetailPage({ params }: Props) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold">{tournament.name}</h1>
             {tournament.isActive && <Badge>Activo</Badge>}
             {tournament.featuredOnHome && <Badge variant="secondary">En portada</Badge>}
