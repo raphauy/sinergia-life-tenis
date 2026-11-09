@@ -1,7 +1,11 @@
 /**
  * Backfill de User.displayName (#11): a cada User sin nombre para mostrar y con
  * nombre cargado le pone el sugerido por suggestDisplayName ("Rapha C.").
- * Idempotente: los que ya tienen displayName no se tocan.
+ * Los que ya tienen displayName no se tocan.
+ *
+ * Es un script de UNA SOLA VEZ (al deployar el #11). No volver a correrlo: un
+ * displayName null también significa que el usuario lo vació a propósito en
+ * /perfil para mostrar su nombre completo, y una segunda corrida se lo rellena.
  *
  * Uso:
  *   pnpm tsx scripts/backfill-display-name.ts            # escribe
