@@ -3,6 +3,7 @@ import { getAdminUsers } from '@/services/user-service'
 import { sendMatchResultEmail, sendMatchResultEditedEmail } from '@/services/email-service'
 import { formatMatchScore } from '@/lib/format-score'
 import { fullName } from '@/lib/format-name'
+import type { TournamentModality } from '@prisma/client'
 
 type MatchForNotification = {
   groupId: string | null
@@ -10,7 +11,7 @@ type MatchForNotification = {
   player2: { firstName: string | null; lastName: string | null } | null
   player1Id: string | null
   player2Id: string | null
-  tournament: { name: string } | null
+  tournament: { name: string; modality?: TournamentModality } | null
   group: { id: string; number: number } | null
   result: {
     walkover: boolean
@@ -61,6 +62,8 @@ export async function notifyMatchResultEdited(match: MatchForNotification, admin
 
 async function gatherNotificationData(match: MatchForNotification) {
   if (!match.groupId || !match.group || !match.result) return null
+  // Partido de dobles: sin emails (docs/context.md).
+  if (match.tournament?.modality === 'DOUBLES') return null
 
   const [group, admins] = await Promise.all([
     getGroupById(match.groupId),

@@ -80,10 +80,7 @@ function toMember(p: PairRow['captain']): PairMember | null {
 function toPair(row: PairRow): DoublesPair | null {
   const captain = toMember(row.captain)
   const partner = toMember(row.partner)
-  if (!captain || !partner) {
-    console.warn(`[doubles] la pareja ${row.slug} (${row.id}) tiene un jugador sin cuenta vinculada`)
-    return null
-  }
+  if (!captain || !partner) return null
   return { id: row.id, categoryId: row.categoryId, slug: row.slug, captain, partner }
 }
 

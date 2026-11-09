@@ -134,11 +134,12 @@ async function rankPlayers(
   categoryId: string,
   players: RankablePlayer[],
   matches: MatchWithResult[],
+  isDoubles: boolean,
   tx?: Tx
 ): Promise<RankingEntry[]> {
   const withUser = players.filter((p) => p.user)
 
-  if (!(await isDoublesCategory(categoryId, tx))) {
+  if (!isDoubles) {
     return computeRanking(
       withUser.map((p) => ({
         id: p.id,
@@ -184,14 +185,14 @@ export async function getRankingByCategory(categoryId: string, tx?: Tx): Promise
     include: { result: true },
   })
 
-  return rankPlayers(categoryId, players, matches, tx)
+  return rankPlayers(categoryId, players, matches, await isDoublesCategory(categoryId, tx), tx)
 }
 
 export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<RankingEntry[]> {
   const client = tx ?? prisma
   const group = await client.group.findUniqueOrThrow({
     where: { id: groupId },
-    select: { categoryId: true },
+    select: { categoryId: true, category: { select: { tournament: { select: { modality: true } } } } },
   })
 
   const players = await client.player.findMany({
@@ -206,5 +207,5 @@ export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<Ranki
     include: { result: true },
   })
 
-  return rankPlayers(group.categoryId, players, matches, tx)
+  return rankPlayers(group.categoryId, players, matches, group.category.tournament.modality === 'DOUBLES', tx)
 }

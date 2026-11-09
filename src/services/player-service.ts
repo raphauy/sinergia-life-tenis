@@ -144,15 +144,17 @@ export async function linkPlayerToUser(playerId: string, userId: string) {
 /**
  * Slug canónico del perfil de cada usuario. Una persona puede tener varios `Player`
  * (uno por torneo; en dobles, uno más en la categoría Dobles que nunca se linkea): el
- * perfil es el de su inscripción MÁS ANTIGUA (ADR 0002). Toda resolución usuario →
- * slug de perfil pasa por acá.
+ * perfil es el de su inscripción MÁS ANTIGUA (ADR 0002), y una ficha de dobles solo
+ * si no tiene otra (quien juega únicamente dobles necesita un panel para cargar
+ * resultados). Toda resolución usuario → slug de perfil pasa por acá.
  */
 export async function getCanonicalPlayerSlugs(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map()
   const players = await prisma.player.findMany({
     where: { userId: { in: userIds }, isActive: true },
     select: { slug: true, userId: true },
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    // modality asc = SINGLES antes que DOUBLES (orden del enum en Postgres).
+    orderBy: [{ tournament: { modality: 'asc' } }, { createdAt: 'asc' }, { id: 'asc' }],
   })
   const map = new Map<string, string>()
   for (const p of players) {

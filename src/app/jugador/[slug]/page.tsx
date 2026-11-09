@@ -31,7 +31,7 @@ import {
   getChallengeBalance,
 } from '@/services/ladder-player-stats-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
-import { getActivePlayerSlugByUserId, getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getActivePlayerSlugByUserId, getCanonicalPlayerSlugs } from '@/services/player-service'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ProfileTabs } from '@/components/profile-tabs'
 import { StatTiles } from '@/components/stat-tiles'
@@ -138,7 +138,7 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
     if (m.player1Id) allUserIds.add(m.player1Id)
     if (m.player2Id) allUserIds.add(m.player2Id)
   }
-  const playerMap = await getPlayerSlugsByUserIds([...allUserIds])
+  const playerMap = await getCanonicalPlayerSlugs([...allUserIds])
 
   const pendingIds = upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id)
   const reservations = await getReservationsByMatchIds(pendingIds)

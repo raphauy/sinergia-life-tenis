@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
-import { getActivePlayerSlugByUserId, getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getCanonicalPlayerSlugs } from '@/services/player-service'
 import { isUserInMatch } from '@/services/doubles-pair-service'
 import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/ladder-stats-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
@@ -54,19 +54,20 @@ export default async function PartidoPublicPage({ params }: Props) {
 
   // Get player slugs for linking
   const userIdsForLookup = [match.player1Id, match.player2Id].filter((id): id is string => !!id)
-  const slugMap = await getPlayerSlugsByUserIds(userIdsForLookup)
+  const session = await auth()
+  const currentUserId = session?.user?.id
+  const slugMap = await getCanonicalPlayerSlugs(
+    currentUserId ? [...userIdsForLookup, currentUserId] : userIdsForLookup
+  )
   const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
   const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
 
   // Check if logged-in user is a participant
-  const session = await auth()
-  const currentUserId = session?.user?.id
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
   const isParticipant = currentUserId ? await isUserInMatch(match, currentUserId) : false
   const canAct = isParticipant || isAdmin
   // Find the slug of the current user's player to build the action href
-  const currentPlayerSlug =
-    currentUserId && isParticipant ? (await getActivePlayerSlugByUserId(currentUserId)) ?? undefined : undefined
+  const currentPlayerSlug = currentUserId && isParticipant ? slugMap.get(currentUserId) : undefined
 
   const winnerIs1 = match.result?.winnerId === match.player1Id
   const winnerIs2 = match.result?.winnerId === match.player2Id
