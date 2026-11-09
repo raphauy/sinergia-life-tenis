@@ -2,6 +2,7 @@
 
 import { auth } from '@/lib/auth'
 import { getMatchById, selfScheduleLadderMatch } from '@/services/match-service'
+import { isUserInMatch } from '@/services/doubles-pair-service'
 import { createMatchResult, updateMatchResultPhoto } from '@/services/match-result-service'
 import { uploadImage, deleteImage } from '@/services/upload-service'
 import { notifyMatchResult } from '@/services/match-result-notification'
@@ -32,9 +33,8 @@ export async function playerLoadResultAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
-    // Auth: user must be player1 or player2
-    const isInMatch =
-      match.player1Id === session.user.id || match.player2Id === session.user.id
+    // Auth: juega el partido (en dobles, cualquiera de los cuatro) o es admin
+    const isInMatch = await isUserInMatch(match, session.user.id)
     const isAdmin = session.user.role === 'SUPERADMIN' || session.user.role === 'ADMIN'
 
     if (!isInMatch && !isAdmin) {
@@ -137,7 +137,7 @@ export async function fetchCurrentReservationAction(matchId: string): Promise<Ca
 
   const match = await getMatchById(matchId)
   if (!match) return null
-  const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+  const isInMatch = await isUserInMatch(match, session.user.id)
   if (!isInMatch) return null
 
   return getCalendarReservationByMatch(matchId)
@@ -156,7 +156,7 @@ export async function createReservationAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
-    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    const isInMatch = await isUserInMatch(match, session.user.id)
     if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
 
     // Check/save cédula
@@ -218,7 +218,7 @@ export async function selfScheduleMatchAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
-    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    const isInMatch = await isUserInMatch(match, session.user.id)
     if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
 
     const external = location === 'EXTERNAL'
@@ -288,7 +288,7 @@ export async function uploadMatchPhotoAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
-    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    const isInMatch = await isUserInMatch(match, session.user.id)
     if (!isInMatch) return { success: false, error: 'No autorizado' }
     if (!match.result) return { success: false, error: 'El partido no tiene resultado' }
 
@@ -321,7 +321,7 @@ export async function deleteMatchPhotoAction(
     const match = await getMatchById(matchId)
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
-    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    const isInMatch = await isUserInMatch(match, session.user.id)
     if (!isInMatch) return { success: false, error: 'No autorizado' }
     if (!match.result?.photoUrl) return { success: false, error: 'No hay foto' }
 
@@ -348,7 +348,7 @@ export async function cancelReservationAction(
     if (!match) return { success: false, error: 'Partido no encontrado' }
 
     // Both players can cancel
-    const isInMatch = match.player1Id === session.user.id || match.player2Id === session.user.id
+    const isInMatch = await isUserInMatch(match, session.user.id)
     if (!isInMatch) return { success: false, error: 'No autorizado para este partido' }
 
     const reservation = await getReservationByMatch(matchId)

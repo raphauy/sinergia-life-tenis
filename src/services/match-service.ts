@@ -2,11 +2,12 @@ import { prisma } from '@/lib/prisma'
 import { formatDateUY, endOfDayInDaysUY } from '@/lib/date-utils'
 import { getDayBlock } from '@/lib/constants'
 import type { MatchStage, MatchStatus, Prisma } from '@prisma/client'
+import { getCaptainsForPartner, getPairsForMatches, type MatchPairs } from './doubles-pair-service'
 
 const matchIncludes = {
   player1: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
   player2: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, image: true } },
-  tournament: { select: { id: true, name: true, matchFormat: true, finalsDate: true } },
+  tournament: { select: { id: true, name: true, matchFormat: true, finalsDate: true, modality: true } },
   ladder: { select: { id: true, name: true, matchFormat: true, matchScheduleDeadlineDays: true, reservationLeadDays: true } },
   category: {
     select: {
@@ -378,19 +379,42 @@ export async function getTodayMatches(tournamentId: string) {
   })
 }
 
+/**
+ * Partidos donde juega el usuario. En dobles el `Match` lleva al capitán de cada
+ * pareja, así que el compañero se suma por pareja (capitán + categoría).
+ */
+async function userMatchesWhere(userId: string): Promise<Prisma.MatchWhereInput[]> {
+  const asPartner = await getCaptainsForPartner(userId)
+  return [
+    { player1Id: userId },
+    { player2Id: userId },
+    ...asPartner.flatMap(({ categoryId, captainUserId }) => [
+      { categoryId, player1Id: captainUserId },
+      { categoryId, player2Id: captainUserId },
+    ]),
+  ]
+}
+
+/** `pairs`: las parejas de cada lado en partidos de dobles; null en singles y escalera. */
+async function withPairs<T extends Prisma.MatchGetPayload<{ include: typeof matchIncludes }>>(
+  matches: T[]
+): Promise<(T & { pairs: MatchPairs | null })[]> {
+  const pairs = await getPairsForMatches(matches)
+  return matches.map((m) => ({ ...m, pairs: pairs.get(m.id) ?? null }))
+}
+
 export async function getMatchesByPlayer(userId: string) {
   // Orden por fecha del partido (scheduledAt) desc → el más reciente arriba. En
   // escalera createdAt es cuándo se aceptó el reto, no cuándo se jugó, así que
   // ordenar por createdAt descoloca el historial. Los sin fecha (algún partido de
   // torneo) caen al final, desempatados por createdAt. Los consumidores re-ordenan
   // los próximos partidos por su cuenta; este orden gobierna el historial jugado.
-  return prisma.match.findMany({
-    where: {
-      OR: [{ player1Id: userId }, { player2Id: userId }],
-    },
+  const matches = await prisma.match.findMany({
+    where: { OR: await userMatchesWhere(userId) },
     include: matchIncludes,
     orderBy: [{ scheduledAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   })
+  return withPairs(matches)
 }
 
 // tournamentId opcional: sin él, devuelve la ocupación GLOBAL de canchas (torneo
@@ -451,12 +475,13 @@ export async function getPendingMatches(tournamentId: string) {
 }
 
 export async function getUpcomingMatches(userId: string) {
-  return prisma.match.findMany({
+  const matches = await prisma.match.findMany({
     where: {
-      OR: [{ player1Id: userId }, { player2Id: userId }],
+      OR: await userMatchesWhere(userId),
       status: { in: ['PENDING', 'CONFIRMED'] },
     },
     include: matchIncludes,
     orderBy: { createdAt: 'desc' },
   })
+  return withPairs(matches)
 }

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
 import { fullName } from '@/lib/format-name'
 import type { Match, MatchResult, Prisma } from '@prisma/client'
+import { getPairsByCategory, isDoublesCategory, pairName } from './doubles-pair-service'
 
 type Tx = Prisma.TransactionClient
 
@@ -20,6 +21,8 @@ export interface RankingEntry {
   gamesAgainst: number
   gamesDiff: number
   points: number // TODO: lógica real de puntos (pendiente Mati)
+  /** Solo en dobles: la fila es la pareja (player/userId son los de su capitán). */
+  pairSlug?: string
 }
 
 type MatchWithResult = Match & { result: MatchResult | null }
@@ -118,6 +121,55 @@ export function computeRanking(
   return entries
 }
 
+type RankablePlayer = Prisma.PlayerGetPayload<{
+  include: { user: { select: { id: true; firstName: true; lastName: true; image: true } } }
+}>
+
+/**
+ * Arma la entrada de `computeRanking`. En dobles la fila es la pareja: se queda solo
+ * con los capitanes (su `User` es el que va en los partidos) y el nombre es
+ * "Pérez / García"; los compañeros, que también están en el grupo, no suman fila.
+ */
+async function rankPlayers(
+  categoryId: string,
+  players: RankablePlayer[],
+  matches: MatchWithResult[],
+  tx?: Tx
+): Promise<RankingEntry[]> {
+  const withUser = players.filter((p) => p.user)
+
+  if (!(await isDoublesCategory(categoryId, tx))) {
+    return computeRanking(
+      withUser.map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        userId: p.userId!,
+        displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
+        image: p.user!.image,
+      })),
+      matches
+    )
+  }
+
+  const pairByCaptain = new Map(
+    (await getPairsByCategory(categoryId, tx)).map((pair) => [pair.captain.playerId, pair])
+  )
+  const entries = computeRanking(
+    withUser
+      .filter((p) => pairByCaptain.has(p.id))
+      .map((p) => ({
+        id: p.id,
+        slug: p.slug,
+        userId: p.userId!,
+        displayName: pairName(pairByCaptain.get(p.id)!),
+        image: null,
+      })),
+    matches
+  )
+  for (const e of entries) e.pairSlug = pairByCaptain.get(e.player.id)!.slug
+  return entries
+}
+
 export async function getRankingByCategory(categoryId: string, tx?: Tx): Promise<RankingEntry[]> {
   const client = tx ?? prisma
   const players = await client.player.findMany({
@@ -132,18 +184,7 @@ export async function getRankingByCategory(categoryId: string, tx?: Tx): Promise
     include: { result: true },
   })
 
-  return computeRanking(
-    players
-      .filter((p) => p.user)
-      .map((p) => ({
-        id: p.id,
-        slug: p.slug,
-        userId: p.userId!,
-        displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
-        image: p.user!.image,
-      })),
-    matches
-  )
+  return rankPlayers(categoryId, players, matches, tx)
 }
 
 export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<RankingEntry[]> {
@@ -165,16 +206,5 @@ export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<Ranki
     include: { result: true },
   })
 
-  return computeRanking(
-    players
-      .filter((p) => p.user)
-      .map((p) => ({
-        id: p.id,
-        slug: p.slug,
-        userId: p.userId!,
-        displayName: fullName(p.user!.firstName, p.user!.lastName) || fullName(p.firstName, p.lastName),
-        image: p.user!.image,
-      })),
-    matches
-  )
+  return rankPlayers(group.categoryId, players, matches, tx)
 }

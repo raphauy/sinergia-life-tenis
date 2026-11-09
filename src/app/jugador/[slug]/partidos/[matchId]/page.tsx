@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
+import { getUserSideInMatch } from '@/services/doubles-pair-service'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
@@ -56,9 +57,9 @@ export default async function MatchDetailPage({ params }: Props) {
   const match = await getMatchById(matchId)
   if (!match) notFound()
 
-  // Verify this player is part of the match
-  const isInMatch = match.player1Id === player.userId || match.player2Id === player.userId
-  if (!isInMatch) notFound()
+  // Verify this player is part of the match (en dobles, cualquiera de los cuatro)
+  const side = await getUserSideInMatch(match, player.userId)
+  if (side === null) notFound()
 
   // Partido polimórfico: de torneo (tournamentId/categoryId) o de escalera (ladderId).
   const isLadder = match.ladderId != null
@@ -74,7 +75,7 @@ export default async function MatchDetailPage({ params }: Props) {
   // Disponibilidad de canchas: global para escalera (sin filtrar por torneo).
   const availabilityTournamentId = isLadder ? undefined : match.tournamentId ?? undefined
 
-  const isPlayer1 = match.player1Id === player.userId
+  const isPlayer1 = side === 1
   const rival = isPlayer1 ? match.player2 : match.player1
   const rivalName = fullName(rival?.firstName, rival?.lastName)
   const court = COURTS.find((c) => c.number === match.courtNumber)

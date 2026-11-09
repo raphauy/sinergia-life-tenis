@@ -5,7 +5,8 @@ import { SITE_URL } from '@/lib/site-url'
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [players, matches] = await Promise.all([
     prisma.player.findMany({
-      where: { isActive: true, userId: { not: null } },
+      // Las fichas de dobles no son perfiles: nunca se linkean (ADR 0002).
+      where: { isActive: true, userId: { not: null }, tournament: { modality: 'SINGLES' } },
       select: { slug: true, updatedAt: true },
     }),
     prisma.match.findMany({

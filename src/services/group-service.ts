@@ -1,4 +1,14 @@
 import { prisma } from '@/lib/prisma'
+import { assertCategoryNotDoubles } from './doubles-pair-service'
+
+/** Los grupos de un torneo de dobles (parejas y partidos) los arma solo el script de carga. */
+async function assertGroupNotDoubles(groupId: string): Promise<void> {
+  const group = await prisma.group.findUniqueOrThrow({ where: { id: groupId }, select: { categoryId: true } })
+  await assertCategoryNotDoubles(
+    group.categoryId,
+    'Es un torneo de dobles: los grupos y sus partidos los arma el script de carga, no se pueden modificar desde acá.'
+  )
+}
 
 export async function getGroupsByCategory(categoryId: string) {
   const groups = await prisma.group.findMany({
@@ -61,6 +71,7 @@ export async function createGroup(categoryId: string) {
 }
 
 export async function deleteGroup(groupId: string) {
+  await assertGroupNotDoubles(groupId)
   return prisma.group.delete({ where: { id: groupId } })
 }
 
@@ -97,6 +108,7 @@ export async function getAffectedPendingMatches(groupId: string, newPlayerIds: s
 }
 
 export async function setGroupPlayers(groupId: string, playerIds: string[], cancelPending: boolean = false) {
+  await assertGroupNotDoubles(groupId)
   const group = await prisma.group.findUniqueOrThrow({
     where: { id: groupId },
     select: { categoryId: true },
@@ -167,6 +179,7 @@ export async function setGroupPlayers(groupId: string, playerIds: string[], canc
 }
 
 export async function deletePendingMatches(groupId: string) {
+  await assertGroupNotDoubles(groupId)
   const result = await prisma.match.deleteMany({
     where: { groupId, status: 'PENDING' },
   })
