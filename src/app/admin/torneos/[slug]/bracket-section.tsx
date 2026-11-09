@@ -44,6 +44,9 @@ interface BracketMatchView {
   status: string
   player1: BracketPlayer | null
   player2: BracketPlayer | null
+  /** En dobles, el nombre de la pareja (o el slot "1° Grupo A") ya resuelto en el servidor. */
+  player1Label?: string | null
+  player2Label?: string | null
   player1SourceGroup: { number: number } | null
   player2SourceGroup: { number: number } | null
   player1SourcePosition: number | null
@@ -109,7 +112,7 @@ function BracketMatchRow({
   tournamentSlug: string
   qfCount: number
 }) {
-  const p1 = playerLabel(
+  const p1 = match.player1Label ?? playerLabel(
     match.player1,
     match.player1SourceGroup,
     match.player1SourcePosition,
@@ -118,7 +121,7 @@ function BracketMatchRow({
     'player1',
     qfCount,
   )
-  const p2 = playerLabel(
+  const p2 = match.player2Label ?? playerLabel(
     match.player2,
     match.player2SourceGroup,
     match.player2SourcePosition,

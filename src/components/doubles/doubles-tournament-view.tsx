@@ -86,12 +86,13 @@ export function DoublesDefinition({ cups }: { cups: DoublesCupView[] }) {
       <div className="space-y-5">
         {cups.map((c) => (
           <div key={c.cup}>
-            <h3 className="mb-2 flex items-center gap-1.5 text-sm font-bold">
+            <h3 className="mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm font-bold">
               <Trophy className={cn('h-4 w-4', c.cup === 'GOLD' ? 'text-yellow-500' : 'text-slate-400')} />
               {c.title}
               {c.champion && (
-                <span className="ml-1 font-normal text-muted-foreground">
-                  · Campeones: <PairName pair={c.champion} className="font-bold text-foreground" />
+                // En mobile baja a su propia línea; en desktop sigue al título.
+                <span className="basis-full pl-5.5 font-normal text-muted-foreground sm:basis-auto sm:pl-0 sm:before:content-['·_']">
+                  Campeones: <PairName pair={c.champion} className="font-bold text-foreground" />
                 </span>
               )}
             </h3>

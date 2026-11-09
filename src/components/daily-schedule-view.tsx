@@ -14,7 +14,7 @@ import {
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation, LadderReservationInfo } from './court-availability-calendar'
-import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
+import { groupBySlot, slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -54,21 +54,14 @@ function formatDateKey(day: Date) {
   return format(day, 'yyyy-MM-dd')
 }
 
-function groupByTime<T extends { timeUY: string }>(items: T[]) {
-  const map = new Map<string, T[]>()
-  for (const item of items) {
-    if (!map.has(item.timeUY)) map.set(item.timeUY, [])
-    map.get(item.timeUY)!.push(item)
-  }
-  return map
-}
 
 export function DailyScheduleView({ matches, reservations = [], day, ladderReservation = null }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
-  const byTime = groupByTime(matches)
-  const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
+  // Un partido a las :20 o :40 (Copa Summum) cuenta en el turno en punto que lo contiene.
+  const byTime = groupBySlot(matches, slots)
+  const reservationsByTime = groupBySlot(reservations, slots)
   const ladderNote = ladderReservation ? ladderReservationNote(day, ladderReservation) : null
   // "libre" sigue queriendo decir "la cancha está libre", no "podés pedirla": un
   // día que La Escalera no reserva igual se puede jugar consiguiendo cancha por
@@ -101,7 +94,8 @@ export function DailyScheduleView({ matches, reservations = [], day, ladderReser
           const reserved = slotReservations.length
           const total = occupied + reserved
           const block = getSlotBlock(formatDateKey(day), slot)
-          const isBlocked = block != null
+          // Un turno bloqueado (Copa Summum) con partidos cargados muestra los partidos.
+          const isBlocked = block != null && total === 0
           const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
 
@@ -133,10 +127,13 @@ export function DailyScheduleView({ matches, reservations = [], day, ladderReser
                   : <span className="text-xs text-muted-foreground/40" />
               ) : (
                 <div className="flex-1 min-w-0 space-y-1">
+                  {block && (
+                  <div className="text-xs text-violet-600 dark:text-violet-400">{block.text}</div>
+                )}
                   {slotMatches.map((m, i) => (
                     <div key={`m-${i}`} className="text-xs leading-tight">
                       <span className="text-muted-foreground">
-                        Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
+                        {m.timeUY !== slot && `${m.timeUY} · `}Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                       </span>
                       <br />
                       <span className="font-medium">

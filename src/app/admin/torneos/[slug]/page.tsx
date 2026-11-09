@@ -16,6 +16,8 @@ import { BracketSection } from './bracket-section'
 import { DeleteTournamentButton } from './delete-tournament-button'
 import { RulesEditorSection } from './rules-editor-section'
 import { FeaturedOnHomeSwitch } from './featured-on-home-switch'
+import { getPairsForMatches } from '@/services/doubles-pair-service'
+import { matchSideName } from '@/lib/pair-display'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -39,6 +41,23 @@ export default async function TournamentDetailPage({ params }: Props) {
   const bracketsByCategory = await Promise.all(
     tournament.categories.map((c) => getBracketByCategory(c.id))
   )
+  const isDoubles = tournament.modality === 'DOUBLES'
+  // En dobles cada lado del cuadro es una pareja (ADR 0002): se resuelve acá y se pasa como texto.
+  const bracketPairs = isDoubles
+    ? await getPairsForMatches(
+        tournament.categories.flatMap((cat, i) =>
+          bracketsByCategory[i].cups
+            .flatMap((c) => [...c.quarterfinals, ...c.semifinals, ...(c.final ? [c.final] : [])])
+            .map((m) => ({
+              id: m.id,
+              categoryId: cat.id,
+              player1Id: m.player1?.id ?? null,
+              player2Id: m.player2?.id ?? null,
+              tournament: { modality: 'DOUBLES' as const },
+            })),
+        ),
+      )
+    : null
   const bracketSectionData = tournament.categories.map((cat, i) => {
     const b = bracketsByCategory[i]
     const allMatches = b.cups.flatMap((c) => [...c.quarterfinals, ...c.semifinals, ...(c.final ? [c.final] : [])])
@@ -49,6 +68,8 @@ export default async function TournamentDetailPage({ params }: Props) {
         id: m.id,
         stage: m.stage,
         cup: m.cup,
+        player1Label: bracketPairs ? matchSideName(bracketPairs.get(m.id) ?? { side1: null, side2: null }, 1, m) : null,
+        player2Label: bracketPairs ? matchSideName(bracketPairs.get(m.id) ?? { side1: null, side2: null }, 2, m) : null,
         bracketPosition: m.bracketPosition,
         status: m.status,
         player1: m.player1 ? { id: m.player1.id, firstName: m.player1.firstName, lastName: m.player1.lastName } : null,
@@ -129,6 +150,7 @@ export default async function TournamentDetailPage({ params }: Props) {
       {/* Groups management */}
       <GroupsSection
         tournamentSlug={slug}
+        readOnly={isDoubles}
         categories={tournament.categories}
         groups={groups}
         allPlayers={players.map((p) => ({

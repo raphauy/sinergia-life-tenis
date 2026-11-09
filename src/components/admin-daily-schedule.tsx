@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
-import { COURTS, getDayBlock, getSlotBlock, getSlotsForDay } from '@/lib/constants'
+import { COURTS, getSlotBlock, getSlotsForDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,7 @@ import {
 import { REJECT_REASON_LABELS, type RejectReservationReason } from '@/lib/validations/reservation'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
-import { slotContextLabel } from './court-availability-calendar'
+import { groupBySlot, slotContextLabel } from './court-availability-calendar'
 import type { PendingMatch } from '@/app/admin/actions-calendar'
 
 interface Props {
@@ -34,14 +34,6 @@ interface Props {
 
 const REJECT_REASONS: RejectReservationReason[] = ['NO_COURT', 'CLASS', 'OTHER']
 
-function groupByTime<T extends { timeUY: string }>(items: T[]) {
-  const map = new Map<string, T[]>()
-  for (const item of items) {
-    if (!map.has(item.timeUY)) map.set(item.timeUY, [])
-    map.get(item.timeUY)!.push(item)
-  }
-  return map
-}
 
 function formatDateKey(day: Date) {
   return `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`
@@ -49,10 +41,11 @@ function formatDateKey(day: Date) {
 
 export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, changeCourtAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
-  const byTime = groupByTime(matches)
-  const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
+  // Un partido a las :20 o :40 (Copa Summum) cuenta en el turno en punto que lo contiene.
+  const byTime = groupBySlot(matches, slots)
+  const reservationsByTime = groupBySlot(reservations, slots)
 
   const [openSlot, setOpenSlot] = useState<string | null>(null)
   const [courtNumber, setCourtNumber] = useState(2)
@@ -207,9 +200,8 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
           const reserved = slotReservations.length
           const total = occupied + reserved
           const block = getSlotBlock(formatDateKey(day), slot)
-          // Los partidos cargados en un día bloqueado (Copa Summum) se ven igual.
-          const showsMatchesOverBlock = total > 0 && getDayBlock(formatDateKey(day)) != null
-          const isBlocked = block != null && !showsMatchesOverBlock
+          // Un turno bloqueado (Copa Summum, clase grupal) con partidos cargados muestra los partidos.
+          const isBlocked = block != null && total === 0
           const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
@@ -243,6 +235,9 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                   <span className="text-xs text-muted-foreground/40">libre</span>
                 ) : (
                   <div className="flex-1 min-w-0 space-y-1">
+                    {block && (
+                    <div className="text-xs text-violet-600 dark:text-violet-400">{block.text}</div>
+                  )}
                     {slotMatches.map((m, i) => (
                       <div
                         key={`m-${i}`}
@@ -250,7 +245,7 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
                         onClick={(e) => { if (changeCourtAction && m.id) { e.stopPropagation(); handleSlotClick(slot, m) } }}
                       >
                         <span className="text-muted-foreground">
-                          Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
+                          {m.timeUY !== slot && `${m.timeUY} · `}Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                         </span>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">

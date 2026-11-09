@@ -56,13 +56,13 @@ export function DoublesMatchRow({ match, showLabel = false }: { match: DoublesMa
           {played ? (
             <>
               <div className="text-base font-bold tabular-nums">{match.score}</div>
-              {time && <div className="text-[11px] text-muted-foreground">{time} · C{match.courtNumber}</div>}
+              {time && <div className="text-[11px] text-muted-foreground">{time}{match.courtNumber != null && ` · Cancha ${match.courtNumber}`}</div>}
             </>
           ) : (
             <>
               <div className="font-bold tabular-nums">{time ?? '—'}</div>
               {match.live ? (
-                <div className="text-[11px] font-bold text-red-600 dark:text-red-400">En juego · C{match.courtNumber}</div>
+                <div className="text-[11px] font-bold text-red-600 dark:text-red-400">En juego{match.courtNumber != null && ` · Cancha ${match.courtNumber}`}</div>
               ) : (
                 match.courtNumber != null && <div className="text-[11px] text-muted-foreground">Cancha {match.courtNumber}</div>
               )}

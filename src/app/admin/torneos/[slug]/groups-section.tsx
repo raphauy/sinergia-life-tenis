@@ -81,6 +81,8 @@ interface Props {
   categories: Category[]
   groups: Group[]
   allPlayers: SimplePlayer[]
+  /** Torneo de dobles: los grupos los arma el script de carga; acá solo se miran. */
+  readOnly?: boolean
 }
 
 // Draggable player item
@@ -145,7 +147,7 @@ function DroppableColumn({
   )
 }
 
-export function GroupsSection({ tournamentSlug, categories, groups, allPlayers }: Props) {
+export function GroupsSection({ tournamentSlug, categories, groups, allPlayers, readOnly = false }: Props) {
   const [isPending, startTransition] = useTransition()
   const [deleteTarget, setDeleteTarget] = useState<Group | null>(null)
   const [generateTarget, setGenerateTarget] = useState<Group | null>(null)
@@ -323,17 +325,23 @@ export function GroupsSection({ tournamentSlug, categories, groups, allPlayers }
 
         return (
           <div key={cat.id} className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <CategoryBadge name={cat.name} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleCreateGroup(cat.id)}
-                disabled={isPending}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Crear grupo
-              </Button>
+              {readOnly ? (
+                <span className="text-xs text-muted-foreground">
+                  Los grupos de dobles los arma el script de carga (<code>scripts/cargar-dobles.ts</code>); se muestran por persona.
+                </span>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCreateGroup(cat.id)}
+                  disabled={isPending}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Crear grupo
+                </Button>
+              )}
             </div>
 
             {catGroups.length === 0 ? (
@@ -388,6 +396,7 @@ export function GroupsSection({ tournamentSlug, categories, groups, allPlayers }
                           </p>
                         )}
 
+                        {!readOnly && (
                         <div className="flex gap-2 pt-1 mt-auto">
                           <Button
                             size="sm"
@@ -439,6 +448,7 @@ export function GroupsSection({ tournamentSlug, categories, groups, allPlayers }
                             </Tooltip>
                           </TooltipProvider>
                         </div>
+                        )}
                       </CardContent>
                     </Card>
                   )

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getPairsForMatches } from '@/services/doubles-pair-service'
-import { matchSideName } from '@/lib/pair-display'
+import { matchSideName, pairFullName } from '@/lib/pair-display'
+import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatches } from '@/services/match-service'
 import { getTournaments } from '@/services/tournament-service'
@@ -32,16 +33,24 @@ export default async function PartidosPage({ searchParams }: Props) {
   const pairsByMatch = await getPairsForMatches(allMatches)
   const named = allMatches.map((m) => {
     const pairs = pairsByMatch.get(m.id) ?? null
+    // Se busca por lo que se ve (nombres cortos) y también por nombres y apellidos completos.
+    const searchText = [
+      matchSideName(pairs, 1, m),
+      matchSideName(pairs, 2, m),
+      fullName(m.player1?.firstName, m.player1?.lastName),
+      fullName(m.player2?.firstName, m.player2?.lastName),
+      pairs?.side1 ? pairFullName(pairs.side1) : '',
+      pairs?.side2 ? pairFullName(pairs.side2) : '',
+    ].join(' ').toLowerCase()
     return {
       ...m,
       side1Name: matchSideName(pairs, 1, m) || 'Por definir',
       side2Name: matchSideName(pairs, 2, m) || 'Por definir',
+      searchText,
     }
   })
   const q = params.q?.toLowerCase().trim()
-  const matches = q
-    ? named.filter((m) => m.side1Name.toLowerCase().includes(q) || m.side2Name.toLowerCase().includes(q))
-    : named
+  const matches = q ? named.filter((m) => m.searchText.includes(q)) : named
 
   return (
     <div>

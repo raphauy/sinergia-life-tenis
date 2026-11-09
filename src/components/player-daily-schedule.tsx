@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { CalendarCheck, Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
-import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
+import { groupBySlot, slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -22,14 +22,6 @@ interface Props {
   onChanged?: () => void
 }
 
-function groupByTime<T extends { timeUY: string }>(items: T[]) {
-  const map = new Map<string, T[]>()
-  for (const item of items) {
-    if (!map.has(item.timeUY)) map.set(item.timeUY, [])
-    map.get(item.timeUY)!.push(item)
-  }
-  return map
-}
 
 function formatDateKey(day: Date) {
   return `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`
@@ -40,10 +32,11 @@ export function PlayerDailySchedule({
   createAction, cancelAction, onChanged,
 }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
-  const byTime = groupByTime(matches)
-  const reservationsByTime = groupByTime(reservations)
   const dayOfWeek = day.getDay()
   const slots = getSlotsForDay(dayOfWeek)
+  // Un partido a las :20 o :40 (Copa Summum) cuenta en el turno en punto que lo contiene.
+  const byTime = groupBySlot(matches, slots)
+  const reservationsByTime = groupBySlot(reservations, slots)
   const now = new Date()
   const minDate = getMinReservationDate(now)
   const maxDate = reservationLeadDays != null ? getMaxReservationDate(now, reservationLeadDays) : null
@@ -135,7 +128,8 @@ export function PlayerDailySchedule({
           const reserved = slotReservations.length
           const total = occupied + reserved
           const block = getSlotBlock(formatDateKey(day), slot)
-          const isBlocked = block != null
+          // Un turno bloqueado (Copa Summum) con partidos cargados muestra los partidos.
+          const isBlocked = block != null && total === 0
           const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
@@ -173,10 +167,13 @@ export function PlayerDailySchedule({
                   )
                 ) : (
                   <div className="flex-1 min-w-0 space-y-1">
+                    {block && (
+                    <div className="text-xs text-violet-600 dark:text-violet-400">{block.text}</div>
+                  )}
                     {slotMatches.map((m, i) => (
                       <div key={`m-${i}`} className="text-xs leading-tight">
                         <span className="text-muted-foreground">
-                          Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
+                          {m.timeUY !== slot && `${m.timeUY} · `}Cancha {m.courtNumber ?? '?'} | {slotContextLabel(m)}
                         </span>
                         <br />
                         <span className="font-medium">{m.player1Name} vs {m.player2Name}</span>

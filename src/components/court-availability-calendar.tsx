@@ -43,6 +43,28 @@ export type CalendarReservation = {
 export type FetchMonthMatches = (tournamentId: string | undefined, year: number, month: number) => Promise<CalendarMatch[]>
 export type FetchMonthReservations = (tournamentId: string | undefined, year: number, month: number) => Promise<CalendarReservation[]>
 
+/**
+ * Turno del día que contiene una hora: el último turno que empieza a esa hora o antes
+ * (un partido de la Copa Summum a las 08:20 va en el turno de 08:00; uno a las 13:00
+ * en el último turno del sábado). Si la hora es anterior al primer turno, va al primero.
+ */
+export function slotForTime(slots: string[], timeUY: string): string {
+  let found = slots[0] ?? timeUY
+  for (const slot of slots) if (slot <= timeUY) found = slot
+  return found
+}
+
+/** Agrupa partidos o reservas por el turno que los contiene (ver `slotForTime`). */
+export function groupBySlot<T extends { timeUY: string }>(items: T[], slots: string[]): Map<string, T[]> {
+  const map = new Map<string, T[]>()
+  for (const item of items) {
+    const slot = slotForTime(slots, item.timeUY)
+    if (!map.has(slot)) map.set(slot, [])
+    map.get(slot)!.push(item)
+  }
+  return map
+}
+
 /** Etiqueta de contexto de un slot: "La Escalera" (sin categoría) o "Cat X | Grupo Y" (torneo). */
 export function slotContextLabel(item: { categoryName: string; groupNumber: number | null; groupLabel?: string | null }): string {
   if (!item.categoryName) return 'La Escalera'
