@@ -15,11 +15,13 @@ import {
   deleteProfileImageAction,
 } from './actions'
 import { resizeImage } from '@/lib/resize-image'
+import { DISPLAY_NAME_MAX, DISPLAY_NAME_MIN, suggestDisplayName } from '@/lib/display-name'
 
 interface ProfileFormProps {
   user: {
     firstName: string
     lastName: string
+    displayName: string
     email: string
     image: string | null
     phone: string | null
@@ -33,10 +35,18 @@ export function ProfileForm({ user }: ProfileFormProps) {
   const [firstName, setFirstName] = useState(user.firstName)
   const [lastName, setLastName] = useState(user.lastName)
   const [cedula, setCedula] = useState(user.cedula)
+  const [displayName, setDisplayName] = useState(user.displayName)
   const [displayImage, setDisplayImage] = useState(user.image)
   const [instagramHandle, setInstagramHandle] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const trimmedDisplayName = displayName.trim()
+  const displayNameError =
+    trimmedDisplayName.length > 0 && trimmedDisplayName.length < DISPLAY_NAME_MIN
+      ? `Tiene que tener al menos ${DISPLAY_NAME_MIN} caracteres`
+      : null
+  const displayNamePlaceholder = `Ej: ${suggestDisplayName({ firstName, lastName }) ?? 'Rapha C.'}`
 
   function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -79,9 +89,9 @@ export function ProfileForm({ user }: ProfileFormProps) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSubmitted(true)
-    if (!firstName.trim()) return
+    if (!firstName.trim() || displayNameError) return
     startTransition(async () => {
-      const result = await updateProfileAction({ firstName, lastName, cedula })
+      const result = await updateProfileAction({ firstName, lastName, cedula, displayName })
       if (result.success && result.data) {
         await updateSession({ firstName: result.data.firstName, lastName: result.data.lastName, image: result.data.image })
         toast.success('Perfil actualizado')
@@ -186,6 +196,25 @@ export function ProfileForm({ user }: ProfileFormProps) {
             onChange={(e) => setLastName(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Nombre para mostrar */}
+      <div className="space-y-2">
+        <Label htmlFor="displayName">Nombre para mostrar</Label>
+        <Input
+          id="displayName"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder={displayNamePlaceholder}
+          maxLength={DISPLAY_NAME_MAX}
+        />
+        {displayNameError && submitted ? (
+          <p className="text-xs text-destructive">{displayNameError}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Así te van a ver en los partidos de dobles. Si lo dejás vacío se usa tu nombre completo.
+          </p>
+        )}
       </div>
 
       {/* Cédula */}

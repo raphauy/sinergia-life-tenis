@@ -22,7 +22,14 @@ export async function createUser(data: {
 
 export async function updateUser(
   id: string,
-  data: { firstName?: string; lastName?: string; image?: string | null; phone?: string; cedula?: string | null }
+  data: {
+    firstName?: string
+    lastName?: string
+    displayName?: string | null
+    image?: string | null
+    phone?: string
+    cedula?: string | null
+  }
 ) {
   return prisma.user.update({ where: { id }, data })
 }

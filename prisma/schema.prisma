@@ -95,6 +95,7 @@ model User {
   email     String   @unique
   firstName String?
   lastName  String?
+  displayName String? // nombre para mostrar ("Rapha C."); null = nombre completo
   image     String?
   phone     String?
   cedula    String?
