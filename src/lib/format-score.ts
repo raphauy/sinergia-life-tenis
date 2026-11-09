@@ -1,13 +1,16 @@
 /**
  * Format a set score with tiebreak notation.
  * Standard tennis: 7-6(5) where 5 is the loser's TB score.
+ * Set a 4 (SHORT_SET_4): 4-3(3) con el mini tiebreak a 5.
  */
 function formatSet(p1: number, p2: number, tbP1?: number | null, tbP2?: number | null): string {
-  if ((p1 === 7 && p2 === 6) || (p1 === 6 && p2 === 7)) {
+  const isTbSet =
+    (p1 === 7 && p2 === 6) || (p1 === 6 && p2 === 7) || (p1 === 4 && p2 === 3) || (p1 === 3 && p2 === 4)
+  if (isTbSet) {
     if (tbP1 != null && tbP2 != null) {
-      const loserTb = p1 === 7 ? tbP2 : tbP1
+      const loserTb = p1 > p2 ? tbP2 : tbP1
       // TB goes with the loser's score: 6(2)-7 or 7-6(2)
-      if (p1 === 6) return `${p1}(${loserTb})-${p2}`
+      if (p1 < p2) return `${p1}(${loserTb})-${p2}`
       return `${p1}-${p2}(${loserTb})`
     }
   }

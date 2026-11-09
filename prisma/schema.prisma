@@ -29,6 +29,7 @@ enum MatchFormat {
   SINGLE_SET
   TWO_SETS_SUPERTB
   BEST_OF_THREE
+  SHORT_SET_4 // set a 4 sin ventaja, mini tiebreak a 5 en 3-3 (Copa Summum)
 }
 
 enum MatchStage {
