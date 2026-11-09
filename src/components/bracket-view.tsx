@@ -6,10 +6,22 @@ export type BracketViewMatch = BracketMatchCardMatch & {
   group?: { id: string; number: number } | null
 }
 
-interface BracketViewProps {
+export interface BracketViewCup {
+  /** null = cuadro único (singles) */
+  cup: 'GOLD' | 'SILVER' | null
   quarterfinals: BracketViewMatch[]
   semifinals: BracketViewMatch[]
   final: BracketViewMatch | null
+}
+
+const CUP_TITLES: Record<'GOLD' | 'SILVER', string> = {
+  GOLD: 'Copa de Oro',
+  SILVER: 'Copa de Plata',
+}
+
+interface BracketViewProps {
+  /** Cuadros en orden de presentación (oro, plata, sin copa). */
+  cups: BracketViewCup[]
   finalsDate: Date | null
   playerSlugs?: Map<string, string>
   currentUserId?: string
@@ -106,22 +118,14 @@ function MatchPair({
   )
 }
 
-export function BracketView({
-  quarterfinals,
-  semifinals,
-  final,
-  finalsDate,
-  playerSlugs,
-  currentUserId,
-  currentPlayerSlug,
-  reservationMap,
-}: BracketViewProps) {
-  const hasAny = quarterfinals.length > 0 || semifinals.length > 0 || final != null
-  if (!hasAny) return null
+type BracketBoardProps = Omit<BracketViewCup, 'cup'> &
+  Omit<BracketViewProps, 'cups'>
 
-  const qfGroups = groupQFsBySemi(quarterfinals)
-  const sortedSemis = [...semifinals].sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0))
-  const qfCount = quarterfinals.length
+export function BracketView({ cups, ...rest }: BracketViewProps) {
+  const visible = cups.filter(
+    (c) => c.quarterfinals.length > 0 || c.semifinals.length > 0 || c.final != null,
+  )
+  if (visible.length === 0) return null
 
   return (
     <section className="space-y-3">
@@ -130,69 +134,106 @@ export function BracketView({
         <h2 className="text-lg font-semibold">Fase eliminatoria</h2>
       </div>
 
-      <div className="rounded-lg border bg-muted/20 p-2 sm:p-4">
-        {/* Quarterfinals */}
-        {quarterfinals.length > 0 && (
-          <div>
-            <h3 className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2">
-              Cuartos
+      {visible.map((c) =>
+        c.cup == null ? (
+          <BracketBoard key="single" {...c} {...rest} />
+        ) : (
+          <div key={c.cup} className="space-y-2">
+            <h3
+              className={
+                c.cup === 'GOLD'
+                  ? 'flex items-center gap-1.5 text-sm font-bold text-amber-600 dark:text-amber-400'
+                  : 'flex items-center gap-1.5 text-sm font-bold text-slate-500 dark:text-slate-300'
+              }
+            >
+              <Trophy className="h-4 w-4" />
+              {CUP_TITLES[c.cup]}
             </h3>
-            <div className="space-y-3">
-              {qfGroups.map((group, i) => (
-                <MatchPair
-                  key={i}
-                  matches={group}
-                  label={`SF${i + 1}`}
-                  playerSlugs={playerSlugs}
-                  currentUserId={currentUserId}
-                  currentPlayerSlug={currentPlayerSlug}
-                  reservationMap={reservationMap}
-                  qfCount={qfCount}
-                />
-              ))}
-            </div>
+            <BracketBoard {...c} {...rest} />
           </div>
-        )}
-
-        {/* Semifinals */}
-        {semifinals.length > 0 && (
-          <div className="mt-7 sm:mt-8">
-            <h3 className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2">
-              Semifinales
-            </h3>
-            <MatchPair
-              matches={sortedSemis}
-              label="Final"
-              playerSlugs={playerSlugs}
-              currentUserId={currentUserId}
-              currentPlayerSlug={currentPlayerSlug}
-              reservationMap={reservationMap}
-              fallbackDate={finalsDate}
-              qfCount={qfCount}
-            />
-          </div>
-        )}
-
-        {/* Final */}
-        {final && (
-          <div className="mt-7 sm:mt-8">
-            <h3 className="text-[11px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider mb-2 flex items-center gap-1.5">
-              <Trophy className="h-3.5 w-3.5" />
-              Final
-            </h3>
-            <BracketMatchCard
-              match={final}
-              player1Slug={final.player1Id ? playerSlugs?.get(final.player1Id) : undefined}
-              player2Slug={final.player2Id ? playerSlugs?.get(final.player2Id) : undefined}
-              currentUserId={currentUserId}
-              currentPlayerSlug={currentPlayerSlug}
-              reservation={reservationMap?.get(final.id)}
-              fallbackDate={finalsDate}
-              accent="final"
-            />
-          </div>
-        )}
-      </div>
+        ),
+      )}
     </section>
+  )
+}
+
+function BracketBoard({
+  quarterfinals,
+  semifinals,
+  final,
+  finalsDate,
+  playerSlugs,
+  currentUserId,
+  currentPlayerSlug,
+  reservationMap,
+}: BracketBoardProps) {
+  const qfGroups = groupQFsBySemi(quarterfinals)
+  const sortedSemis = [...semifinals].sort((a, b) => (a.bracketPosition ?? 0) - (b.bracketPosition ?? 0))
+  const qfCount = quarterfinals.length
+
+  return (
+    <div className="rounded-lg border bg-muted/20 p-2 sm:p-4">
+      {/* Quarterfinals */}
+      {quarterfinals.length > 0 && (
+        <div>
+          <h3 className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2">
+            Cuartos
+          </h3>
+          <div className="space-y-3">
+            {qfGroups.map((group, i) => (
+              <MatchPair
+                key={i}
+                matches={group}
+                label={`SF${i + 1}`}
+                playerSlugs={playerSlugs}
+                currentUserId={currentUserId}
+                currentPlayerSlug={currentPlayerSlug}
+                reservationMap={reservationMap}
+                qfCount={qfCount}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Semifinals */}
+      {semifinals.length > 0 && (
+        <div className={quarterfinals.length > 0 ? 'mt-7 sm:mt-8' : undefined}>
+          <h3 className="text-[11px] font-bold uppercase text-muted-foreground tracking-wider mb-2">
+            Semifinales
+          </h3>
+          <MatchPair
+            matches={sortedSemis}
+            label="Final"
+            playerSlugs={playerSlugs}
+            currentUserId={currentUserId}
+            currentPlayerSlug={currentPlayerSlug}
+            reservationMap={reservationMap}
+            fallbackDate={finalsDate}
+            qfCount={qfCount}
+          />
+        </div>
+      )}
+
+      {/* Final */}
+      {final && (
+        <div className={quarterfinals.length > 0 || semifinals.length > 0 ? 'mt-7 sm:mt-8' : undefined}>
+          <h3 className="text-[11px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider mb-2 flex items-center gap-1.5">
+            <Trophy className="h-3.5 w-3.5" />
+            Final
+          </h3>
+          <BracketMatchCard
+            match={final}
+            player1Slug={final.player1Id ? playerSlugs?.get(final.player1Id) : undefined}
+            player2Slug={final.player2Id ? playerSlugs?.get(final.player2Id) : undefined}
+            currentUserId={currentUserId}
+            currentPlayerSlug={currentPlayerSlug}
+            reservation={reservationMap?.get(final.id)}
+            fallbackDate={finalsDate}
+            accent="final"
+          />
+        </div>
+      )}
+    </div>
   )
 }

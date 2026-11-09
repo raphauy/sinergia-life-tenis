@@ -37,13 +37,14 @@ export default async function TournamentDetailPage({ params }: Props) {
   )
   const bracketSectionData = tournament.categories.map((cat, i) => {
     const b = bracketsByCategory[i]
-    const allMatches = [...b.quarterfinals, ...b.semifinals, ...(b.final ? [b.final] : [])]
+    const allMatches = b.cups.flatMap((c) => [...c.quarterfinals, ...c.semifinals, ...(c.final ? [c.final] : [])])
     return {
       id: cat.id,
       name: cat.name,
       bracket: allMatches.map((m) => ({
         id: m.id,
         stage: m.stage,
+        cup: m.cup,
         bracketPosition: m.bracketPosition,
         status: m.status,
         player1: m.player1 ? { id: m.player1.id, firstName: m.player1.firstName, lastName: m.player1.lastName } : null,

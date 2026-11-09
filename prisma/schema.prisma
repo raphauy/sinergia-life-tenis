@@ -39,6 +39,13 @@ enum MatchStage {
   FINAL
 }
 
+// Cuadro de la Definición cuando una categoría tiene dos (Copa Summum: 1° de
+// grupo a oro, 2° a plata). null = un solo cuadro (singles) o partido de grupo.
+enum Cup {
+  GOLD
+  SILVER
+}
+
 enum ImportedPlayerStatus {
   PENDING
   PROCESSED
@@ -270,6 +277,9 @@ model Match {
   ladderId     String?
   groupId      String?
   stage        MatchStage  @default(GROUP)
+  // bracketPosition se numera por copa: (categoryId, stage, cup, bracketPosition)
+  // identifica la llave.
+  cup          Cup?
   bracketPosition Int?
   player1Id    String?
   player2Id    String?

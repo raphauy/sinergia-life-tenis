@@ -81,7 +81,7 @@ export async function TournamentDashboard({
     ...upcoming.filter((m) => m.status === 'PENDING').map((m) => m.id),
     ...bracket.quarterfinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
     ...bracket.semifinals.filter((m) => m.status === 'PENDING').map((m) => m.id),
-    ...(bracket.final && bracket.final.status === 'PENDING' ? [bracket.final.id] : []),
+    ...bracket.cups.flatMap((c) => (c.final && c.final.status === 'PENDING' ? [c.final.id] : [])),
   ])
   const reservations = await getReservationsByMatchIds(allPendingIds)
   const reservationMap = new Map(reservations.map((r) => [r.matchId, { scheduledAt: r.scheduledAt, courtNumber: r.courtNumber }]))
@@ -130,12 +130,10 @@ export async function TournamentDashboard({
       {data.map(({ cat, ranking, upcoming, played, confirmed, playerMap, groups, groupRankings, bracket, pendingCount, confirmedCount, playedCount, totalCount }) => (
         <TabsContent key={cat.id} value={cat.id}>
           {/* Bracket (elimination stage) — above groups */}
-          {(bracket.quarterfinals.length > 0 || bracket.semifinals.length > 0 || bracket.final) && (
+          {bracket.cups.length > 0 && (
             <section className="mb-10">
               <BracketView
-                quarterfinals={bracket.quarterfinals}
-                semifinals={bracket.semifinals}
-                final={bracket.final}
+                cups={bracket.cups}
                 finalsDate={tournament.finalsDate}
                 playerSlugs={playerMap}
                 currentUserId={currentUserId}
