@@ -153,8 +153,9 @@ function ask(question: string): Promise<string> {
     // Sin TTY (stdin cerrado) readline no responde: se toma como "no".
     rl.on('close', () => resolve(''))
     rl.question(question, (answer) => {
-      rl.close()
+      // Resolver antes de cerrar: `close` también resuelve ('') y una promesa se queda con el primer valor.
       resolve(answer.trim().toLowerCase())
+      rl.close()
     })
   })
 }
