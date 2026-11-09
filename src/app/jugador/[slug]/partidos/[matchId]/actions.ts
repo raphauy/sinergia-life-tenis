@@ -88,7 +88,10 @@ export async function playerLoadResultAction(
     revalidatePath(`/admin/partidos`)
     return { success: true }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Error al cargar resultado'
+    const duplicated = typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002'
+    const msg = duplicated
+      ? 'Ya cargaron el resultado de este partido'
+      : error instanceof Error ? error.message : 'Error al cargar resultado'
     return { success: false, error: msg }
   }
 }

@@ -7,7 +7,7 @@ import type {
   PublicMatchPairs,
   PublicPairMember,
 } from '@/services/doubles-pair-service'
-import { doublesSlotLabel } from './doubles-format'
+import { doublesSlotLabel, groupName } from './doubles-format'
 
 /**
  * Presentación de parejas de dobles sin acceso a la base: la usan componentes de
@@ -67,6 +67,20 @@ export function matchSideName(pairs: PairsLike | null, side: 1 | 2, match: SideM
   }
   const player = side === 1 ? match.player1 : match.player2
   return fullName(player?.firstName, player?.lastName)
+}
+
+/**
+ * Nombres y grupo de un partido para los calendarios (público y admin): en dobles la
+ * pareja de cada lado (o "1° Grupo A" si no está definida) y el grupo con letra; en
+ * singles el jugador y el número de grupo, igual que antes.
+ */
+export function calendarMatchNames(m: SideMatch & { pairs: PairsLike | null; group: { number: number } | null }) {
+  return {
+    player1Name: matchSideName(m.pairs, 1, m),
+    player2Name: matchSideName(m.pairs, 2, m),
+    groupNumber: m.group?.number ?? null,
+    groupLabel: m.group ? groupName(m.group.number, m.pairs != null) : null,
+  }
 }
 
 /** Link de un lado: /pareja/[slug] en dobles, /jugador/[slug canónico] en singles. */

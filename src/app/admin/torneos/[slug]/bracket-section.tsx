@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Trophy, Trash2, RefreshCw, Loader2 } from 'lucide-react'
+import { CUP_TITLES, CUP_ORDER as CUPS_IN_ORDER } from '@/lib/doubles-format'
 import { fullName } from '@/lib/format-name'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import {
@@ -148,12 +149,7 @@ function BracketMatchRow({
   )
 }
 
-const CUP_ORDER: BracketMatchView['cup'][] = ['GOLD', 'SILVER', null]
-
-const CUP_TITLES: Record<'GOLD' | 'SILVER', string> = {
-  GOLD: 'Copa de Oro',
-  SILVER: 'Copa de Plata',
-}
+const CUP_ORDER: BracketMatchView['cup'][] = [...CUPS_IN_ORDER, null]
 
 /** Cuartos, semis y final de un cuadro (una copa, o el único de singles). */
 function BracketRounds({ matches, tournamentSlug }: { matches: BracketMatchView[]; tournamentSlug: string }) {

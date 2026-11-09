@@ -119,11 +119,11 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
   const image = blobUrl(player.user?.image)
   const userId = player.userId
 
-  // Fetch matches if player has a linked user
-  const upcomingRaw = userId ? await getUpcomingMatches(userId) : []
-  const allMatches = userId ? await getMatchesByPlayer(userId) : []
+  // Fetch matches if player has a linked user (las tres consultas en paralelo)
+  const [upcomingRaw, allMatches, doublesPairs] = userId
+    ? await Promise.all([getUpcomingMatches(userId), getMatchesByPlayer(userId), getPairsForUser(userId)])
+    : [[], [], []]
   // Parejas de dobles: sus partidos jugados van en la sección Dobles, no en el historial.
-  const doublesPairs = userId ? await getPairsForUser(userId) : []
   const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED' && !m.pairs).slice(0, 20)
 
   // Sort upcoming: confirmed first, then by date

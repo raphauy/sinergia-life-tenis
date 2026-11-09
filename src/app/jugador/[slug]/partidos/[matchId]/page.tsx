@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
-import { getPairsForMatch, getUserSideInMatch, isDoublesMatch } from '@/services/doubles-pair-service'
+import { getPairsForMatchSides, getUserSideInMatch, isDoublesMatch } from '@/services/doubles-pair-service'
 import { matchSideHref, matchSideName, pairFullName } from '@/lib/pair-display'
 import { doublesStageLabel } from '@/lib/doubles-format'
 import { cache } from 'react'
@@ -31,7 +31,8 @@ import { getReservationsByMonth, getCalendarReservationByMatch, mapReservationTo
 import { toZonedTime } from 'date-fns-tz'
 
 /** Parejas del partido, una consulta por request (metadata + página). */
-const getPairs = cache(getPairsForMatch)
+// El match ya viene cargado (con cache): las parejas se resuelven sin releerlo.
+const getPairs = cache(getPairsForMatchSides)
 
 interface Props {
   params: Promise<{ slug: string; matchId: string }>
@@ -41,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { matchId } = await params
   const match = await getMatchById(matchId)
   if (!match) return { title: 'Partido' }
-  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const pairs = isDoublesMatch(match) ? await getPairs(match) : null
   const p1 = matchSideName(pairs, 1, match)
   const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
@@ -79,7 +80,7 @@ export default async function MatchDetailPage({ params }: Props) {
     : tournament?.matchFormat ?? 'SINGLE_SET'
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
   const isDoubles = isDoublesMatch(match)
-  const pairs = isDoubles ? await getPairs(match.id) : null
+  const pairs = isDoubles ? await getPairs(match) : null
   const contextLabel = isLadder
     ? 'La Escalera'
     : isDoubles

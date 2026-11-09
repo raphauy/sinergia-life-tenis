@@ -132,22 +132,6 @@ export async function getPairsByCategory(categoryId: string, tx?: Tx): Promise<D
   return rows.map(toPair).filter((p): p is DoublesPair => p !== null)
 }
 
-/** La pareja por su slug, dentro de una categoría (id) o de un torneo (slug del torneo). */
-export async function getPairBySlug(
-  scope: { categoryId: string } | { tournamentSlug: string },
-  slug: string
-): Promise<DoublesPair | null> {
-  const row = await prisma.doublesPair.findFirst({
-    where: {
-      slug,
-      ...('categoryId' in scope
-        ? { categoryId: scope.categoryId }
-        : { category: { tournament: { slug: scope.tournamentSlug } } }),
-    },
-    include: pairInclude,
-  })
-  return row ? toPair(row) : null
-}
 
 /** Clave capitán+categoría para indexar parejas por lado de partido. */
 function sideKey(categoryId: string, captainUserId: string) {
@@ -199,21 +183,6 @@ export async function getPairsForMatchSides(
 ): Promise<MatchPairs> {
   const map = await getPairsForMatches([match], tx)
   return map.get(match.id) ?? { side1: null, side2: null }
-}
-
-export async function getPairsForMatch(matchId: string): Promise<MatchPairs> {
-  const match = await prisma.match.findUnique({
-    where: { id: matchId },
-    select: {
-      id: true,
-      categoryId: true,
-      player1Id: true,
-      player2Id: true,
-      tournament: { select: { modality: true } },
-    },
-  })
-  if (!match) return { side1: null, side2: null }
-  return getPairsForMatchSides(match)
 }
 
 /** Los dos integrantes en orden capitán, compañero (el orden en que el club mandó la pareja). */

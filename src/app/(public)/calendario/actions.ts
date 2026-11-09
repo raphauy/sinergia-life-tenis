@@ -2,7 +2,7 @@
 
 import { getMonthMatches } from '@/services/match-service'
 import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
-import { fullName } from '@/lib/format-name'
+import { calendarMatchNames } from '@/lib/pair-display'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import type { CalendarMatch, CalendarReservation } from '@/components/court-availability-calendar'
 
@@ -17,10 +17,8 @@ export async function fetchMonthMatchesPublicAction(
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+    ...calendarMatchNames(m),
     categoryName: m.category?.name ?? '',
-    groupNumber: m.group?.number ?? null,
   }))
 }
 

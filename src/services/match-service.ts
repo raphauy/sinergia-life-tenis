@@ -433,7 +433,7 @@ export async function getMonthMatches(tournamentId: string | undefined, year: nu
   const startUTC = fromZonedTime(zonedStart, TIMEZONE)
   const endUTC = fromZonedTime(zonedEnd, TIMEZONE)
 
-  return prisma.match.findMany({
+  const rows = await prisma.match.findMany({
     where: {
       ...(tournamentId ? { tournamentId } : {}),
       scheduledAt: { gte: startUTC, lte: endUTC },
@@ -444,13 +444,27 @@ export async function getMonthMatches(tournamentId: string | undefined, year: nu
       id: true,
       scheduledAt: true,
       courtNumber: true,
-      player1: { select: { firstName: true, lastName: true } },
-      player2: { select: { firstName: true, lastName: true } },
+      stage: true,
+      cup: true,
+      categoryId: true,
+      player1Id: true,
+      player2Id: true,
+      player1: { select: { firstName: true, lastName: true, displayName: true } },
+      player2: { select: { firstName: true, lastName: true, displayName: true } },
+      player1SourceGroup: { select: { number: true } },
+      player2SourceGroup: { select: { number: true } },
+      player1SourcePosition: true,
+      player2SourcePosition: true,
       category: { select: { name: true } },
       group: { select: { number: true } },
+      tournament: { select: { modality: true } },
     },
     orderBy: { scheduledAt: 'asc' },
   })
+  // En dobles cada lado es una pareja (ADR 0002): los calendarios muestran la pareja,
+  // no al representante. `pairs` es null en singles y en La Escalera.
+  const pairs = await getPairsForMatches(rows)
+  return rows.map((m) => ({ ...m, pairs: pairs.get(m.id) ?? null }))
 }
 
 export async function getPendingMatches(tournamentId: string) {

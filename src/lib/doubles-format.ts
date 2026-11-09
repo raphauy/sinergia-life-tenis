@@ -5,6 +5,8 @@ import type { DoublesTournamentView } from '@/services/doubles-view-service'
 /** Formato de textos del torneo de dobles, sin acceso a la base (sirve en cliente y servidor). */
 
 export const CUP_TITLES: Record<Cup, string> = { GOLD: 'Copa de Oro', SILVER: 'Copa de Plata' }
+/** Orden de las copas en toda la UI: Oro primero. */
+export const CUP_ORDER: Cup[] = ['GOLD', 'SILVER']
 
 /** Letra del grupo en dobles: los grupos se numeran 1–4 en la base y el club los llama A–D. */
 export function groupLetter(number: number): string {

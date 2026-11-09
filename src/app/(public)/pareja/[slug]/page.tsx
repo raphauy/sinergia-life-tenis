@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cache } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { getPairByPublicSlug } from '@/services/doubles-pair-service'
@@ -15,9 +16,12 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+// Una sola consulta compartida entre generateMetadata y la página.
+const getPair = cache(getPairByPublicSlug)
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const found = await getPairByPublicSlug(slug)
+  const found = await getPair(slug)
   if (!found) return { title: 'Pareja no encontrada' }
   const name = pairFullName(found.pair)
   const title = `${name} - ${found.tournament.name}`
@@ -27,7 +31,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ParejaPage({ params }: Props) {
   const { slug } = await params
-  const found = await getPairByPublicSlug(slug)
+  const found = await getPair(slug)
   if (!found) notFound()
   const { pair, tournament } = found
 

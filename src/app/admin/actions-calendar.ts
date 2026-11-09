@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { getMonthMatches, confirmMatch, getPendingMatches, updateMatchCourt } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { fullName } from '@/lib/format-name'
+import { calendarMatchNames } from '@/lib/pair-display'
 import { stageLabel } from '@/lib/match-status'
 import { formatDateUY, formatTimeUY, parseFromUY, longDateUY, longDateTimeUY } from '@/lib/date-utils'
 import { sendMatchConfirmationEmail, sendReservationRejectedEmail, generatePlayerMatchUrl } from '@/services/email-service'
@@ -34,10 +35,8 @@ export async function fetchMonthMatchesAdminAction(
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+    ...calendarMatchNames(m),
     categoryName: m.category?.name ?? '',
-    groupNumber: m.group?.number ?? null,
   }))
 }
 

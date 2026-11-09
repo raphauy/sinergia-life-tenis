@@ -1,4 +1,5 @@
 import { BracketMatchCard, type BracketMatchCardMatch } from '@/components/bracket-match-card'
+import { CUP_TITLES } from '@/lib/doubles-format'
 import { Trophy } from 'lucide-react'
 
 export type BracketViewMatch = BracketMatchCardMatch & {
@@ -14,10 +15,6 @@ export interface BracketViewCup {
   final: BracketViewMatch | null
 }
 
-const CUP_TITLES: Record<'GOLD' | 'SILVER', string> = {
-  GOLD: 'Copa de Oro',
-  SILVER: 'Copa de Plata',
-}
 
 interface BracketViewProps {
   /** Cuadros en orden de presentación (oro, plata, sin copa). */

@@ -1,7 +1,7 @@
 import type { Cup, MatchStage, MatchStatus } from '@prisma/client'
 import { formatMatchScore } from '@/lib/format-score'
 import { pairShortName } from '@/lib/pair-display'
-import { CUP_TITLES, doublesSlotLabel, doublesStageLabel, groupLetter } from '@/lib/doubles-format'
+import { CUP_ORDER, CUP_TITLES, doublesSlotLabel, doublesStageLabel, groupLetter } from '@/lib/doubles-format'
 import { prisma } from '@/lib/prisma'
 import { getMatches } from './match-service'
 import { rankDoublesPlayers } from './ranking-service'
@@ -89,7 +89,6 @@ export interface DoublesTournamentView {
   firstMatchAt: Date | null
 }
 
-const CUP_ORDER: Cup[] = ['GOLD', 'SILVER']
 
 type CategoryMatch = Awaited<ReturnType<typeof getMatches>>[number]
 

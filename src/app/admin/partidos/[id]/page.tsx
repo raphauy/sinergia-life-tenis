@@ -1,5 +1,4 @@
 import { notFound } from 'next/navigation'
-import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById } from '@/services/match-service'
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +6,9 @@ import { formatDateTimeUY } from '@/lib/date-utils'
 import { COURTS } from '@/lib/constants'
 import { MatchDetailClient } from './match-detail-client'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS, stageLabel as formatStageLabel } from '@/lib/match-status'
+import { getPairsForMatchSides, isDoublesMatch } from '@/services/doubles-pair-service'
+import { matchSideName } from '@/lib/pair-display'
+import { doublesStageLabel } from '@/lib/doubles-format'
 import { blobUrl } from '@/lib/blob-url'
 
 interface Props {
@@ -20,12 +22,20 @@ export default async function MatchDetailPage({ params }: Props) {
 
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
+  // En dobles cada lado es una pareja (ADR 0002): el admin ve y carga por pareja,
+  // no por el representante. `pairs` es null en singles y en La Escalera.
+  const pairs = isDoublesMatch(match) ? await getPairsForMatchSides(match) : null
+  const side1Name = matchSideName(pairs, 1, match) || 'Por definir'
+  const side2Name = matchSideName(pairs, 2, match) || 'Por definir'
+
   // Contexto + formato según torneo XOR escalera (ADR 0001).
   const isLadder = match.ladderId != null
   const stageSuffix = formatStageLabel(match.stage) ? ` — ${formatStageLabel(match.stage)}` : ''
   const contextLabel = isLadder
     ? 'La Escalera'
-    : `${match.tournament?.name ?? ''} — Categoría ${match.category?.name ?? ''}${stageSuffix}`
+    : pairs
+      ? `${match.tournament?.name ?? ''} — Dobles — ${doublesStageLabel(match)}`
+      : `${match.tournament?.name ?? ''} — Categoría ${match.category?.name ?? ''}${stageSuffix}`
   const matchFormat = isLadder
     ? match.ladder?.matchFormat ?? 'SINGLE_SET'
     : match.tournament?.matchFormat ?? 'SINGLE_SET'
@@ -35,7 +45,7 @@ export default async function MatchDetailPage({ params }: Props) {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h1 className="text-2xl font-bold">
-            {fullName(match.player1?.firstName, match.player1?.lastName) || 'Por definir'} vs {fullName(match.player2?.firstName, match.player2?.lastName) || 'Por definir'}
+            {side1Name} vs {side2Name}
           </h1>
           <Badge variant={MATCH_STATUS_VARIANTS[match.status]}>{MATCH_STATUS_LABELS[match.status]}</Badge>
         </div>
@@ -67,10 +77,7 @@ export default async function MatchDetailPage({ params }: Props) {
             {formatMatchScore(match.result)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            Ganador:{' '}
-            {match.result.winnerId === match.player1Id
-              ? fullName(match.player1?.firstName, match.player1?.lastName)
-              : fullName(match.player2?.firstName, match.player2?.lastName)}
+            Ganador: {match.result.winnerId === match.player1Id ? side1Name : side2Name}
           </p>
           {match.result.photoUrl && (
             <img
@@ -89,8 +96,8 @@ export default async function MatchDetailPage({ params }: Props) {
         matchFormat={matchFormat}
         player1Id={match.player1Id}
         player2Id={match.player2Id}
-        player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}
-        player2Name={fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'}
+        player1Name={side1Name}
+        player2Name={side2Name}
         hasResult={!!match.result}
         scheduledAt={match.scheduledAt?.toISOString()}
         courtNumber={match.courtNumber}

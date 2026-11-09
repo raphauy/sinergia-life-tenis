@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { getMonthMatches } from '@/services/match-service'
 import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
-import { fullName } from '@/lib/format-name'
+import { calendarMatchNames } from '@/lib/pair-display'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { TIMEZONE, getLadderDaysForWeek, formatLadderDays } from '@/lib/constants'
 import { getLadder } from '@/services/ladder-service'
@@ -46,10 +46,8 @@ export default async function CalendarioPage() {
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+    ...calendarMatchNames(m),
     categoryName: m.category?.name ?? '',
-    groupNumber: m.group?.number ?? null,
   }))
 
   const initialReservations = monthReservations.map(mapReservationToCalendar)

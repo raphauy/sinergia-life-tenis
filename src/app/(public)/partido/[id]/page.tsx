@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
 import { getCanonicalPlayerSlugs } from '@/services/player-service'
-import { getPairsForMatch, isDoublesMatch, isUserInMatch } from '@/services/doubles-pair-service'
+import { getPairsForMatchSides, isDoublesMatch, isUserInMatch } from '@/services/doubles-pair-service'
 import { matchSideHref, matchSideName } from '@/lib/pair-display'
 import { doublesStageLabel } from '@/lib/doubles-format'
 import { cache } from 'react'
@@ -27,7 +27,8 @@ import { getReservationByMatch } from '@/services/reservation-service'
 import { MatchPhoto } from '@/app/jugador/[slug]/partidos/[matchId]/match-photo'
 
 /** Parejas del partido, una consulta por request (metadata + página). */
-const getPairs = cache(getPairsForMatch)
+// El match ya viene cargado (con cache): las parejas se resuelven sin releerlo.
+const getPairs = cache(getPairsForMatchSides)
 
 interface Props {
   params: Promise<{ id: string }>
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const match = await getMatchById(id)
   if (!match) return { title: 'Partido no encontrado' }
 
-  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const pairs = isDoublesMatch(match) ? await getPairs(match) : null
   const p1 = matchSideName(pairs, 1, match)
   const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
@@ -56,7 +57,7 @@ export default async function PartidoPublicPage({ params }: Props) {
   if (!match) notFound()
 
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
-  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const pairs = isDoublesMatch(match) ? await getPairs(match) : null
   const p1Name = matchSideName(pairs, 1, match) || 'Jugador 1'
   const p2Name = matchSideName(pairs, 2, match) || 'Jugador 2'
   const court = COURTS.find((c) => c.number === match.courtNumber)

@@ -19,6 +19,8 @@ export type CalendarMatch = {
   player2Name: string
   categoryName: string
   groupNumber: number | null
+  /** Nombre del grupo para mostrar ("A" en dobles, "2" en singles). Si falta, se usa groupNumber. */
+  groupLabel?: string | null
 }
 
 export type CalendarReservation = {
@@ -42,9 +44,10 @@ export type FetchMonthMatches = (tournamentId: string | undefined, year: number,
 export type FetchMonthReservations = (tournamentId: string | undefined, year: number, month: number) => Promise<CalendarReservation[]>
 
 /** Etiqueta de contexto de un slot: "La Escalera" (sin categoría) o "Cat X | Grupo Y" (torneo). */
-export function slotContextLabel(item: { categoryName: string; groupNumber: number | null }): string {
+export function slotContextLabel(item: { categoryName: string; groupNumber: number | null; groupLabel?: string | null }): string {
   if (!item.categoryName) return 'La Escalera'
-  return `Cat ${item.categoryName}${item.groupNumber != null ? ` | Grupo ${item.groupNumber}` : ''}`
+  const group = item.groupLabel ?? (item.groupNumber != null ? String(item.groupNumber) : null)
+  return `Cat ${item.categoryName}${group ? ` | Grupo ${group}` : ''}`
 }
 
 /**

@@ -94,12 +94,14 @@ export default async function TournamentDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Home en modo torneo */}
-      <FeaturedOnHomeSwitch
-        tournamentSlug={slug}
-        tournamentId={tournament.id}
-        featuredOnHome={tournament.featuredOnHome}
-      />
+      {/* Home en modo torneo: solo existe para torneos de dobles */}
+      {tournament.modality === 'DOUBLES' && (
+        <FeaturedOnHomeSwitch
+          tournamentSlug={slug}
+          tournamentId={tournament.id}
+          featuredOnHome={tournament.featuredOnHome}
+        />
+      )}
 
       {/* Categories */}
       <div className="flex gap-1 mb-6">

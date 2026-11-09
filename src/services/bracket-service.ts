@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { CUP_ORDER as CUPS_IN_ORDER } from '@/lib/doubles-format'
 import { getRankingByGroup, type RankingEntry } from './ranking-service'
 import { assertCategoryNotDoubles } from './doubles-pair-service'
 import type { Cup, Prisma } from '@prisma/client'
@@ -38,7 +39,7 @@ export interface BracketSummary {
   cups: CupBracket[]
 }
 
-const CUP_ORDER: (Cup | null)[] = ['GOLD', 'SILVER', null]
+const CUP_ORDER: (Cup | null)[] = [...CUPS_IN_ORDER, null]
 
 export type GroupQualifiers = {
   first: string | null

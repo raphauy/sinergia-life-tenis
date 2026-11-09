@@ -1,7 +1,7 @@
 import { getActiveTournament } from '@/services/tournament-service'
 import { getMonthMatches } from '@/services/match-service'
 import { getReservationsByMonth, mapReservationToCalendar } from '@/services/reservation-service'
-import { fullName } from '@/lib/format-name'
+import { calendarMatchNames } from '@/lib/pair-display'
 import { formatDateUY, formatTimeUY } from '@/lib/date-utils'
 import { TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
@@ -41,10 +41,8 @@ export default async function AdminDashboardPage() {
       timeUY: formatTimeUY(m.scheduledAt!),
       dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
       courtNumber: m.courtNumber,
-      player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-      player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+      ...calendarMatchNames(m),
       categoryName: m.category?.name ?? '',
-      groupNumber: m.group?.number ?? null,
     })),
     reservations: monthReservations.map(mapReservationToCalendar),
     tournamentId: tournament?.id ?? '',

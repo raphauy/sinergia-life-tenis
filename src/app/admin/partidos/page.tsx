@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { fullName } from '@/lib/format-name'
+import { getPairsForMatches } from '@/services/doubles-pair-service'
+import { matchSideName } from '@/lib/pair-display'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatches } from '@/services/match-service'
 import { getTournaments } from '@/services/tournament-service'
@@ -27,14 +28,20 @@ export default async function PartidosPage({ searchParams }: Props) {
     status: (params.status as MatchStatus) || undefined,
   })
 
+  // En dobles cada lado es una pareja (ADR 0002): se muestra y se busca por pareja.
+  const pairsByMatch = await getPairsForMatches(allMatches)
+  const named = allMatches.map((m) => {
+    const pairs = pairsByMatch.get(m.id) ?? null
+    return {
+      ...m,
+      side1Name: matchSideName(pairs, 1, m) || 'Por definir',
+      side2Name: matchSideName(pairs, 2, m) || 'Por definir',
+    }
+  })
   const q = params.q?.toLowerCase().trim()
   const matches = q
-    ? allMatches.filter((m) => {
-        const p1 = fullName(m.player1?.firstName, m.player1?.lastName).toLowerCase()
-        const p2 = fullName(m.player2?.firstName, m.player2?.lastName).toLowerCase()
-        return p1.includes(q) || p2.includes(q)
-      })
-    : allMatches
+    ? named.filter((m) => m.side1Name.toLowerCase().includes(q) || m.side2Name.toLowerCase().includes(q))
+    : named
 
   return (
     <div>
@@ -70,7 +77,7 @@ export default async function PartidosPage({ searchParams }: Props) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-semibold">
-                    {fullName(m.player1?.firstName, m.player1?.lastName) || 'Por definir'} vs {fullName(m.player2?.firstName, m.player2?.lastName) || 'Por definir'}
+                    {m.side1Name} vs {m.side2Name}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {m.tournament

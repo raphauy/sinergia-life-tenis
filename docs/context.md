@@ -267,7 +267,7 @@ Si un **Torneo** se juega en singles o en dobles. Es propiedad del Torneo (no de
 _Código_: `Tournament.modality` (`TournamentModality`: `SINGLES` | `DOUBLES`).
 
 **Pareja**:
-Dos **Jugadores** de la misma **Categoría** de un Torneo de dobles que juegan juntos. Tiene nombre ("Pérez / García") y un perfil público propio con sus partidos, con `slug` armado con los dos apellidos (`perez-garcia`; sufijo numérico si está tomado). Una persona está en una sola Pareja por categoría. Los dos Jugadores pertenecen al mismo **Grupo**; la Pareja no guarda grupo propio, se deriva de ellos. Para el usuario la Pareja es simétrica: el orden de los nombres es el que mandó el club al inscribirla.
+Dos **Jugadores** de la misma **Categoría** de un Torneo de dobles que juegan juntos. Se muestra con los **Nombres para mostrar** de los dos ("Rapha C. / Javi B."; en el perfil de pareja, los nombres completos) y tiene un perfil público propio con sus partidos, con `slug` armado con los dos apellidos (`perez-garcia`; sufijo numérico si está tomado). Una persona está en una sola Pareja por categoría. Los dos Jugadores pertenecen al mismo **Grupo**; la Pareja no guarda grupo propio, se deriva de ellos. Para el usuario la Pareja es simétrica: el orden de los nombres es el que mandó el club al inscribirla.
 _Código_: `DoublesPair` (`captainPlayerId` + `partnerPlayerId`, ambos `Player`).
 _Evitar_: "equipo", "dupla" — es **Pareja**.
 
@@ -281,8 +281,25 @@ Un **Partido** de un Torneo con **Modalidad** dobles. Mismo `Match`, mismo ciclo
 _Código_: `Match` con `tournament.modality = DOUBLES`.
 
 **Grupo** (en dobles):
-Mismo concepto y misma tabla que en singles: todos contra todos entre **Parejas**. Se sigue diciendo "Grupo" (no "zona"). La tabla cuenta por Pareja: una fila por pareja, calculada sobre el Representante.
-_Código_: `Group`; la tabla filtra `group.players` a los representantes.
+Mismo concepto y misma tabla que en singles: todos contra todos entre **Parejas**. Se sigue diciendo "Grupo" (no "zona"). La tabla cuenta por Pareja: una fila por pareja, calculada sobre el Representante. En dobles los grupos se **muestran con letra** (Grupo A–D) aunque en la base sigan numerados 1–4; en singles, con número.
+_Código_: `Group`; la tabla filtra `group.players` a los representantes; `groupLetter()` en `src/lib/doubles-format.ts`.
 
 **Sección Dobles del perfil**:
-El perfil de una persona no cambia de URL por jugar dobles (su **Jugador** de dobles nunca se linkea; ante dos inscripciones del mismo Usuario, gana la más antigua). Si jugó dobles, su perfil muestra una sección con su Pareja y esos partidos.
+El perfil de una persona no cambia de URL por jugar dobles: ante varias inscripciones del mismo Usuario, el **slug canónico** es el de singles y, entre varias, el de la más antigua; la ficha de dobles solo se usa como perfil si es la única que tiene (`getCanonicalPlayerSlug`). Si jugó dobles, su perfil muestra una sección con su Pareja y esos partidos.
+
+**Copa de Oro** y **Copa de Plata**:
+Los dos cuadros de la **Definición** de un torneo de dobles por grupos: los 1° de cada Grupo juegan la Copa de Oro y los 2° la Copa de Plata, cada una con sus semifinales y su final. Se muestran apiladas, Oro arriba. Un torneo de singles tiene un solo cuadro (sin copa).
+_Código_: `Match.cup` (`Cup`: `GOLD` | `SILVER`, `null` = cuadro único); `bracketPosition` se numera por copa; la propagación de ganadores filtra por copa.
+_Evitar_: "llave de consolación", "repechaje".
+
+**Llave de la Definición**:
+Partido de semifinal o final de un torneo de dobles. Nace **confirmado** (con hora y cancha, sin parejas todavía) para que los cuatro puedan cargar el resultado apenas los Grupos lo definan; sus lados se muestran como "1° Grupo A" o "Ganador Semifinal 1" hasta entonces. El cuadro de dobles lo arma y rearma solo el script de carga, no el admin.
+_Código_: `Match` con `stage` `SEMIFINAL`/`FINAL`, `status = CONFIRMED`, `player*SourceGroupId`/`player*SourcePosition`; `scripts/cargar-dobles.ts`.
+
+**Torneo en portada**:
+El Torneo de dobles que, mientras el admin tenga prendido su interruptor, reemplaza al home: hero propio, Grupos, partidos y Definición en vivo, con una franja para volver a La Escalera. A lo sumo uno a la vez. Al apagarlo el home vuelve a La Escalera y el torneo queda en el **Archivo de torneos** al pie.
+_Código_: `Tournament.featuredOnHome`; `getFeaturedTournament()`; switch en `/admin/torneos/[slug]` (solo torneos de dobles).
+
+**Nombre para mostrar**:
+Nombre corto de una persona ("Rapha C.": diminutivo del primer nombre e inicial del apellido) con el que aparece en las vistas de dobles, donde dos apellidos por lado no entran. Lo edita el jugador en su perfil y el admin en la tabla de jugadores; si está vacío se usa el nombre completo. El backfill inicial lo sugiere con una tabla de diminutivos.
+_Código_: `User.displayName`; `getDisplayName()`/`suggestDisplayName()` en `src/lib/display-name.ts`; `scripts/backfill-display-name.ts`.

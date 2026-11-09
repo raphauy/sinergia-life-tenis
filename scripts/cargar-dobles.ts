@@ -10,7 +10,9 @@
  *   pnpm tsx scripts/cargar-dobles.ts <ruta.json> --reset   # borra el torneo con ese slug y lo vuelve a crear
  *   pnpm tsx scripts/cargar-dobles.ts <ruta.json> --reset --force   # ídem aunque ya tenga resultados cargados
  *
- * --reset solo borra torneos de dobles, y se niega si ya hay resultados salvo con --force.
+ * --reset solo borra torneos de dobles, se niega si ya hay resultados salvo con --force,
+ * y conserva la portada (featuredOnHome) del torneo que reemplaza.
+ * Antes de escribir imprime el host de la base y pide confirmación; --yes la saltea.
  *
  * Formato del JSON (ejemplo en scripts/dobles/copa-summum.ejemplo.json):
  *   {
@@ -38,6 +40,7 @@ import { config } from 'dotenv'
 config({ path: '.env.local' })
 
 import { readFileSync } from 'fs'
+import * as readline from 'readline'
 import { PrismaClient, type Cup, type MatchStage } from '@prisma/client'
 import { parseFromUY } from '../src/lib/date-utils'
 import { generateSlug } from '../src/lib/utils'
@@ -144,12 +147,34 @@ function personSlugPart(user: { firstName: string | null; lastName: string | nul
   )
 }
 
+function ask(question: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  return new Promise((resolve) => {
+    rl.question(question, (answer) => {
+      rl.close()
+      resolve(answer.trim().toLowerCase())
+    })
+  })
+}
+
 async function main() {
   const args = process.argv.slice(2)
   const reset = args.includes('--reset')
   const force = args.includes('--force')
+  const yes = args.includes('--yes')
   const path = args.find((a) => !a.startsWith('--'))
-  if (!path) fail('Uso: pnpm tsx scripts/cargar-dobles.ts <ruta.json> [--reset [--force]]')
+  if (!path) fail('Uso: pnpm tsx scripts/cargar-dobles.ts <ruta.json> [--reset [--force]] [--yes]')
+
+  // La base activa de .env.local suele ser Test: decir siempre contra cuál se escribe.
+  const dbHost = (process.env.DIRECT_DATABASE_URL ?? '').match(/@([^/:?]+)/)?.[1] ?? '(sin DIRECT_DATABASE_URL)'
+  console.log(`Base: ${dbHost}`)
+  if (!yes) {
+    const answer = await ask(`¿Escribir en esa base${reset ? ' (con --reset)' : ''}? (s/N) `)
+    if (answer !== 's' && answer !== 'si' && answer !== 'sí') {
+      console.log('Cancelado.')
+      return
+    }
+  }
 
   let input: Input
   try {
@@ -191,7 +216,7 @@ async function main() {
   const { tournament: t } = input
   const existing = await prisma.tournament.findUnique({
     where: { slug: t.slug },
-    select: { id: true, modality: true, _count: { select: { matches: { where: { result: { isNot: null } } } } } },
+    select: { id: true, modality: true, featuredOnHome: true, _count: { select: { matches: { where: { result: { isNot: null } } } } } },
   })
   if (existing && !reset) {
     fail(`Ya existe un torneo con slug "${t.slug}". Corré con --reset para borrarlo y volver a cargarlo.`)
@@ -228,7 +253,8 @@ async function main() {
           modality: 'DOUBLES',
           matchFormat: 'SHORT_SET_4',
           isActive: false,
-          featuredOnHome: false,
+          // --reset conserva la portada: si el torneo estaba en el home, sigue estando.
+          featuredOnHome: existing?.featuredOnHome ?? false,
         },
       })
       const category = await tx.tournamentCategory.create({
@@ -389,7 +415,7 @@ async function main() {
   // ---- 3. Resumen ----
   console.log(`\n=== ${existing ? 'Torneo recargado (--reset)' : 'Torneo creado'} ===`)
   console.log(`Torneo: ${summary.tournament.name} (slug: ${summary.tournament.slug}, id: ${summary.tournament.id})`)
-  console.log(`Fecha: ${date} · modality=DOUBLES · matchFormat=SHORT_SET_4 · isActive=false · featuredOnHome=false`)
+  console.log(`Fecha: ${date} · modality=DOUBLES · matchFormat=SHORT_SET_4 · isActive=false · featuredOnHome=${existing?.featuredOnHome ?? false}`)
   console.log(`Categoría: ${CATEGORY_NAME} · ${GROUPS} grupos`)
   console.log(`Jugadores: ${summary.playerCount}`)
   console.log(`Parejas: ${summary.pairsOut.length}`)
