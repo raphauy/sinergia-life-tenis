@@ -29,6 +29,7 @@ export default async function ProfilePage() {
             user={{
               firstName: user.firstName || '',
               lastName: user.lastName || '',
+              displayName: user.displayName || '',
               email: user.email,
               image: blobUrl(user.image) || null,
               phone: user.phone,

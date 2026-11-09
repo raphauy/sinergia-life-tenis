@@ -21,7 +21,8 @@ export async function updateProfileAction(
 
     const validated = updateProfileSchema.safeParse(data)
     if (!validated.success) {
-      return { success: false, error: 'Datos inválidos' }
+      const displayNameIssue = validated.error.issues.find((i) => i.path[0] === 'displayName')
+      return { success: false, error: displayNameIssue?.message ?? 'Datos inválidos' }
     }
 
     const user = await getUserById(session.user.id)
@@ -36,6 +37,7 @@ export async function updateProfileAction(
       firstName: validated.data.firstName,
       lastName: validated.data.lastName,
       cedula: validated.data.cedula || null,
+      ...(validated.data.displayName !== undefined ? { displayName: validated.data.displayName } : {}),
       ...(validated.data.image !== undefined ? { image: validated.data.image } : {}),
     })
 

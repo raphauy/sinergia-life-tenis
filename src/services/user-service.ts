@@ -22,9 +22,30 @@ export async function createUser(data: {
 
 export async function updateUser(
   id: string,
-  data: { firstName?: string; lastName?: string; image?: string | null; phone?: string; cedula?: string | null }
+  data: {
+    firstName?: string
+    lastName?: string
+    displayName?: string | null
+    image?: string | null
+    phone?: string
+    cedula?: string | null
+  }
 ) {
   return prisma.user.update({ where: { id }, data })
+}
+
+export async function updateUserDisplayName(userId: string, displayName: string | null) {
+  return prisma.user.update({ where: { id: userId }, data: { displayName } })
+}
+
+/** displayName por userId (los que no tienen quedan con null). */
+export async function getDisplayNamesByUserIds(userIds: string[]): Promise<Map<string, string | null>> {
+  if (userIds.length === 0) return new Map()
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, displayName: true },
+  })
+  return new Map(users.map((u) => [u.id, u.displayName]))
 }
 
 export async function getAdminUsers() {

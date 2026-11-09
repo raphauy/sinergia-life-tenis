@@ -4,6 +4,7 @@ import { getTournamentBySlug } from '@/services/tournament-service'
 import { getPlayersByTournament } from '@/services/player-service'
 import { getGroupsByCategory } from '@/services/group-service'
 import { getBracketByCategory } from '@/services/bracket-service'
+import { getDisplayNamesByUserIds } from '@/services/user-service'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,9 @@ export default async function TournamentDetailPage({ params }: Props) {
   if (!tournament) notFound()
 
   const players = await getPlayersByTournament(tournament.id)
+  const displayNames = await getDisplayNamesByUserIds(
+    [...new Set(players.map((p) => p.userId).filter((id): id is string => !!id))]
+  )
 
   const allGroups = await Promise.all(
     tournament.categories.map((c) => getGroupsByCategory(c.id))
@@ -113,7 +117,10 @@ export default async function TournamentDetailPage({ params }: Props) {
       {/* Players list */}
       <TournamentDetailClient
         tournamentSlug={slug}
-        players={players}
+        players={players.map((p) => ({
+          ...p,
+          displayName: p.userId ? (displayNames.get(p.userId) ?? null) : null,
+        }))}
         categories={tournament.categories}
       />
 

@@ -1,12 +1,14 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers, withdrawPlayer, reinstatePlayer } from '@/services/player-service'
+import { getPlayerById, updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers, withdrawPlayer, reinstatePlayer } from '@/services/player-service'
 import { invitePlayer, forceAcceptPlayer } from '@/services/player-invitation-service'
 import { createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
 import { generateBracket, regenerateBracket, deleteBracket, previewBracket } from '@/services/bracket-service'
 import { setFeaturedOnHome } from '@/services/tournament-service'
 import { setFeaturedOnHomeSchema } from '@/lib/validations/tournament'
+import { displayNameSchema } from '@/lib/validations/profile'
+import { updateUserDisplayName } from '@/services/user-service'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -28,6 +30,36 @@ export async function updatePlayerNameAction(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al actualizar nombre'
     return { success: false, error: message }
+  }
+}
+
+/** Nombre para mostrar del User vinculado al Player (es de la persona, no de la inscripción). */
+export async function updatePlayerDisplayNameAction(
+  tournamentSlug: string,
+  playerId: string,
+  displayName: string
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const validated = displayNameSchema.safeParse(displayName)
+    if (!validated.success) {
+      return { success: false, error: validated.error.issues[0]?.message ?? 'Datos inválidos' }
+    }
+
+    const player = await getPlayerById(playerId)
+    if (!player) return { success: false, error: 'Jugador no encontrado' }
+    if (!player.userId) return { success: false, error: 'El jugador no tiene cuenta' }
+
+    await updateUserDisplayName(player.userId, validated.data)
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating display name:', error)
+    return { success: false, error: 'Error al actualizar el nombre para mostrar' }
   }
 }
 

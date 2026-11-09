@@ -34,9 +34,11 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { fullName } from '@/lib/format-name'
+import { DISPLAY_NAME_MAX } from '@/lib/display-name'
 import { Mail, Save, X, Trash2, Search, MoreHorizontal, UserCheck, UserX, UserPlus } from 'lucide-react'
 import {
   updatePlayerNameAction,
+  updatePlayerDisplayNameAction,
   updatePlayerEmailAction,
   updatePlayerWhatsappAction,
   invitePlayerAction,
@@ -58,7 +60,12 @@ interface Player {
   withdrawnAt: Date | null
   category: { id: string; name: string }
   user: { firstName: string | null; lastName: string | null } | null
+  userId: string | null
+  /** Nombre para mostrar del User vinculado (null = usa el nombre completo). */
+  displayName: string | null
 }
+
+type EditableField = 'name' | 'displayName' | 'email' | 'whatsapp'
 
 interface Category {
   id: string
@@ -73,7 +80,7 @@ interface Props {
 
 export function TournamentDetailClient({ tournamentSlug, players, categories }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingField, setEditingField] = useState<'name' | 'email' | 'whatsapp' | null>(null)
+  const [editingField, setEditingField] = useState<EditableField | null>(null)
   const [editValue, setEditValue] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<Player | null>(null)
   const [withdrawTarget, setWithdrawTarget] = useState<Player | null>(null)
@@ -123,11 +130,12 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
     )
   }
 
-  function startEditing(player: Player, field: 'name' | 'email' | 'whatsapp') {
+  function startEditing(player: Player, field: EditableField) {
     setEditingId(player.id)
     setEditingField(field)
     setEditValue(
       field === 'name' ? fullName(player.user?.firstName ?? player.firstName, player.user?.lastName ?? player.lastName)
+      : field === 'displayName' ? (player.displayName || '')
       : field === 'email' ? (player.email || '')
       : (player.whatsappNumber || '')
     )
@@ -146,11 +154,13 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
       const lastName = nameParts.slice(1).join(' ') || ''
       const result =
         editingField === 'name' ? await updatePlayerNameAction(tournamentSlug, playerId, firstName, lastName)
+        : editingField === 'displayName' ? await updatePlayerDisplayNameAction(tournamentSlug, playerId, editValue)
         : editingField === 'email' ? await updatePlayerEmailAction(tournamentSlug, playerId, editValue)
         : await updatePlayerWhatsappAction(tournamentSlug, playerId, editValue)
       if (result.success) {
         toast.success(
           editingField === 'name' ? 'Nombre actualizado'
+          : editingField === 'displayName' ? 'Nombre para mostrar actualizado'
           : editingField === 'email' ? 'Email actualizado'
           : 'WhatsApp actualizado'
         )
@@ -389,6 +399,39 @@ export function TournamentDetailClient({ tournamentSlug, players, categories }: 
                       >
                         {fullName(p.user?.firstName ?? p.firstName, p.user?.lastName ?? p.lastName)}
                       </span>
+                    )}
+                    {editingId === p.id && editingField === 'displayName' ? (
+                      <div className="mt-1 flex gap-1 items-center">
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); saveField(p.id) }
+                            if (e.key === 'Escape') cancelEditing()
+                          }}
+                          className="h-8 w-48"
+                          placeholder="Nombre para mostrar"
+                          aria-label="Nombre para mostrar"
+                          maxLength={DISPLAY_NAME_MAX}
+                          autoFocus
+                        />
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => saveField(p.id)} disabled={isPending}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelEditing}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ) : p.userId ? (
+                      <button
+                        type="button"
+                        className="block cursor-pointer text-xs text-muted-foreground hover:underline"
+                        onClick={() => startEditing(p, 'displayName')}
+                      >
+                        Para mostrar: {p.displayName || '—'}
+                      </button>
+                    ) : (
+                      <span className="block text-xs text-muted-foreground">Para mostrar: sin cuenta</span>
                     )}
                   </TableCell>
                   <TableCell>
