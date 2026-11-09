@@ -125,3 +125,45 @@ export async function getActiveTournament() {
     },
   })
 }
+
+/** El torneo que el home muestra en modo torneo, o null si no hay ninguno en portada. */
+export async function getFeaturedTournament() {
+  return prisma.tournament.findFirst({
+    where: { featuredOnHome: true },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      categories: { orderBy: { order: 'asc' } },
+    },
+  })
+}
+
+/**
+ * Prende o apaga la portada de un torneo. A lo sumo uno en portada:
+ * al prender uno se apagan todos los demás en la misma transacción.
+ */
+export async function setFeaturedOnHome(tournamentId: string, value: boolean) {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    select: { id: true },
+  })
+  if (!tournament) throw new Error('Torneo no encontrado')
+
+  if (!value) {
+    return prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { featuredOnHome: false },
+    })
+  }
+
+  const [, updated] = await prisma.$transaction([
+    prisma.tournament.updateMany({
+      where: { featuredOnHome: true, id: { not: tournamentId } },
+      data: { featuredOnHome: false },
+    }),
+    prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { featuredOnHome: true },
+    }),
+  ])
+  return updated
+}

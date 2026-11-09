@@ -5,6 +5,8 @@ import { updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer
 import { invitePlayer, forceAcceptPlayer } from '@/services/player-invitation-service'
 import { createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
 import { generateBracket, regenerateBracket, deleteBracket, previewBracket } from '@/services/bracket-service'
+import { setFeaturedOnHome } from '@/services/tournament-service'
+import { setFeaturedOnHomeSchema } from '@/lib/validations/tournament'
 import { revalidatePath } from 'next/cache'
 import type { ActionResult } from '@/lib/action-types'
 
@@ -407,6 +409,33 @@ export async function reinstatePlayerAction(
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al reingresar jugador'
+    return { success: false, error: message }
+  }
+}
+
+export async function setFeaturedOnHomeAction(
+  tournamentSlug: string,
+  tournamentId: string,
+  value: boolean
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+
+    const validated = setFeaturedOnHomeSchema.safeParse({ tournamentId, value })
+    if (!validated.success) {
+      return { success: false, error: 'Datos inválidos' }
+    }
+
+    await setFeaturedOnHome(validated.data.tournamentId, validated.data.value)
+    revalidatePath('/')
+    revalidatePath('/admin/torneos')
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al cambiar la portada'
     return { success: false, error: message }
   }
 }
