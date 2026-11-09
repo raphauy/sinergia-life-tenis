@@ -7,7 +7,7 @@ import { getBracketByCategory } from '@/services/bracket-service'
 import { Badge } from '@/components/ui/badge'
 import { CategoryBadge } from '@/components/category-badge'
 import { Button } from '@/components/ui/button'
-import { formatDateUY } from '@/lib/date-utils'
+import { formatDateOnly } from '@/lib/date-utils'
 import { Upload } from 'lucide-react'
 import { TournamentDetailClient } from './tournament-detail-client'
 import { GroupsSection } from './groups-section'
@@ -69,7 +69,7 @@ export default async function TournamentDetailPage({ params }: Props) {
             {tournament.featuredOnHome && <Badge variant="secondary">En portada</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">
-            {formatDateUY(tournament.startDate)} - {formatDateUY(tournament.endDate)}
+            {formatDateOnly(tournament.startDate)} - {formatDateOnly(tournament.endDate)}
           </p>
           {tournament.description && (
             <p className="text-sm text-muted-foreground mt-1">{tournament.description}</p>

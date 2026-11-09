@@ -126,6 +126,18 @@ export async function getActiveTournament() {
   })
 }
 
+/**
+ * Torneos para el archivo al pie del home: todos los torneos reales (activos o no),
+ * del más reciente al más viejo. Solo los campos que muestra la lista.
+ */
+export async function getTournamentArchive() {
+  return prisma.tournament.findMany({
+    where: { slug: { not: LADDER_CONTAINER_SLUG } },
+    select: { id: true, name: true, slug: true, startDate: true },
+    orderBy: { startDate: 'desc' },
+  })
+}
+
 /** El torneo que el home muestra en modo torneo, o null si no hay ninguno en portada. */
 export async function getFeaturedTournament() {
   return prisma.tournament.findFirst({

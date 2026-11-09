@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
-import { getActiveTournament } from '@/services/tournament-service'
+import { getTournamentArchive } from '@/services/tournament-service'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
 import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas, getGallinas } from '@/services/ladder-stats-service'
@@ -11,9 +11,10 @@ import { LadderTable } from '@/components/ladder-table'
 import { PlayerOfTheWeekCard } from '@/components/player-of-the-week-card'
 import { GallinaCard } from '@/components/gallina-card'
 import { FeaturedMatches } from '@/components/featured-matches'
+import { TournamentArchive } from '@/components/tournament-archive'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, HelpCircle, Trophy } from 'lucide-react'
+import { HelpCircle } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'La Escalera - Life Tenis',
@@ -23,9 +24,9 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await auth()
 
-  const [view, tournament, playerOfWeek, gallinas, featured, movement, winStreaks, monthlyMatches, monthDeltas] = await Promise.all([
+  const [view, tournaments, playerOfWeek, gallinas, featured, movement, winStreaks, monthlyMatches, monthDeltas] = await Promise.all([
     getLadderView(session?.user?.id ?? null),
-    getActiveTournament(),
+    getTournamentArchive(),
     getPlayerOfTheWeek(),
     getGallinas(),
     getFeaturedMatches(),
@@ -96,18 +97,6 @@ export default async function HomePage() {
               monthlyMatches={monthlyMatches}
               monthDeltas={monthDeltas}
             />
-            {tournament && (
-              <Link
-                href={`/torneo/${tournament.slug}`}
-                className="mt-6 flex items-center gap-2 rounded-lg border px-4 py-3 text-sm hover:bg-muted/50 transition-colors"
-              >
-                <Trophy className="h-4 w-4 text-primary shrink-0" />
-                <span className="flex-1">
-                  Torneo <span className="font-medium">{tournament.name}</span> — ranking, fixture y bracket
-                </span>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            )}
           </>
         ) : (
           <div className="text-center py-12">
@@ -117,15 +106,9 @@ export default async function HomePage() {
                 Sembrar La Escalera
               </Button>
             )}
-            {tournament && (
-              <div className="mt-6">
-                <Link href={`/torneo/${tournament.slug}`} className="text-sm text-primary hover:underline">
-                  Ver el torneo {tournament.name}
-                </Link>
-              </div>
-            )}
           </div>
         )}
+        <TournamentArchive tournaments={tournaments} />
       </main>
 
       {/* Footer */}
