@@ -2,7 +2,10 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { auth } from '@/lib/auth'
-import { getTournamentArchive } from '@/services/tournament-service'
+import { getFeaturedTournament, getTournamentArchive } from '@/services/tournament-service'
+import { getDoublesTournamentView } from '@/services/doubles-view-service'
+import { DoublesHero, LadderStrip, doublesDateLine } from '@/components/doubles/doubles-hero'
+import { DoublesTournamentBody } from '@/components/doubles/doubles-tournament-view'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
 import { getPlayerOfTheWeek, getFeaturedMatches, getWeeklyPositionMovement, getLadderWinStreaks, getLadderMonthlyMatches, getMonthlyRatingDeltas, getGallinas } from '@/services/ladder-stats-service'
@@ -16,12 +19,69 @@ import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
 import { HelpCircle } from 'lucide-react'
 
-export const metadata: Metadata = {
+const LADDER_METADATA: Metadata = {
   title: 'La Escalera - Life Tenis',
   description: 'La Escalera de Life Montevideo: el ranking permanente del club, siempre vivo.',
 }
 
-export default async function HomePage() {
+interface Props {
+  searchParams: Promise<{ vista?: string | string[] }>
+}
+
+/**
+ * Torneo que el home muestra en modo torneo: el que está en portada, si es de dobles
+ * (la vista por grupos es de dobles). `?vista=escalera` fuerza La Escalera (la franja
+ * del modo torneo linkea ahí, porque el ranking de La Escalera vive en el home).
+ */
+async function getHomeTournament(searchParams: Props['searchParams']) {
+  const { vista } = await searchParams
+  if (vista === 'escalera') return null
+  const featured = await getFeaturedTournament()
+  return featured?.modality === 'DOUBLES' && featured.categories.length > 0 ? featured : null
+}
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  const tournament = await getHomeTournament(searchParams)
+  if (!tournament) return LADDER_METADATA
+  const title = `${tournament.name} · Life Tenis`
+  const description = `${doublesDateLine(tournament.startDate)} en Life Montevideo: grupos, partidos y resultados en vivo, Copa de Oro y Copa de Plata.`
+  const images = [{ url: '/hero-dobles.jpg', width: 1600, height: 600, alt: tournament.name }]
+  return {
+    title: { absolute: title },
+    description,
+    openGraph: { title, description, images },
+    twitter: { card: 'summary_large_image', title, description, images: ['/hero-dobles.jpg'] },
+  }
+}
+
+export default async function HomePage({ searchParams }: Props) {
+  const tournament = await getHomeTournament(searchParams)
+  if (tournament) return <TournamentHome tournament={tournament} />
+  return <LadderHome />
+}
+
+/** Home en modo torneo: hero de dobles, franja a La Escalera, Definición y grupos. */
+async function TournamentHome({ tournament }: { tournament: NonNullable<Awaited<ReturnType<typeof getHomeTournament>>> }) {
+  const [view, archive] = await Promise.all([
+    getDoublesTournamentView(tournament.categories[0].id),
+    getTournamentArchive(),
+  ])
+  return (
+    <div className="min-h-screen flex flex-col">
+      <SiteHeader sticky />
+      <DoublesHero name={tournament.name} startDate={tournament.startDate} view={view} />
+      <LadderStrip />
+      <main className="flex-1 container mx-auto px-4 py-6 max-w-3xl lg:max-w-5xl">
+        <DoublesTournamentBody view={view} />
+        <TournamentArchive tournaments={archive} />
+      </main>
+      <HomeFooter />
+    </div>
+  )
+}
+
+/** Home de siempre: La Escalera + archivo de torneos al pie. */
+async function LadderHome() {
   const session = await auth()
 
   const [view, tournaments, playerOfWeek, gallinas, featured, movement, winStreaks, monthlyMatches, monthDeltas] = await Promise.all([
@@ -111,17 +171,22 @@ export default async function HomePage() {
         <TournamentArchive tournaments={tournaments} />
       </main>
 
-      {/* Footer */}
-      <footer className="border-t py-6">
-        <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
-          <span>Life Tenis</span>
-          <div className="flex gap-4">
-            <Link href="/escalera" className="hover:text-foreground">Cómo funciona</Link>
-            <Link href="/partidos" className="hover:text-foreground">Partidos</Link>
-            <Link href="/calendario" className="hover:text-foreground">Calendario</Link>
-          </div>
-        </div>
-      </footer>
+      <HomeFooter />
     </div>
+  )
+}
+
+function HomeFooter() {
+  return (
+    <footer className="border-t py-6">
+      <div className="container mx-auto px-4 flex items-center justify-between text-sm text-muted-foreground">
+        <span>Life Tenis</span>
+        <div className="flex gap-4">
+          <Link href="/escalera" className="hover:text-foreground">Cómo funciona</Link>
+          <Link href="/partidos" className="hover:text-foreground">Partidos</Link>
+          <Link href="/calendario" className="hover:text-foreground">Calendario</Link>
+        </div>
+      </div>
+    </footer>
   )
 }

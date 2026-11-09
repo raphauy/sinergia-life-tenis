@@ -57,6 +57,11 @@ export function longDateUY(date: Date): string {
   return `${days[dateUY.getDay()]} ${dateUY.getDate()} de ${months[dateUY.getMonth()]}`
 }
 
+/** Como `longDateUY` pero para campos solo-fecha (medianoche UTC, ver `formatDateOnly`). */
+export function longDateOnly(date: Date): string {
+  return longDateUY(fromZonedTime(toZonedTime(date, 'UTC'), TIMEZONE))
+}
+
 /**
  * "Sábado 9 de mayo 11:00 hs" — fecha absoluta para emails. En un email no sirve
  * friendlyDateTimeUY: se manda hoy y se lee mañana, y ahí "Hoy 11:00 hs" miente.
