@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { generateSlug } from '@/lib/utils'
+import { walkoverGames } from '@/lib/validations/match-result'
 import { getGroupQualifiers, refreshBracketSlotsFromGroup } from './bracket-service'
 
 export async function generateUniquePlayerSlug(firstName: string, lastName: string, excludeId?: string): Promise<string> {
@@ -229,19 +230,26 @@ export async function withdrawPlayer(playerId: string, reportedById: string) {
         status: { in: ['PENDING', 'CONFIRMED'] },
         OR: [{ player1Id: userId }, { player2Id: userId }],
       },
-      select: { id: true, player1Id: true, player2Id: true },
+      select: {
+        id: true,
+        player1Id: true,
+        player2Id: true,
+        tournament: { select: { matchFormat: true } },
+        ladder: { select: { matchFormat: true } },
+      },
     })
     for (const m of pendingGroupMatches) {
       const rivalId = m.player1Id === userId ? m.player2Id : m.player1Id
       if (!rivalId) continue
       const player1IsRival = m.player1Id === rivalId
+      const woGames = walkoverGames(m.tournament?.matchFormat ?? m.ladder?.matchFormat ?? 'SINGLE_SET')
       await tx.matchResult.create({
         data: {
           matchId: m.id,
           reportedById,
           walkover: true,
-          set1Player1: player1IsRival ? 6 : 0,
-          set1Player2: player1IsRival ? 0 : 6,
+          set1Player1: player1IsRival ? woGames : 0,
+          set1Player2: player1IsRival ? 0 : woGames,
           winnerId: rivalId,
         },
       })

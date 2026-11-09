@@ -274,7 +274,12 @@ const shortSet4Schema = (player1Id: string, player2Id: string) =>
       }
     })
 
-const walkoverSchema = (player1Id: string, player2Id: string) =>
+/** Games del set que se guardan en un W/O: 4-0 en set a 4, 6-0 en el resto. */
+export function walkoverGames(matchFormat: MatchFormat): number {
+  return matchFormat === 'SHORT_SET_4' ? 4 : 6
+}
+
+const walkoverSchema = (matchFormat: MatchFormat, player1Id: string, player2Id: string) =>
   z
     .object({
       winnerId: z.string(),
@@ -287,8 +292,8 @@ const walkoverSchema = (player1Id: string, player2Id: string) =>
       const p1Wins = d.winnerId === player1Id
       return {
         walkover: true as const,
-        set1Player1: p1Wins ? 6 : 0,
-        set1Player2: p1Wins ? 0 : 6,
+        set1Player1: p1Wins ? walkoverGames(matchFormat) : 0,
+        set1Player2: p1Wins ? 0 : walkoverGames(matchFormat),
         tb1Player1: null,
         tb1Player2: null,
         set2Player1: null,
@@ -307,7 +312,7 @@ export function createMatchResultSchema(
   player2Id: string,
   walkover = false
 ) {
-  if (walkover) return walkoverSchema(player1Id, player2Id)
+  if (walkover) return walkoverSchema(matchFormat, player1Id, player2Id)
 
   switch (matchFormat) {
     case 'SINGLE_SET':
