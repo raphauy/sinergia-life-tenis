@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { formatDateUY, endOfDayInDaysUY } from '@/lib/date-utils'
+import { getDayBlock } from '@/lib/constants'
 import type { MatchStage, MatchStatus, Prisma } from '@prisma/client'
 
 const matchIncludes = {
@@ -135,6 +136,17 @@ export async function confirmMatch(
   return tx ? confirmMatchTx(tx, id, data) : prisma.$transaction((t) => confirmMatchTx(t, id, data))
 }
 
+/**
+ * El admin tampoco puede poner un partido de La Escalera en cancha del club un día
+ * bloqueado. Solo escalera (los de la Copa Summum ocupan esas canchas) y solo por
+ * fecha: en los turnos de clase grupal el admin sigue pudiendo agendar.
+ */
+function assertLadderDayNotBlocked(ladderId: string | null, scheduledAt: Date, courtNumber: number | null) {
+  if (!ladderId || courtNumber == null) return
+  const block = getDayBlock(formatDateUY(scheduledAt, 'yyyy-MM-dd'))
+  if (block) throw new Error(`Ese día está reservado para ${block.label}.`)
+}
+
 async function confirmMatchTx(
   tx: Prisma.TransactionClient,
   id: string,
@@ -147,6 +159,7 @@ async function confirmMatchTx(
     throw new Error('El partido aún no tiene ambos jugadores definidos')
   }
   assertCourtAllowed(match.ladderId, data.courtNumber)
+  assertLadderDayNotBlocked(match.ladderId, data.scheduledAt, data.courtNumber)
 
   const confirmed = await tx.match.update({
     where: { id },
@@ -282,6 +295,7 @@ export async function rescheduleMatch(
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'CONFIRMED') throw new Error('Solo se pueden reprogramar partidos confirmados')
   assertCourtAllowed(match.ladderId, data.courtNumber)
+  assertLadderDayNotBlocked(match.ladderId, data.scheduledAt, data.courtNumber)
 
   return prisma.match.update({
     where: { id },
@@ -299,6 +313,7 @@ export async function updateMatchCourt(id: string, courtNumber: number) {
   const match = await prisma.match.findUnique({ where: { id } })
   if (!match) throw new Error('Partido no encontrado')
   if (match.status !== 'CONFIRMED') throw new Error('Solo se puede cambiar cancha de partidos confirmados')
+  if (match.scheduledAt) assertLadderDayNotBlocked(match.ladderId, match.scheduledAt, courtNumber)
 
   return prisma.match.update({
     where: { id },
