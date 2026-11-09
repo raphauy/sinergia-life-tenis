@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { auth } from '@/lib/auth'
 import { getFeaturedTournament, getTournamentArchive } from '@/services/tournament-service'
 import { getDoublesTournamentView } from '@/services/doubles-view-service'
-import { DoublesHero, LadderStrip, doublesDateLine } from '@/components/doubles/doubles-hero'
+import { DoublesHero, LadderStrip } from '@/components/doubles/doubles-hero'
+import { doublesDateLine } from '@/lib/doubles-format'
+import { cache } from 'react'
 import { DoublesTournamentBody } from '@/components/doubles/doubles-tournament-view'
 import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { getLadderView } from '@/services/challenge-service'
@@ -36,9 +38,14 @@ interface Props {
 async function getHomeTournament(searchParams: Props['searchParams']) {
   const { vista } = await searchParams
   if (vista === 'escalera') return null
+  return getFeaturedDoubles()
+}
+
+/** Una sola consulta por request (la usan `generateMetadata` y la página). */
+const getFeaturedDoubles = cache(async () => {
   const featured = await getFeaturedTournament()
   return featured?.modality === 'DOUBLES' && featured.categories.length > 0 ? featured : null
-}
+})
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const tournament = await getHomeTournament(searchParams)

@@ -1,24 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Trophy } from 'lucide-react'
-import { formatTimeUY, longDateOnly } from '@/lib/date-utils'
+import { doublesDateLine, doublesDayStatus } from '@/lib/doubles-format'
 import type { DoublesTournamentView } from '@/services/doubles-view-service'
-
-/** "Dobles · sábado 14 de noviembre". */
-export function doublesDateLine(startDate: Date): string {
-  const date = longDateOnly(startDate)
-  return `Dobles · ${date.charAt(0).toLowerCase()}${date.slice(1)}`
-}
-
-/** Estado del día en una línea: antes, durante o terminado el torneo. */
-export function doublesDayStatus(view: DoublesTournamentView): string | null {
-  const gold = view.cups.find((c) => c.cup === 'GOLD')
-  if (gold?.champion) return null // el hero muestra a los campeones
-  if (view.liveCount > 0) return `En juego · ${view.playedCount} de ${view.totalCount} partidos jugados`
-  if (view.playedCount > 0) return `${view.playedCount} de ${view.totalCount} partidos jugados`
-  if (view.firstMatchAt) return `Arranca a las ${formatTimeUY(view.firstMatchAt)} · ${view.groups.length} grupos, ${view.totalCount} partidos`
-  return null
-}
 
 /** Hero compacto del home en modo torneo (velo negro 50 %, texto blanco). */
 export function DoublesHero({
@@ -33,7 +17,7 @@ export function DoublesHero({
   const status = doublesDayStatus(view)
   const champions = view.cups.filter((c) => c.champion)
   return (
-    <section className="relative h-44 overflow-hidden md:h-60">
+    <section className="relative h-40 overflow-hidden md:h-56">
       <Image src="/hero-dobles.jpg" alt={`${name}, torneo de dobles de Life Montevideo`} fill className="object-cover" priority />
       <div className="absolute inset-0 bg-black/50" />
       <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center text-white">

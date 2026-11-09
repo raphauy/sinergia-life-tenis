@@ -8,8 +8,10 @@ import { cn } from '@/lib/utils'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
-import { getPairsForMatchSides, getUserSideInMatch, isDoublesMatch, type DoublesPair } from '@/services/doubles-pair-service'
-import { groupLetter, pairFullName, pairShortName } from '@/lib/pair-display'
+import { getPairsForMatch, getUserSideInMatch, isDoublesMatch } from '@/services/doubles-pair-service'
+import { matchSideHref, matchSideName, pairFullName } from '@/lib/pair-display'
+import { doublesStageLabel } from '@/lib/doubles-format'
+import { cache } from 'react'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +30,9 @@ import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservatio
 import { getReservationsByMonth, getCalendarReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
 import { toZonedTime } from 'date-fns-tz'
 
+/** Parejas del partido, una consulta por request (metadata + página). */
+const getPairs = cache(getPairsForMatch)
+
 interface Props {
   params: Promise<{ slug: string; matchId: string }>
 }
@@ -36,9 +41,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { matchId } = await params
   const match = await getMatchById(matchId)
   if (!match) return { title: 'Partido' }
-  const pairs = isDoublesMatch(match) ? await getPairsForMatchSides(match) : null
-  const p1 = pairs ? (pairs.side1 ? pairShortName(pairs.side1) : 'Por definir') : fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2 = pairs ? (pairs.side2 ? pairShortName(pairs.side2) : 'Por definir') : fullName(match.player2?.firstName, match.player2?.lastName)
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1 = matchSideName(pairs, 1, match.player1)
+  const p2 = matchSideName(pairs, 2, match.player2)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
   return {
     title: `${p1} vs ${p2} - ${context}`,
@@ -73,14 +78,11 @@ export default async function MatchDetailPage({ params }: Props) {
     : tournament?.matchFormat ?? 'SINGLE_SET'
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
   const isDoubles = isDoublesMatch(match)
-  const pairs = isDoubles ? await getPairsForMatchSides(match) : null
-  const doublesStage = match.stage === 'GROUP'
-    ? match.group ? `Grupo ${groupLetter(match.group.number)}` : ''
-    : `${match.stage === 'FINAL' ? 'Final' : match.stage === 'SEMIFINAL' ? `Semifinal${match.bracketPosition ? ` ${match.bracketPosition}` : ''}` : 'Cuartos de final'}${match.cup === 'GOLD' ? ' · Copa de Oro' : match.cup === 'SILVER' ? ' · Copa de Plata' : ''}`
+  const pairs = isDoubles ? await getPairs(match.id) : null
   const contextLabel = isLadder
     ? 'La Escalera'
     : isDoubles
-      ? `${tournament?.name ?? ''} — Dobles${doublesStage ? ` · ${doublesStage}` : ''}`
+      ? `${tournament?.name ?? ''} — Dobles · ${doublesStageLabel(match)}`
       : `${tournament?.name ?? ''} — Categoría ${category?.name ?? ''}`
   // Disponibilidad de canchas: global para escalera (sin filtrar por torneo).
   const availabilityTournamentId = isLadder ? undefined : match.tournamentId ?? undefined
@@ -93,18 +95,13 @@ export default async function MatchDetailPage({ params }: Props) {
 
   // Nombres y slugs de perfil para linkear los nombres de los jugadores.
   // En dobles los nombres son las parejas y linkean a /pareja/[slug].
-  const pairLabel = (p: DoublesPair | null) => (p ? pairShortName(p) : 'Por definir')
-  const p1Name = pairs ? pairLabel(pairs.side1) : fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2Name = pairs ? pairLabel(pairs.side2) : fullName(match.player2?.firstName, match.player2?.lastName)
+  const p1Name = matchSideName(pairs, 1, match.player1)
+  const p2Name = matchSideName(pairs, 2, match.player2)
   const slugMap = pairs
     ? new Map<string, string>()
     : await getPlayerSlugsByUserIds([match.player1Id, match.player2Id].filter((id): id is string => !!id))
-  const p1Href = pairs
-    ? pairs.side1 ? `/pareja/${pairs.side1.slug}` : undefined
-    : match.player1Id && slugMap.get(match.player1Id) ? `/jugador/${slugMap.get(match.player1Id)}` : undefined
-  const p2Href = pairs
-    ? pairs.side2 ? `/pareja/${pairs.side2.slug}` : undefined
-    : match.player2Id && slugMap.get(match.player2Id) ? `/jugador/${slugMap.get(match.player2Id)}` : undefined
+  const p1Href = matchSideHref(pairs, 1, match.player1Id ? slugMap.get(match.player1Id) : undefined)
+  const p2Href = matchSideHref(pairs, 2, match.player2Id ? slugMap.get(match.player2Id) : undefined)
 
   // Deltas de rating del partido de escalera ya jugado (para mostrar el cambio).
   const ratingDeltas = isLadder && match.result ? await getMatchRatingDeltas(matchId) : null

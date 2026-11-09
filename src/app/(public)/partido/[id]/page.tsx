@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
 import { getCanonicalPlayerSlugs } from '@/services/player-service'
-import { getPairsForMatchSides, isDoublesMatch, isUserInMatch } from '@/services/doubles-pair-service'
-import { groupLetter, pairShortName } from '@/lib/pair-display'
+import { getPairsForMatch, isDoublesMatch, isUserInMatch } from '@/services/doubles-pair-service'
+import { matchSideHref, matchSideName } from '@/lib/pair-display'
+import { doublesStageLabel } from '@/lib/doubles-format'
+import { cache } from 'react'
 import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/ladder-stats-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { HeadToHeadLine } from '@/components/head-to-head-line'
@@ -25,6 +27,9 @@ import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { getReservationByMatch } from '@/services/reservation-service'
 import { MatchPhoto } from '@/app/jugador/[slug]/partidos/[matchId]/match-photo'
 
+/** Parejas del partido, una consulta por request (metadata + página). */
+const getPairs = cache(getPairsForMatch)
+
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -34,12 +39,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const match = await getMatchById(id)
   if (!match) return { title: 'Partido no encontrado' }
 
-  const pairs = isDoublesMatch(match) ? await getPairsForMatchSides(match) : null
-  const p1 = pairs ? (pairs.side1 ? pairShortName(pairs.side1) : 'Por definir') : fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2 = pairs ? (pairs.side2 ? pairShortName(pairs.side2) : 'Por definir') : fullName(match.player2?.firstName, match.player2?.lastName)
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1 = matchSideName(pairs, 1, match.player1)
+  const p2 = matchSideName(pairs, 2, match.player2)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
   const title = `${p1} vs ${p2} - ${context}`
-  const description = `${p1} vs ${p2}${match.category ? ` - Categoría ${match.category.name}` : ''} - ${context}`
+  const detail = pairs ? ` - Dobles, ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
+  const description = `${p1} vs ${p2}${detail} - ${context}`
 
   return { title, description, openGraph: { title, description } }
 }
@@ -51,13 +57,9 @@ export default async function PartidoPublicPage({ params }: Props) {
   if (!match) notFound()
 
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
-  const pairs = isDoublesMatch(match) ? await getPairsForMatchSides(match) : null
-  const p1Name = pairs
-    ? pairs.side1 ? pairShortName(pairs.side1) : 'Por definir'
-    : fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'
-  const p2Name = pairs
-    ? pairs.side2 ? pairShortName(pairs.side2) : 'Por definir'
-    : fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1Name = matchSideName(pairs, 1, match.player1) || 'Jugador 1'
+  const p2Name = matchSideName(pairs, 2, match.player2) || 'Jugador 2'
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Get player slugs for linking
@@ -69,8 +71,8 @@ export default async function PartidoPublicPage({ params }: Props) {
   )
   const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
   const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
-  const p1Href = pairs ? (pairs.side1 ? `/pareja/${pairs.side1.slug}` : undefined) : p1Slug ? `/jugador/${p1Slug}` : undefined
-  const p2Href = pairs ? (pairs.side2 ? `/pareja/${pairs.side2.slug}` : undefined) : p2Slug ? `/jugador/${p2Slug}` : undefined
+  const p1Href = matchSideHref(pairs, 1, p1Slug)
+  const p2Href = matchSideHref(pairs, 2, p2Slug)
 
   // Check if logged-in user is a participant
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -121,14 +123,12 @@ export default async function PartidoPublicPage({ params }: Props) {
           {!match.ladderId && (
             <div className="flex items-center gap-1.5 mt-1">
               {pairs ? <Badge variant="secondary-outline">Dobles</Badge> : <CategoryBadge name={match.category?.name ?? ''} />}
-              {stageLabel(match.stage) ? (
-                <Badge variant="secondary-outline">
-                  {stageLabel(match.stage)}
-                  {match.stage === 'SEMIFINAL' && match.bracketPosition ? ` ${match.bracketPosition}` : ''}
-                  {match.cup === 'GOLD' ? ' · Copa de Oro' : match.cup === 'SILVER' ? ' · Copa de Plata' : ''}
-                </Badge>
+              {pairs ? (
+                <Badge variant="secondary-outline">{doublesStageLabel(match)}</Badge>
+              ) : stageLabel(match.stage) ? (
+                <Badge variant="secondary-outline">{stageLabel(match.stage)}</Badge>
               ) : match.group ? (
-                <Badge variant="secondary-outline">Grupo {pairs ? groupLetter(match.group.number) : match.group.number}</Badge>
+                <Badge variant="secondary-outline">Grupo {match.group.number}</Badge>
               ) : null}
             </div>
           )}

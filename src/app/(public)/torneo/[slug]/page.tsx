@@ -6,7 +6,7 @@ import { getActivePlayerSlugByUserId } from '@/services/player-service'
 import { TournamentDashboard } from '@/components/tournament-dashboard'
 import { getDoublesTournamentView } from '@/services/doubles-view-service'
 import { DoublesTournamentBody } from '@/components/doubles/doubles-tournament-view'
-import { doublesDateLine, doublesDayStatus } from '@/components/doubles/doubles-hero'
+import { doublesDateLine, doublesDayStatus } from '@/lib/doubles-format'
 
 interface Props {
   params: Promise<{ slug: string }>

@@ -15,7 +15,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { HeadToHeadLine } from '@/components/head-to-head-line'
 import type { HeadToHead } from '@/services/head-to-head-service'
 import type { MatchPairs } from '@/services/doubles-pair-service'
-import { groupLetter, isUserInPair, pairShortName } from '@/lib/pair-display'
+import { isUserInPair, pairShortName } from '@/lib/pair-display'
+import { groupName as formatGroupName } from '@/lib/doubles-format'
 
 interface FixtureMatchCardProps {
   match: {
@@ -153,7 +154,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
   const pairs = match.pairs ?? null
   const isDoubles = pairs != null
-  const groupName = isDoubles ? groupLetter : String
+  const groupName = (n: number) => formatGroupName(n, isDoubles)
   const side1 = pairs?.side1 ?? null
   const side2 = pairs?.side2 ?? null
   const p1Defined = isDoubles ? side1 != null : match.player1 != null

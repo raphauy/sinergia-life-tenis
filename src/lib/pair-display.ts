@@ -1,6 +1,6 @@
 import { getDisplayName } from './display-name'
 import { fullName } from './format-name'
-import type { DoublesPair, PairMember } from '@/services/doubles-pair-service'
+import type { DoublesPair, MatchPairs, PairMember } from '@/services/doubles-pair-service'
 
 /**
  * Presentación de parejas de dobles sin acceso a la base: la usan componentes de
@@ -31,7 +31,25 @@ export function isUserInPair(pair: DoublesPair, userId: string): boolean {
   return pair.captain.userId === userId || pair.partner.userId === userId
 }
 
-/** Letra del grupo en dobles: los grupos se numeran 1–4 en la base y el club los llama A–D. */
-export function groupLetter(number: number): string {
-  return number >= 1 && number <= 26 ? String.fromCharCode(64 + number) : String(number)
+type SidePlayer = { firstName: string | null; lastName: string | null } | null
+
+/**
+ * Nombre de un lado del partido: en dobles la pareja (nombre corto o "Por definir"),
+ * en singles el jugador. `pairs` null = no es de dobles.
+ */
+export function matchSideName(pairs: MatchPairs | null, side: 1 | 2, player: SidePlayer): string {
+  if (pairs) {
+    const pair = side === 1 ? pairs.side1 : pairs.side2
+    return pair ? pairShortName(pair) : 'Por definir'
+  }
+  return fullName(player?.firstName, player?.lastName)
+}
+
+/** Link de un lado: /pareja/[slug] en dobles, /jugador/[slug canónico] en singles. */
+export function matchSideHref(pairs: MatchPairs | null, side: 1 | 2, playerSlug: string | undefined): string | undefined {
+  if (pairs) {
+    const pair = side === 1 ? pairs.side1 : pairs.side2
+    return pair ? `/pareja/${pair.slug}` : undefined
+  }
+  return playerSlug ? `/jugador/${playerSlug}` : undefined
 }

@@ -217,7 +217,6 @@ export function pairName(pair: DoublesPair): string {
   return pairMembers(pair).map(surname).join(' / ')
 }
 
-export { isUserInPair } from '@/lib/pair-display'
 
 /**
  * De qué lado del partido juega el usuario: 1, 2 o null si no juega. En singles y

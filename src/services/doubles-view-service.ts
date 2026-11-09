@@ -1,6 +1,7 @@
 import type { Cup, MatchStage, MatchStatus } from '@prisma/client'
 import { formatMatchScore } from '@/lib/format-score'
-import { groupLetter, pairShortName } from '@/lib/pair-display'
+import { pairShortName } from '@/lib/pair-display'
+import { CUP_TITLES, doublesStageLabel, groupLetter } from '@/lib/doubles-format'
 import { getMatches } from './match-service'
 import { getGroupsByCategory } from './group-service'
 import { getRankingByGroup } from './ranking-service'
@@ -73,6 +74,8 @@ export interface DoublesCupView {
 
 export interface DoublesTournamentView {
   categoryId: string
+  /** Todos los partidos (grupo y Definición), por hora. */
+  matches: DoublesMatchView[]
   groups: DoublesGroupView[]
   cups: DoublesCupView[]
   /** Hay al menos una pareja en una semifinal: la Definición va arriba de los grupos. */
@@ -83,7 +86,6 @@ export interface DoublesTournamentView {
   firstMatchAt: Date | null
 }
 
-export const CUP_TITLES: Record<Cup, string> = { GOLD: 'Copa de Oro', SILVER: 'Copa de Plata' }
 const CUP_ORDER: Cup[] = ['GOLD', 'SILVER']
 
 type CategoryMatch = Awaited<ReturnType<typeof getMatches>>[number]
@@ -101,14 +103,6 @@ function slotLabel(m: CategoryMatch, side: 1 | 2): string {
   if (group && position != null) return `${position}° Grupo ${groupLetter(group.number)}`
   if (m.stage === 'FINAL') return `Ganador Semifinal ${side}`
   return 'Por definir'
-}
-
-function matchLabel(m: CategoryMatch): string {
-  if (m.stage === 'GROUP') return m.group ? `Grupo ${groupLetter(m.group.number)}` : 'Grupo'
-  const cup = m.cup ? ` · ${CUP_TITLES[m.cup]}` : ''
-  if (m.stage === 'FINAL') return `Final${cup}`
-  if (m.stage === 'SEMIFINAL') return `Semifinal${m.bracketPosition ? ` ${m.bracketPosition}` : ''}${cup}`
-  return `Cuartos de final${cup}`
 }
 
 export async function getDoublesTournamentView(categoryId: string, now: Date = new Date()): Promise<DoublesTournamentView> {
@@ -155,7 +149,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       score: m.result ? formatMatchScore(m.result) : null,
       winnerSide: winnerId ? (winnerId === m.player1Id ? 1 : winnerId === m.player2Id ? 2 : null) : null,
       live,
-      label: matchLabel(m),
+      label: doublesStageLabel(m),
     }
   }
 
@@ -202,6 +196,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
 
   return {
     categoryId,
+    matches: views,
     groups: groupViews,
     cups,
     definitionStarted: cups.some((c) => c.semis.some((s) => s.side1 || s.side2)),
@@ -214,11 +209,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
 
 /** Los partidos de una pareja dentro de la vista (grupo y Definición), por hora. */
 export function matchesOfPair(view: DoublesTournamentView, slug: string): DoublesMatchView[] {
-  const all = [
-    ...view.groups.flatMap((g) => g.matches),
-    ...view.cups.flatMap((c) => [...c.semis, ...(c.final ? [c.final] : [])]),
-  ]
-  return all.filter((m) => m.side1?.slug === slug || m.side2?.slug === slug).sort(byTime)
+  return view.matches.filter((m) => m.side1?.slug === slug || m.side2?.slug === slug)
 }
 
 /** Grupo y posición de una pareja en la vista, o null. */
