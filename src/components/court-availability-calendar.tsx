@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition, useCallback } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { DailyScheduleView } from './daily-schedule-view'
-import { isLadderReservableDay } from '@/lib/constants'
+import { getDayBlock, isLadderReservableDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
@@ -69,7 +69,7 @@ export function ScheduleLegend() {
     { label: 'Libre', dot: 'bg-muted-foreground/25' },
     { label: 'Ocupado', dot: 'bg-amber-400' },
     { label: 'Reservado', dot: 'bg-blue-400' },
-    { label: 'Clase grupal', dot: 'bg-violet-400' },
+    { label: 'No disponible', dot: 'bg-violet-400' },
   ]
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -194,7 +194,8 @@ export function CourtAvailabilityCalendar({
     // Marca (no deshabilita) los días en que La Escalera puede pedir cancha con
     // anticipación. Se pinta todo el mes, no solo la ventana reservable de hoy:
     // lo que se quiere leer de un vistazo es el patrón alternado de la semana.
-    const isLadderDay = ladderReservation != null && isLadderReservableDay(dayDate)
+    const isDayBlocked = getDayBlock(dayKey) != null
+    const isLadderDay = ladderReservation != null && isLadderReservableDay(dayDate) && !isDayBlocked
 
     return (
       <CalendarDayButton
@@ -203,6 +204,7 @@ export function CourtAvailabilityCalendar({
           props.className,
           '!gap-0.5 !min-w-0 w-full',
           isLadderDay && 'bg-emerald-500/15 dark:bg-emerald-400/15',
+          isDayBlocked && 'bg-violet-500/15 dark:bg-violet-400/15',
           isSelected && 'bg-primary/15 ring-2 ring-primary',
         )}
       >

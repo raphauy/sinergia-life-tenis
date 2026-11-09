@@ -42,6 +42,39 @@ export const CLASS_SCHEDULE: Record<number, string[]> = {
   6: ['09:00', '10:00'],    // sábado
 }
 
+// Bloqueos puntuales por fecha (YYYY-MM-DD en hora uruguaya). Sin `slots` = todo el día.
+export const DATE_BLOCKS: Record<string, { label: string; slots?: string[] }> = {
+  '2026-11-14': { label: 'Copa Summum' },
+}
+
+export type SlotBlock = {
+  /** Qué ocupa el turno: "Copa Summum", "clase grupal". */
+  label: string
+  /** Texto de la fila en las agendas: "Reservado Copa Summum". */
+  text: string
+}
+
+/** El bloqueo de todo el día en esa fecha (YYYY-MM-DD, hora uruguaya), o null. */
+export function getDayBlock(dateUY: string): SlotBlock | null {
+  const block = DATE_BLOCKS[dateUY]
+  if (!block || block.slots) return null
+  return { label: block.label, text: `Reservado ${block.label}` }
+}
+
+/** Qué bloquea ese turno (fecha YYYY-MM-DD en hora uruguaya), o null si está disponible. */
+export function getSlotBlock(dateUY: string, slot: string): SlotBlock | null {
+  const dateBlock = DATE_BLOCKS[dateUY]
+  if (dateBlock && (!dateBlock.slots || dateBlock.slots.includes(slot))) {
+    return { label: dateBlock.label, text: `Reservado ${dateBlock.label}` }
+  }
+  // Mediodía UTC: el día de la semana no depende del huso de quien ejecuta.
+  const dayOfWeek = new Date(`${dateUY}T12:00:00Z`).getUTCDay()
+  if (CLASS_SCHEDULE[dayOfWeek]?.includes(slot)) {
+    return { label: 'clase grupal', text: 'Reservado para clase grupal' }
+  }
+  return null
+}
+
 // Sábado solo mañana (abre 8hs, cierra 13hs), domingo cerrado (excepto en dev)
 const SATURDAY_SLOTS = [
   '08:00', '09:00', '10:00', '11:00', '12:00',

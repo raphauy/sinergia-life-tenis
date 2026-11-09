@@ -11,7 +11,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { format, addDays, startOfDay } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
-import { CLASS_SCHEDULE, COURTS, getSlotsForDay, EXTERNAL_TIME_SLOTS, TIMEZONE, SELF_SCHEDULE_PAST_DAYS } from '@/lib/constants'
+import { COURTS, getDayBlock, getSlotBlock, getSlotsForDay, EXTERNAL_TIME_SLOTS, TIMEZONE, SELF_SCHEDULE_PAST_DAYS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { selfScheduleMatchAction } from './actions'
 
@@ -50,13 +50,13 @@ export function SelfScheduleCard({ matchId, reservationLeadDays, occupiedSlots =
   const clubSlots = useMemo(() => {
     if (!date) return []
     const dayOfWeek = date.getDay()
-    const classSlots = CLASS_SCHEDULE[dayOfWeek] ?? []
     const court = Number(courtNumber)
     return getSlotsForDay(dayOfWeek).filter(
-      (s) => !classSlots.includes(s) && !(occupiedSlots[`${dateKey} ${s}`] ?? []).includes(court)
+      (s) => !getSlotBlock(dateKey, s) && !(occupiedSlots[`${dateKey} ${s}`] ?? []).includes(court)
     )
   }, [date, dateKey, courtNumber, occupiedSlots])
 
+  const dayBlock = dateKey ? getDayBlock(dateKey) : null
   const clubClosed = date != null && getSlotsForDay(date.getDay()).length === 0
 
   // Ya jugado: la fecha+hora elegida quedó atrás (en horario de Uruguay).
@@ -180,6 +180,8 @@ export function SelfScheduleCard({ matchId, reservationLeadDays, occupiedSlots =
             <p className="text-xs text-muted-foreground">
               {clubClosed
                 ? 'El club está cerrado ese día.'
+                : dayBlock
+                ? `Ese día las canchas están reservadas para ${dayBlock.label}.`
                 : 'No quedan turnos libres en esa cancha ese día.'}{' '}
               Si jugaron igual en otra cancha, elegí &ldquo;Fuera del club&rdquo;.
             </p>

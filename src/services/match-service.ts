@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { endOfDayInDaysUY } from '@/lib/date-utils'
+import { formatDateUY, endOfDayInDaysUY } from '@/lib/date-utils'
 import type { MatchStage, MatchStatus, Prisma } from '@prisma/client'
 
 const matchIncludes = {
@@ -200,7 +200,7 @@ export async function selfScheduleLadderMatch(
 
   const { toZonedTime, fromZonedTime } = await import('date-fns-tz')
   const { startOfDay, endOfDay, addDays, subDays, format } = await import('date-fns')
-  const { TIMEZONE, CLASS_SCHEDULE, getSlotsForDay, SELF_SCHEDULE_PAST_DAYS } = await import('@/lib/constants')
+  const { TIMEZONE, getSlotBlock, getSlotsForDay, SELF_SCHEDULE_PAST_DAYS } = await import('@/lib/constants')
 
   const nowUY = toZonedTime(new Date(), TIMEZONE)
   const minUTC = fromZonedTime(startOfDay(subDays(nowUY, SELF_SCHEDULE_PAST_DAYS)), TIMEZONE)
@@ -220,8 +220,9 @@ export async function selfScheduleLadderMatch(
     if (!getSlotsForDay(dayOfWeek).includes(slot)) {
       throw new Error('Ese horario no es un turno válido del club.')
     }
-    if (CLASS_SCHEDULE[dayOfWeek]?.includes(slot)) {
-      throw new Error('Ese horario está reservado para clase grupal.')
+    const block = getSlotBlock(formatDateUY(data.scheduledAt, 'yyyy-MM-dd'), slot)
+    if (block) {
+      throw new Error(`Ese horario está reservado para ${block.label}.`)
     }
   }
 

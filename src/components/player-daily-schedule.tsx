@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
-import { CLASS_SCHEDULE, getSlotsForDay, COURTS, getMinReservationDate, getMaxReservationDate } from '@/lib/constants'
+import { getSlotBlock, getSlotsForDay, COURTS, getMinReservationDate, getMaxReservationDate } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -29,10 +29,6 @@ function groupByTime<T extends { timeUY: string }>(items: T[]) {
     map.get(item.timeUY)!.push(item)
   }
   return map
-}
-
-function hasClass(dayOfWeek: number, slot: string) {
-  return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
 function formatDateKey(day: Date) {
@@ -138,23 +134,24 @@ export function PlayerDailySchedule({
           const occupied = slotMatches.length
           const reserved = slotReservations.length
           const total = occupied + reserved
-          const isClass = hasClass(dayOfWeek, slot)
-          const isFirst = (total > 0 || isClass) && !foundFirst
+          const block = getSlotBlock(formatDateKey(day), slot)
+          const isBlocked = block != null
+          const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const canReserve = !isClass && total === 0 && !currentReservation && !dayTooSoon && !dayTooLate
+          const canReserve = !isBlocked && total === 0 && !currentReservation && !dayTooSoon && !dayTooLate
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
               <div
                 className={cn(
                   'flex items-start gap-2 px-3 border-l-3',
-                  isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
-                  !isClass && total === 0 && 'py-1.5 border-l-muted-foreground/20',
-                  !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
+                  isBlocked && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
+                  !isBlocked && total === 0 && 'py-1.5 border-l-muted-foreground/20',
+                  !isBlocked && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
                   // Ocupado es ocupado: con un partido ya no se puede reservar, así que
                   // no se distingue 1 de 2 (el rojo del calendario cuenta otra cosa).
-                  !isClass && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                  !isBlocked && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
                   canReserve && !isOpen && 'cursor-pointer hover:bg-muted/50 active:bg-muted select-none',
                   isOpen && 'bg-primary/5 border-l-primary',
                 )}
@@ -162,12 +159,12 @@ export function PlayerDailySchedule({
               >
                 <span className={cn(
                   'text-xs font-mono w-11 shrink-0 pt-0.5',
-                  !isClass && total === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
+                  !isBlocked && total === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
                 )}>
                   {slot}
                 </span>
-                {isClass ? (
-                  <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
+                {isBlocked ? (
+                  <span className="text-xs text-violet-600 dark:text-violet-400">{block?.text}</span>
                 ) : total === 0 && !isOpen ? (
                   canReserve ? (
                     <span className="text-xs text-primary font-medium">Reservar</span>

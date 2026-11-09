@@ -36,7 +36,7 @@ export async function createReservation(data: {
     const { endOfDay, addDays, format } = await import('date-fns')
     const {
       TIMEZONE,
-      CLASS_SCHEDULE,
+      getSlotBlock,
       getSlotsForDay,
       isLadderReservableDay,
       getLadderDaysForWeek,
@@ -59,8 +59,9 @@ export async function createReservation(data: {
     if (!getSlotsForDay(dayOfWeek).includes(slot)) {
       throw new Error('Ese horario no es un turno válido del club.')
     }
-    if (CLASS_SCHEDULE[dayOfWeek]?.includes(slot)) {
-      throw new Error('Ese horario está reservado para clase grupal.')
+    const block = getSlotBlock(formatDateUY(data.scheduledAt, 'yyyy-MM-dd'), slot)
+    if (block) {
+      throw new Error(`Ese horario está reservado para ${block.label}.`)
     }
   }
 

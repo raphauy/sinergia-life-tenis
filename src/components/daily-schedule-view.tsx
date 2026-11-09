@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 import {
-  CLASS_SCHEDULE,
+  getDayBlock,
+  getSlotBlock,
   getSlotsForDay,
   getMinReservationDate,
   getMaxReservationDate,
@@ -10,6 +11,7 @@ import {
   getLadderDaysForWeek,
   formatLadderDays,
 } from '@/lib/constants'
+import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation, LadderReservationInfo } from './court-availability-calendar'
 import { slotContextLabel, ScheduleLegend } from './court-availability-calendar'
@@ -33,7 +35,8 @@ function ladderReservationNote(day: Date, info: LadderReservationInfo): string |
   // Un día pasado no se reserva por definición, y el domingo el club está cerrado:
   // en ninguno de los dos el motivo es la regla de La Escalera. (El domingo importa
   // en dev, donde la grilla horaria sí se muestra.)
-  if (day < today || day.getDay() === 0) return null
+  // Con el día bloqueado (Copa Summum) el motivo ya está en cada turno.
+  if (day < today || day.getDay() === 0 || getDayBlock(formatDateKey(day))) return null
 
   if (!isLadderReservableDay(day)) {
     return `La Escalera no reserva con anticipación este día. Esa semana se puede pedir: ${formatLadderDays(getLadderDaysForWeek(day))}. Si conseguís cancha por tu cuenta, podés jugar igual.`
@@ -47,6 +50,10 @@ function ladderReservationNote(day: Date, info: LadderReservationInfo): string |
   return null
 }
 
+function formatDateKey(day: Date) {
+  return format(day, 'yyyy-MM-dd')
+}
+
 function groupByTime<T extends { timeUY: string }>(items: T[]) {
   const map = new Map<string, T[]>()
   for (const item of items) {
@@ -54,10 +61,6 @@ function groupByTime<T extends { timeUY: string }>(items: T[]) {
     map.get(item.timeUY)!.push(item)
   }
   return map
-}
-
-function hasClass(dayOfWeek: number, slot: string) {
-  return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
 export function DailyScheduleView({ matches, reservations = [], day, ladderReservation = null }: Props) {
@@ -97,8 +100,9 @@ export function DailyScheduleView({ matches, reservations = [], day, ladderReser
           const occupied = slotMatches.length
           const reserved = slotReservations.length
           const total = occupied + reserved
-          const isClass = hasClass(dayOfWeek, slot)
-          const isFirst = (total > 0 || isClass) && !foundFirst
+          const block = getSlotBlock(formatDateKey(day), slot)
+          const isBlocked = block != null
+          const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
 
           return (
@@ -107,22 +111,22 @@ export function DailyScheduleView({ matches, reservations = [], day, ladderReser
               ref={isFirst ? firstOccupiedRef : undefined}
               className={cn(
                 'flex items-start gap-2 px-3 border-l-3',
-                isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
-                !isClass && total === 0 && 'py-1.5 border-l-muted-foreground/20',
-                !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
+                isBlocked && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
+                !isBlocked && total === 0 && 'py-1.5 border-l-muted-foreground/20',
+                !isBlocked && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
                 // Ocupado es ocupado: no se distingue 1 de 2 (el rojo del calendario
                 // cuenta los partidos de todo el día, que es otra cosa).
-                !isClass && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                !isBlocked && occupied > 0 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
               )}
             >
               <span className={cn(
                 'text-xs font-mono w-11 shrink-0 pt-0.5',
-                !isClass && total === 0 ? 'text-muted-foreground/50' : 'text-foreground font-medium',
+                !isBlocked && total === 0 ? 'text-muted-foreground/50' : 'text-foreground font-medium',
               )}>
                 {slot}
               </span>
-              {isClass ? (
-                <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
+              {isBlocked ? (
+                <span className="text-xs text-violet-600 dark:text-violet-400">{block?.text}</span>
               ) : total === 0 ? (
                 isReservable
                   ? <span className="text-xs text-muted-foreground/40">libre</span>

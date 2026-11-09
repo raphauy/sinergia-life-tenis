@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useTransition, useCallback } from 'react'
-import { COURTS, CLASS_SCHEDULE, getSlotsForDay } from '@/lib/constants'
+import { COURTS, getDayBlock, getSlotBlock, getSlotsForDay } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,10 +45,6 @@ function groupByTime<T extends { timeUY: string }>(items: T[]) {
 
 function formatDateKey(day: Date) {
   return `${day.getFullYear()}-${(day.getMonth() + 1).toString().padStart(2, '0')}-${day.getDate().toString().padStart(2, '0')}`
-}
-
-function hasClass(dayOfWeek: number, slot: string) {
-  return CLASS_SCHEDULE[dayOfWeek]?.includes(slot) ?? false
 }
 
 export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, changeCourtAction, tournamentId, onConfirmed }: Props) {
@@ -210,11 +206,14 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
           const occupied = slotMatches.length
           const reserved = slotReservations.length
           const total = occupied + reserved
-          const isClass = hasClass(dayOfWeek, slot)
-          const isFirst = (total > 0 || isClass) && !foundFirst
+          const block = getSlotBlock(formatDateKey(day), slot)
+          // Los partidos cargados en un día bloqueado (Copa Summum) se ven igual.
+          const showsMatchesOverBlock = total > 0 && getDayBlock(formatDateKey(day)) != null
+          const isBlocked = block != null && !showsMatchesOverBlock
+          const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const isFree = total < 2 && !isClass
+          const isFree = total < 2 && !block
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
@@ -222,11 +221,11 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
               <div
                 className={cn(
                   'flex items-start gap-2 px-3 border-l-3',
-                  !isClass && total === 0 && 'py-2 border-l-muted-foreground/20',
-                  !isClass && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
-                  !isClass && occupied > 0 && reserved === 0 && total < 2 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
-                  !isClass && total >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
-                  isClass && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
+                  !isBlocked && total === 0 && 'py-2 border-l-muted-foreground/20',
+                  !isBlocked && reserved > 0 && occupied === 0 && 'py-2 border-l-blue-400 bg-blue-50/50 dark:bg-blue-950/20',
+                  !isBlocked && occupied > 0 && reserved === 0 && total < 2 && 'py-2 border-l-amber-400 bg-amber-50/50 dark:bg-amber-950/20',
+                  !isBlocked && total >= 2 && 'py-2 border-l-red-400 bg-red-50/50 dark:bg-red-950/20',
+                  isBlocked && 'py-1.5 border-l-violet-400 bg-violet-50/50 dark:bg-violet-950/20',
                   isFree && !isOpen && 'cursor-pointer hover:bg-muted/50 active:bg-muted select-none',
                   isOpen && 'bg-primary/5 border-l-primary',
                 )}
@@ -234,12 +233,12 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
               >
                 <span className={cn(
                   'text-xs font-mono w-11 shrink-0 pt-0.5',
-                  !isClass && total === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
+                  !isBlocked && total === 0 && !isOpen ? 'text-muted-foreground/50' : 'text-foreground font-medium',
                 )}>
                   {slot}
                 </span>
-                {isClass ? (
-                  <span className="text-xs text-violet-600 dark:text-violet-400">Reservado para clase grupal</span>
+                {isBlocked ? (
+                  <span className="text-xs text-violet-600 dark:text-violet-400">{block?.text}</span>
                 ) : total === 0 && !isOpen ? (
                   <span className="text-xs text-muted-foreground/40">libre</span>
                 ) : (
