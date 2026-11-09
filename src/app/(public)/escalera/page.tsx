@@ -39,6 +39,7 @@ const days = (n: number) => `${n} ${n === 1 ? 'día' : 'días'}`
 function matchFormatLabel(f: MatchFormat): string {
   if (f === 'TWO_SETS_SUPERTB') return '2 sets + súper tie-break (a 10 si quedan 1-1)'
   if (f === 'BEST_OF_THREE') return 'al mejor de 3 sets'
+  if (f === 'SHORT_SET_4') return 'set a 4 (sin ventaja, mini tiebreak a 5 en 3-3)'
   return '1 set'
 }
 

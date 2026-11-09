@@ -61,12 +61,15 @@ export function MatchResultForm({
   const [error, setError] = useState('')
 
   const isTwoSets = matchFormat === 'TWO_SETS_SUPERTB'
+  const isShortSet = matchFormat === 'SHORT_SET_4'
+  const maxGames = isShortSet ? 4 : 7
 
   const s1Winner = Number(set1P1) > Number(set1P2) ? 1 : Number(set1P2) > Number(set1P1) ? 2 : 0
   const s2Winner = Number(set2P1) > Number(set2P2) ? 1 : Number(set2P2) > Number(set2P1) ? 2 : 0
   const showSuperTb = isTwoSets && s1Winner !== 0 && s2Winner !== 0 && s1Winner !== s2Winner
 
-  const showTb1 = (set1P1 === '7' && set1P2 === '6') || (set1P1 === '6' && set1P2 === '7')
+  const [tbHigh, tbLow] = isShortSet ? ['4', '3'] : ['7', '6']
+  const showTb1 = (set1P1 === tbHigh && set1P2 === tbLow) || (set1P1 === tbLow && set1P2 === tbHigh)
   const showTb2 = isTwoSets && ((set2P1 === '7' && set2P2 === '6') || (set2P1 === '6' && set2P2 === '7'))
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -151,7 +154,7 @@ export function MatchResultForm({
                   <span className="text-sm font-medium">{player1Name}</span>
                 </td>
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={7} value={set1P1} onChange={(e) => setSet1P1(e.target.value)} className="w-14 text-center mx-auto" />
+                  <Input type="number" min={0} max={maxGames} value={set1P1} onChange={(e) => setSet1P1(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
                 {showTb1 && (
                   <td className="py-1.5">
@@ -180,7 +183,7 @@ export function MatchResultForm({
                   <span className="text-sm font-medium">{player2Name}</span>
                 </td>
                 <td className="py-1.5">
-                  <Input type="number" min={0} max={7} value={set1P2} onChange={(e) => setSet1P2(e.target.value)} className="w-14 text-center mx-auto" />
+                  <Input type="number" min={0} max={maxGames} value={set1P2} onChange={(e) => setSet1P2(e.target.value)} className="w-14 text-center mx-auto" />
                 </td>
                 {showTb1 && (
                   <td className="py-1.5">
@@ -205,6 +208,11 @@ export function MatchResultForm({
               </tr>
             </tbody>
           </table>
+          {isShortSet && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Set a 4 (sin ventaja, mini tiebreak a 5 en 3-3). Si terminó 4-3, cargá los puntos del tiebreak.
+            </p>
+          )}
         </div>
       )}
 

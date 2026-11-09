@@ -33,9 +33,9 @@ function isTiebreakSet(p1: number, p2: number): boolean {
   return (p1 === 7 && p2 === 6) || (p1 === 6 && p2 === 7)
 }
 
-/** Validate that the TB winner matches the set winner (player who got 7 games) */
-function isTbWinnerConsistent(setP1: number, tbP1: number, tbP2: number): boolean {
-  const setWonByP1 = setP1 === 7
+/** Validate that the TB winner matches the set winner */
+function isTbWinnerConsistent(setP1: number, setP2: number, tbP1: number, tbP2: number): boolean {
+  const setWonByP1 = setP1 > setP2
   const tbWonByP1 = tbP1 > tbP2
   return setWonByP1 === tbWonByP1
 }
@@ -68,7 +68,7 @@ const singleSetSchema = (player1Id: string, player2Id: string) =>
             message: 'Tiebreak inválido (mínimo 7 puntos, diferencia de 2)',
             path: ['tb1Player1'],
           })
-        } else if (!isTbWinnerConsistent(d.set1Player1, d.tb1Player1, d.tb1Player2)) {
+        } else if (!isTbWinnerConsistent(d.set1Player1, d.set1Player2, d.tb1Player1, d.tb1Player2)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'El ganador del tiebreak no coincide con el ganador del set',
@@ -125,7 +125,7 @@ const twoSetsSuperTbSchema = (player1Id: string, player2Id: string) =>
             message: 'Tiebreak set 1 inválido (mínimo 7 puntos, diferencia de 2)',
             path: ['tb1Player1'],
           })
-        } else if (!isTbWinnerConsistent(d.set1Player1, d.tb1Player1, d.tb1Player2)) {
+        } else if (!isTbWinnerConsistent(d.set1Player1, d.set1Player2, d.tb1Player1, d.tb1Player2)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'El ganador del tiebreak no coincide con el ganador del set 1',
@@ -148,7 +148,7 @@ const twoSetsSuperTbSchema = (player1Id: string, player2Id: string) =>
             message: 'Tiebreak set 2 inválido (mínimo 7 puntos, diferencia de 2)',
             path: ['tb2Player1'],
           })
-        } else if (!isTbWinnerConsistent(d.set2Player1, d.tb2Player1, d.tb2Player2)) {
+        } else if (!isTbWinnerConsistent(d.set2Player1, d.set2Player2, d.tb2Player1, d.tb2Player2)) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'El ganador del tiebreak no coincide con el ganador del set 2',
@@ -209,7 +209,77 @@ const twoSetsSuperTbSchema = (player1Id: string, player2Id: string) =>
       }
     })
 
-const walkoverSchema = (player1Id: string, player2Id: string) =>
+// Set a 4 games sin ventaja (Copa Summum): 4-0, 4-1, 4-2 o 4-3; en 3-3 se juega
+// un mini tiebreak a 5 puntos con diferencia de 2, que se guarda en tb1.
+function isValidShortSetScore(p1: number, p2: number): boolean {
+  return (p1 === 4 && p2 <= 3) || (p2 === 4 && p1 <= 3)
+}
+
+function isShortSetTiebreak(p1: number, p2: number): boolean {
+  return (p1 === 4 && p2 === 3) || (p1 === 3 && p2 === 4)
+}
+
+// Se corta al llegar a 5 con 2 de ventaja: 5-0..5-3, o desde 4-4 gana por 2 exactos (6-4, 7-5...).
+function isValidMiniTiebreak(p1: number, p2: number): boolean {
+  const winner = Math.max(p1, p2)
+  const loser = Math.min(p1, p2)
+  if (winner === 5) return loser <= 3
+  return winner > 5 && winner - loser === 2
+}
+
+const shortSet4Schema = (player1Id: string, player2Id: string) =>
+  z
+    .object({
+      set1Player1: scoreField,
+      set1Player2: scoreField,
+      tb1Player1: tbField.optional(),
+      tb1Player2: tbField.optional(),
+    })
+    .refine((d) => isValidShortSetScore(d.set1Player1, d.set1Player2), {
+      message: 'Score de set inválido (set a 4: 4-0, 4-1, 4-2 o 4-3)',
+      path: ['set1Player1'],
+    })
+    .superRefine((d, ctx) => {
+      if (!isShortSetTiebreak(d.set1Player1, d.set1Player2)) return
+      if (d.tb1Player1 == null || d.tb1Player2 == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tiebreak requerido para set 4-3',
+          path: ['tb1Player1'],
+        })
+        return
+      }
+      if (!isValidMiniTiebreak(d.tb1Player1, d.tb1Player2)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tiebreak inválido (mínimo 5 puntos, diferencia de 2)',
+          path: ['tb1Player1'],
+        })
+      } else if (!isTbWinnerConsistent(d.set1Player1, d.set1Player2, d.tb1Player1, d.tb1Player2)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'El ganador del tiebreak no coincide con el ganador del set',
+          path: ['tb1Player1'],
+        })
+      }
+    })
+    .transform((d) => {
+      const tb1 = isShortSetTiebreak(d.set1Player1, d.set1Player2)
+      return {
+        set1Player1: d.set1Player1,
+        set1Player2: d.set1Player2,
+        tb1Player1: tb1 ? (d.tb1Player1 ?? null) : null,
+        tb1Player2: tb1 ? (d.tb1Player2 ?? null) : null,
+        winnerId: setWinner(d.set1Player1, d.set1Player2) === 1 ? player1Id : player2Id,
+      }
+    })
+
+/** Games del set que se guardan en un W/O: 4-0 en set a 4, 6-0 en el resto. */
+export function walkoverGames(matchFormat: MatchFormat): number {
+  return matchFormat === 'SHORT_SET_4' ? 4 : 6
+}
+
+const walkoverSchema = (matchFormat: MatchFormat, player1Id: string, player2Id: string) =>
   z
     .object({
       winnerId: z.string(),
@@ -222,8 +292,8 @@ const walkoverSchema = (player1Id: string, player2Id: string) =>
       const p1Wins = d.winnerId === player1Id
       return {
         walkover: true as const,
-        set1Player1: p1Wins ? 6 : 0,
-        set1Player2: p1Wins ? 0 : 6,
+        set1Player1: p1Wins ? walkoverGames(matchFormat) : 0,
+        set1Player2: p1Wins ? 0 : walkoverGames(matchFormat),
         tb1Player1: null,
         tb1Player2: null,
         set2Player1: null,
@@ -242,7 +312,7 @@ export function createMatchResultSchema(
   player2Id: string,
   walkover = false
 ) {
-  if (walkover) return walkoverSchema(player1Id, player2Id)
+  if (walkover) return walkoverSchema(matchFormat, player1Id, player2Id)
 
   switch (matchFormat) {
     case 'SINGLE_SET':
@@ -251,5 +321,7 @@ export function createMatchResultSchema(
       return twoSetsSuperTbSchema(player1Id, player2Id)
     case 'BEST_OF_THREE':
       throw new Error('Formato BEST_OF_THREE no soportado todavía')
+    case 'SHORT_SET_4':
+      return shortSet4Schema(player1Id, player2Id)
   }
 }
