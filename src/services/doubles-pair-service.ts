@@ -56,6 +56,23 @@ export interface MatchPairs {
   side2: DoublesPair | null
 }
 
+/**
+ * Integrante de una pareja sin datos de contacto: lo único que puede llegar a un
+ * componente de cliente (`email?: never` hace que pasar un `PairMember` no compile).
+ * Convertir con `toPublicPairs` (src/lib/pair-display.ts).
+ */
+export type PublicPairMember = Omit<PairMember, 'email'> & { email?: never }
+
+export interface PublicDoublesPair extends Omit<DoublesPair, 'captain' | 'partner'> {
+  captain: PublicPairMember
+  partner: PublicPairMember
+}
+
+export interface PublicMatchPairs {
+  side1: PublicDoublesPair | null
+  side2: PublicDoublesPair | null
+}
+
 /** Lo mínimo de un partido para saber de qué lado está cada pareja. */
 export interface MatchSidesRef {
   categoryId: string | null

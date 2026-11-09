@@ -11,7 +11,6 @@ import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/l
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { HeadToHeadLine } from '@/components/head-to-head-line'
 import { getLadderRanking } from '@/services/ladder-service'
-import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
@@ -40,11 +39,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!match) return { title: 'Partido no encontrado' }
 
   const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
-  const p1 = matchSideName(pairs, 1, match.player1)
-  const p2 = matchSideName(pairs, 2, match.player2)
+  const p1 = matchSideName(pairs, 1, match)
+  const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
   const title = `${p1} vs ${p2} - ${context}`
-  const detail = pairs ? ` - Dobles, ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
+  const detail = pairs ? ` - Dobles · ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
   const description = `${p1} vs ${p2}${detail} - ${context}`
 
   return { title, description, openGraph: { title, description } }
@@ -58,8 +57,8 @@ export default async function PartidoPublicPage({ params }: Props) {
 
   // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
   const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
-  const p1Name = matchSideName(pairs, 1, match.player1) || 'Jugador 1'
-  const p2Name = matchSideName(pairs, 2, match.player2) || 'Jugador 2'
+  const p1Name = matchSideName(pairs, 1, match) || 'Jugador 1'
+  const p2Name = matchSideName(pairs, 2, match) || 'Jugador 2'
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Get player slugs for linking

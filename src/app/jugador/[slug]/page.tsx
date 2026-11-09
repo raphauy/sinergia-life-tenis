@@ -9,6 +9,7 @@ import { blobUrl } from '@/lib/blob-url'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
+import { doublesGuestEmails, toCardMatch } from '@/lib/pair-display'
 import { getUpcomingMatches, getMatchesByPlayer } from '@/services/match-service'
 import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { getInbox, getChallengeState, getMemberChallenges } from '@/services/challenge-service'
@@ -329,7 +330,8 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
                   {upcoming.map((m) => (
                     <FixtureMatchCard
                       key={m.id}
-                      match={m}
+                      match={toCardMatch(m)}
+                      guestEmails={doublesGuestEmails(m.pairs, canAct ? userId : null)}
                       showDate
                       player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                       player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
@@ -356,7 +358,7 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
                   {recentPlayed.map((m) => (
                     <FixtureMatchCard
                       key={m.id}
-                      match={m}
+                      match={toCardMatch(m)}
                       showDate
                       player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                       player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}

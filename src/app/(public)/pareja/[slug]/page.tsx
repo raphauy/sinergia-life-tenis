@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const found = await getPairByPublicSlug(slug)
   if (!found) return { title: 'Pareja no encontrada' }
   const name = pairFullName(found.pair)
-  const title = `${name} - ${found.tournament.name} - Life Tenis`
+  const title = `${name} - ${found.tournament.name}`
   const description = `${name}: pareja del ${found.tournament.name} (dobles) en Life Montevideo. Grupo, posición y partidos.`
   return { title, description, openGraph: { title, description } }
 }

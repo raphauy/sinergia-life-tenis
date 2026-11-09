@@ -6,6 +6,7 @@ import { getReservationsByMatchIds } from '@/services/reservation-service'
 import { getLadderRanking } from '@/services/ladder-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { FixtureMatchCard } from '@/components/fixture-match-card'
+import { doublesGuestEmails, toCardMatch } from '@/lib/pair-display'
 import { fullName } from '@/lib/format-name'
 
 interface Props {
@@ -80,7 +81,8 @@ export default async function JugadorPartidosPage({ params }: Props) {
             {upcoming.map((m) => (
               <FixtureMatchCard
                 key={m.id}
-                match={m}
+                match={toCardMatch(m)}
+                guestEmails={doublesGuestEmails(m.pairs, userId)}
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}
@@ -105,7 +107,7 @@ export default async function JugadorPartidosPage({ params }: Props) {
             {played.map((m) => (
               <FixtureMatchCard
                 key={m.id}
-                match={m}
+                match={toCardMatch(m)}
                 showDate
                 player1Slug={m.player1Id ? playerMap.get(m.player1Id) : undefined}
                 player2Slug={m.player2Id ? playerMap.get(m.player2Id) : undefined}

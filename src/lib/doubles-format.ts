@@ -16,6 +16,24 @@ export function groupName(number: number, isDoubles: boolean): string {
   return isDoubles ? groupLetter(number) : String(number)
 }
 
+/** De dónde sale un lado de la Definición sin pareja todavía: "1° Grupo A", "Ganador Semifinal 1". */
+export function doublesSlotLabel(
+  m: {
+    stage: MatchStage
+    player1SourceGroup?: { number: number } | null
+    player2SourceGroup?: { number: number } | null
+    player1SourcePosition?: number | null
+    player2SourcePosition?: number | null
+  },
+  side: 1 | 2
+): string {
+  const group = side === 1 ? m.player1SourceGroup : m.player2SourceGroup
+  const position = side === 1 ? m.player1SourcePosition : m.player2SourcePosition
+  if (group && position != null) return `${position}° Grupo ${groupLetter(group.number)}`
+  if (m.stage === 'FINAL') return `Ganador Semifinal ${side}`
+  return 'Por definir'
+}
+
 /** "Grupo A", "Semifinal 1 · Copa de Oro", "Final · Copa de Plata". */
 export function doublesStageLabel(m: {
   stage: MatchStage

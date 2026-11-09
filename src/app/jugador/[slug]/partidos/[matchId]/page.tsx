@@ -42,12 +42,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const match = await getMatchById(matchId)
   if (!match) return { title: 'Partido' }
   const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
-  const p1 = matchSideName(pairs, 1, match.player1)
-  const p2 = matchSideName(pairs, 2, match.player2)
+  const p1 = matchSideName(pairs, 1, match)
+  const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
+  const detail = pairs ? ` - Dobles · ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
   return {
     title: `${p1} vs ${p2} - ${context}`,
-    description: `${p1} vs ${p2}${match.category ? ` - Categoría ${match.category.name}` : ''} - ${context}`,
+    description: `${p1} vs ${p2}${detail} - ${context}`,
   }
 }
 
@@ -95,8 +96,8 @@ export default async function MatchDetailPage({ params }: Props) {
 
   // Nombres y slugs de perfil para linkear los nombres de los jugadores.
   // En dobles los nombres son las parejas y linkean a /pareja/[slug].
-  const p1Name = matchSideName(pairs, 1, match.player1)
-  const p2Name = matchSideName(pairs, 2, match.player2)
+  const p1Name = matchSideName(pairs, 1, match)
+  const p2Name = matchSideName(pairs, 2, match)
   const slugMap = pairs
     ? new Map<string, string>()
     : await getPlayerSlugsByUserIds([match.player1Id, match.player2Id].filter((id): id is string => !!id))

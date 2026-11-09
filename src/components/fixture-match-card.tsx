@@ -14,7 +14,7 @@ import { blobUrl } from '@/lib/blob-url'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { HeadToHeadLine } from '@/components/head-to-head-line'
 import type { HeadToHead } from '@/services/head-to-head-service'
-import type { MatchPairs } from '@/services/doubles-pair-service'
+import type { PublicMatchPairs } from '@/services/doubles-pair-service'
 import { isUserInPair, pairShortName } from '@/lib/pair-display'
 import { groupName as formatGroupName } from '@/lib/doubles-format'
 
@@ -41,9 +41,10 @@ interface FixtureMatchCardProps {
     /**
      * Parejas de cada lado en partidos de dobles (lo traen `getUpcomingMatches` y
      * `getMatchesByPlayer`). Con parejas la card muestra "Pareja vs Pareja", linkea a
-     * /pareja/[slug] y cuenta como participante a los cuatro.
+     * /pareja/[slug] y cuenta como participante a los cuatro. Sin emails: convertir
+     * con `toPublicPairs` en el servidor.
      */
-    pairs?: MatchPairs | null
+    pairs?: PublicMatchPairs | null
     group?: { id: string; number: number } | null
     result: {
       walkover: boolean
@@ -91,6 +92,11 @@ interface FixtureMatchCardProps {
    * fue a él. Sin este prop la card queda neutral (fixture público).
    */
   perspectiveUserId?: string | null
+  /**
+   * Dobles: invitados al evento "Agendar" (los otros tres), calculados en el servidor
+   * con `doublesGuestEmails` solo si el viewer juega el partido.
+   */
+  guestEmails?: string[]
 }
 
 function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number, groupName: (n: number) => string = String): string {
@@ -147,7 +153,7 @@ function PlayerName({
   return <span className={weight}>{name}</span>
 }
 
-export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank, perspectiveUserId, headToHead }: FixtureMatchCardProps) {
+export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = false, currentUserId, currentPlayerSlug, reservation, fallbackDate, ladderPreview, ladderResultDeltas, player1Rank, player2Rank, perspectiveUserId, headToHead, guestEmails: doublesGuests }: FixtureMatchCardProps) {
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
@@ -266,16 +272,11 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   // espectador → "{p1} vs {p2}". El court va en la ubicación del evento.
   // Invitar al rival solo si el viewer es participante (un espectador no debe invitar a
   // los jugadores). El rival es el otro jugador del partido.
-  // En dobles se invita a los otros tres (compañero y pareja rival).
-  const ownPair = viewerSide === 1 ? side1 : viewerSide === 2 ? side2 : null
-  const rivalPair = viewerSide === 1 ? side2 : viewerSide === 2 ? side1 : null
+  // En dobles los invitados (los otros tres) vienen calculados del servidor.
   const guestEmails = !isParticipant
     ? []
     : isDoubles
-      ? [
-          ...(ownPair ? [ownPair.captain, ownPair.partner].filter((m) => m.userId !== currentUserId).map((m) => m.email) : []),
-          ...(rivalPair ? [rivalPair.captain.email, rivalPair.partner.email] : []),
-        ]
+      ? doublesGuests ?? []
       : [(viewerSide === 1 ? match.player2?.email : match.player1?.email) ?? null].filter((e): e is string => !!e)
   const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt && !matchPassed ? (
     <span onClick={(e) => e.stopPropagation()}>
