@@ -32,6 +32,8 @@ import {
 } from '@/services/ladder-player-stats-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { getActivePlayerSlugByUserId, getCanonicalPlayerSlugs } from '@/services/player-service'
+import { getPairsForUser } from '@/services/doubles-pair-service'
+import { PlayerDoublesSection, PlayerDoublesSectionSkeleton } from '@/components/doubles/player-doubles-section'
 import { ChallengeControl } from '@/components/challenge-control'
 import { ProfileTabs } from '@/components/profile-tabs'
 import { StatTiles } from '@/components/stat-tiles'
@@ -119,7 +121,9 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
   // Fetch matches if player has a linked user
   const upcomingRaw = userId ? await getUpcomingMatches(userId) : []
   const allMatches = userId ? await getMatchesByPlayer(userId) : []
-  const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED').slice(0, 20)
+  // Parejas de dobles: sus partidos jugados van en la sección Dobles, no en el historial.
+  const doublesPairs = userId ? await getPairsForUser(userId) : []
+  const recentPlayed = allMatches.filter((m) => m.status === 'PLAYED' && !m.pairs).slice(0, 20)
 
   // Sort upcoming: confirmed first, then by date
   const upcoming = [...upcomingRaw].sort((a, b) => {
@@ -275,6 +279,13 @@ export default async function JugadorProfilePage({ params, searchParams }: Props
           </div>
         )}
       </div>
+
+      {/* Dobles: su pareja y esos partidos (solo si jugó dobles) */}
+      {doublesPairs.length > 0 && (
+        <Suspense fallback={<PlayerDoublesSectionSkeleton />}>
+          <PlayerDoublesSection pairs={doublesPairs} />
+        </Suspense>
+      )}
 
       {/* Tabs: Estadísticas (default, pública) | Partidos (lo operativo). ?tab=partidos
           deep-linkea; un perfil sin membresía en La Escalera cae directo en Partidos. */}
