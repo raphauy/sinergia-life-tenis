@@ -1,0 +1,110 @@
+{
+  "tournament": {
+    "name": "Copa Summum",
+    "slug": "copa-summum",
+    "date": "2026-11-14",
+    "description": "Torneo de dobles por grupos con Copa de Oro y Copa de Plata."
+  },
+  "groups": [
+    {
+      "name": "A",
+      "startTime": "08:00",
+      "pairs": [
+        [
+          "capitan1@ejemplo.com",
+          "companero1@ejemplo.com"
+        ],
+        [
+          "capitan2@ejemplo.com",
+          "companero2@ejemplo.com"
+        ],
+        [
+          "capitan3@ejemplo.com",
+          "companero3@ejemplo.com"
+        ],
+        [
+          "capitan4@ejemplo.com",
+          "companero4@ejemplo.com"
+        ]
+      ]
+    },
+    {
+      "name": "B",
+      "startTime": "09:00",
+      "pairs": [
+        [
+          "capitan5@ejemplo.com",
+          "companero5@ejemplo.com"
+        ],
+        [
+          "capitan6@ejemplo.com",
+          "companero6@ejemplo.com"
+        ],
+        [
+          "capitan7@ejemplo.com",
+          "companero7@ejemplo.com"
+        ],
+        [
+          "capitan8@ejemplo.com",
+          "companero8@ejemplo.com"
+        ]
+      ]
+    },
+    {
+      "name": "C",
+      "startTime": "10:00",
+      "pairs": [
+        [
+          "capitan9@ejemplo.com",
+          "companero9@ejemplo.com"
+        ],
+        [
+          "capitan10@ejemplo.com",
+          "companero10@ejemplo.com"
+        ],
+        [
+          "capitan11@ejemplo.com",
+          "companero11@ejemplo.com"
+        ],
+        [
+          "capitan12@ejemplo.com",
+          "companero12@ejemplo.com"
+        ]
+      ]
+    },
+    {
+      "name": "D",
+      "startTime": "11:00",
+      "pairs": [
+        [
+          "capitan13@ejemplo.com",
+          "companero13@ejemplo.com"
+        ],
+        [
+          "capitan14@ejemplo.com",
+          "companero14@ejemplo.com"
+        ],
+        [
+          "capitan15@ejemplo.com",
+          "companero15@ejemplo.com"
+        ],
+        [
+          "capitan16@ejemplo.com",
+          "companero16@ejemplo.com"
+        ]
+      ]
+    }
+  ],
+  "finals": {
+    "semis": [
+      "12:00",
+      "12:30"
+    ],
+    "final": "13:00",
+    "courts": [
+      1,
+      2
+    ]
+  },
+  "matchMinutes": 20
+}

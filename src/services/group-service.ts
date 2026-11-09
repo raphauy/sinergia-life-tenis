@@ -177,13 +177,18 @@ export async function generateRoundRobinMatches(groupId: string) {
   const group = await prisma.group.findUniqueOrThrow({
     where: { id: groupId },
     include: {
-      category: { select: { id: true, tournamentId: true } },
+      category: { select: { id: true, tournamentId: true, tournament: { select: { modality: true } } } },
       players: {
         where: { isActive: true, userId: { not: null } },
         select: { userId: true },
       },
     },
   })
+
+  if (group.category.tournament.modality === 'DOUBLES') {
+    // Los partidos de dobles los crea el script de carga; acá saldrían cruces con los compañeros.
+    throw new Error('Es un torneo de dobles: los partidos de grupo los arma el script de carga.')
+  }
 
   const userIds = group.players.map((p) => p.userId!)
 

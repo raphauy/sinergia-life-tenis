@@ -46,6 +46,13 @@ enum Cup {
   SILVER
 }
 
+// Torneo de singles (un jugador por lado) o de dobles (Pareja por lado, ver
+// DoublesPair y ADR 0002). Dice cuándo leer los partidos por pareja.
+enum TournamentModality {
+  SINGLES
+  DOUBLES
+}
+
 enum ImportedPlayerStatus {
   PENDING
   PROCESSED
@@ -180,6 +187,7 @@ model Tournament {
   description String?
   rules       String?
   matchFormat MatchFormat  @default(SINGLE_SET)
+  modality    TournamentModality @default(SINGLES)
   startDate   DateTime
   endDate     DateTime
   finalsDate  DateTime?
@@ -210,6 +218,7 @@ model TournamentCategory {
   players    Player[]
   matches    Match[]
   groups     Group[]
+  doublesPairs DoublesPair[]
 
   @@unique([tournamentId, name])
   @@index([tournamentId])
@@ -255,6 +264,8 @@ model Player {
   tournament Tournament         @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   category   TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   group      Group?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  captainOf  DoublesPair?       @relation("PairCaptain")
+  partnerOf  DoublesPair?       @relation("PairPartner")
 
   @@unique([tournamentId, email])
   @@index([tournamentId])
@@ -264,6 +275,29 @@ model Player {
   @@index([groupId])
   @@index([invitationToken])
   @@index([slug])
+}
+
+// Pareja de un torneo de dobles (ADR 0002). En Match/MatchResult va el User del
+// capitán (representante); el compañero se deriva por esta tabla. El capitán es
+// invisible en la UI: solo fija el orden de nombres y del slug.
+model DoublesPair {
+  id              String   @id @default(cuid())
+  categoryId      String
+  captainPlayerId String
+  partnerPlayerId String
+  // apellido1-apellido2, único dentro de la categoría (perfil /pareja/[slug]).
+  slug            String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category TournamentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  captain  Player             @relation("PairCaptain", fields: [captainPlayerId], references: [id], onDelete: Cascade)
+  partner  Player             @relation("PairPartner", fields: [partnerPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, slug])
+  @@unique([captainPlayerId])
+  @@unique([partnerPlayerId])
+  @@index([categoryId])
 }
 
 // Polimórfico (ADR 0001): un partido es de torneo (tournamentId+categoryId) XOR de
