@@ -1,7 +1,7 @@
 # QA Copa Summum — torneo de dobles (rama `dobles`)
 
 - Fecha: 2026-11-09
-- Ciclo: 1
+- Ciclo: 3
 - Modo: rama `dobles` completa (tickets #5, #6, #7, #8, #9, #10, #11, #12, #13 del mapa #1)
 - Viewport principal: **mobile 375×667** (87 % de los usuarios); un caso de desktop 1280×800.
 - Base: branch de Neon `dobles` con el torneo de prueba `copa-summum` cargado con **32 jugadores inventados** (`qa.dobles.01..32@life-tenis.test`). La mitad (los impares, capitanes) tiene además una ficha de singles en `singles-apertura-2026` (slug `<nombre>-<apellido>-qa`); la otra mitad (compañeros) solo tiene la ficha de dobles.
@@ -41,21 +41,25 @@
   - Estado: ✓ pasa
   - Esperado: login por OTP → redirige a su panel (`/jugador/<slug de dobles>`, es su única ficha). "Próximos partidos": los partidos de dobles de su pareja con la acción de cargar resultado habilitada aunque él no sea el capitán; los ya jugados muestran ganado/perdido correcto para su pareja. Abrir el partido pendiente del grupo A: el detalle muestra las dos parejas y "Rival: <nombres completos>", sin bloque de coordinación ni de reserva. Cargar 4-3 con tiebreak 5-3 → éxito; el detalle muestra "4-3(5)"; en el home la fila del partido muestra el score y la tabla del Grupo A tiene PJ 6/6 con 1° y 2° resaltados.
 
-- [ ] **J2 · Validación del formato set a 4**
-  - Estado: ✗ falla
-  - Error: con 4-3 y el tiebreak vacío el mensaje es "Tiebreak inválido (mínimo 5 puntos, diferencia de 2)", no "Tiebreak requerido para set 4-3". El form manda `""` y `tbField` (`z.coerce.number()` en `src/lib/validations/match-result.ts`) lo convierte en 0, así que la rama "requerido" nunca se alcanza. El resto pasa: TB 5-4 da "Tiebreak inválido…", TB 3-5 da "El ganador del tiebreak no coincide…", 3-2 da "Score de set inválido (set a 4: 4-0, 4-1, 4-2 o 4-3)", 5-2 lo frena la validación nativa del input (`max=4`, "Value must be less than or equal to 4."), 4-3 con TB 7-5 se guarda ("4-3(5)") y la ayuda dice "Set a 4 (sin ventaja, mini tiebreak a 5 en 3-3)…".
+- [x] **J2 · Validación del formato set a 4**
+  - Estado: ✅ pasa tras fix
+  - Ciclo 3 (HEAD `e5c71f3`, dev server reiniciado): 4-3 con TB vacíos → "Tiebreak requerido para set 4-3"; TB 5-4 → "Tiebreak inválido (mínimo 5 puntos, diferencia de 2)"; borrar los TB después de cargarlos → otra vez "Tiebreak requerido para set 4-3"; TB 5-3 → guarda, "Jugado", "4-3(3)", "Ganador: Nico T. / Fede A.". Partido `cmw9rk77r00145bm0d92j9lx2`, login qa.dobles.04.
+  - Error (ciclo 2): con 4-3 y los dos tiebreaks vacíos el mensaje ahora es **"Invalid input: expected number, received NaN"** (en inglés, de Zod), no "Tiebreak requerido para set 4-3". Lo mismo pasa al borrar los TB después de haberlos cargado. El resto pasa: 4-3 + TB 5-4 → "Tiebreak inválido (mínimo 5 puntos, diferencia de 2)"; 4-3 + TB 5-3 → guarda y el detalle muestra "4-3(3)", "Ganador: Nico T. / Fede A.". Raro: el mismo `createMatchResultSchema('SHORT_SET_4', …)` corrido con `pnpm tsx` fuera de Next, con el mismo payload que loguea el server (`{"set1Player1":"4","set1Player2":"3","tb1Player1":"",…}`), sí da "Tiebreak requerido para set 4-3" (con y sin `z.config({ jitless })`), y el chunk compilado en `.next/dev` tiene el `tbField` nuevo (`z.preprocess(emptyToUndefined, z.coerce.number()…optional())`). O sea que la diferencia está en cómo corre dentro del server action (Next 16 + Zod 4.3.6), no en el schema leído aislado. Lo mismo rompe singles/La Escalera (ver R2).
   - Reproducción:
-    1. Login como qa.dobles.10 (Maxi Machado), abrir `/jugador/maximiliano-machado/partidos/<Agus S. / Maxi M. vs Guille N. / Rodri B.>` (estado `grupoA`).
-    2. Cargar 4 y 3 en el set, dejar vacíos los dos TB y tocar "Cargar resultado".
-  - Evidencia: docs/qa/evidence/copa-summum/j2-tiebreak-vacio.png
-  - Esperado (en un partido pendiente de otro grupo, como el jugador que corresponda): 4-3 sin tiebreak → error "Tiebreak requerido"; 5-2 → error de set inválido; 4-3 con TB 5-4 → error (diferencia de 2); 4-3 con TB 7-5 → válido. Los inputs de games no dejan elegir más de 4. El texto de ayuda menciona el set a 4 y el mini tiebreak.
+    1. Estado `grupoA`. Login como qa.dobles.04 (Federico Acosta; el partido pendiente del grupo A es "Nico T. / Fede A. vs Santi O. / Fran C.", levantado con un script de inspección de solo lectura).
+    2. `/jugador/federico-acosta/partidos/<id>` → cargar 4 y 3, dejar vacíos los TB → "Cargar resultado".
+  - Evidencia: docs/qa/evidence/copa-summum/j2-tiebreak-vacio-c2.png
+  - Ciclo 1: con el TB vacío daba "Tiebreak inválido (mínimo 5 puntos…)" porque `z.coerce.number()` convertía "" en 0.
+  - Esperado: 4-3 sin tiebreak → "Tiebreak requerido para set 4-3"; 4-3 con TB 5-4 → "Tiebreak inválido…"; 4-3 con TB 5-3 → válido, "4-3(3)".
 
 - [x] **J3 · Rival (qa.dobles.03) no puede cargar un partido ajeno ni repetir uno cargado**
   - Estado: ✓ pasa
   - Esperado: logueado como Nicolás Techera, abrir el partido que cargó J1 → se ve el resultado, sin formulario. Abrir por URL un partido de otro grupo donde no juega (`/jugador/<su slug>/partidos/<id ajeno>`) → acceso denegado/redirect, no formulario. Como público, `/jugador/<slug>/partidos` → login.
 
-- [ ] **A2 · Admin carga un resultado viendo parejas**
-  - Estado: ✗ falla
+- [x] **A2 · Admin carga un resultado viendo parejas**
+  - Estado: ✅ pasa tras fix
+  - Ciclo 2: "Techera" encuentra 3 partidos, los de "Nico T. / Fede A." (con "Tincho P. / Seba S.", "Ale L. / Gonza F." y "Santi O. / Fran C."); "Nico" encuentra 13 (los 3 de dobles + singles/escalera de Nicolás R. V. y Nicolas Puig); "Romero" (singles) sigue encontrando 7 (Juan y Joaquín Romero).
+  - Ciclo 1 (falló):
   - Error: el buscador de `/admin/partidos` no encuentra partidos de dobles por apellido: con "Techera" da "0 partido(s) · No hay partidos." (con y sin el filtro de Copa Summum). En `src/app/admin/partidos/page.tsx` filtra solo sobre `side1Name`/`side2Name`, que en dobles son los nombres cortos ("Nico T. / Fede A."). "Nico" sí encuentra. El resto pasa: el listado filtrado muestra parejas ("Tincho P. / Seba S. vs Nico T. / Fede A."), el detalle muestra las parejas en el título y en el formulario, cargar 4-1 funciona y "Ganador: Agus S. / Maxi M.".
   - Reproducción:
     1. Login como rapha.uy@rapha.uy, ir a `/admin/partidos`, filtrar por "Copa Summum".
@@ -65,8 +69,10 @@
 
 ### Avance del cuadro (estados `grupos`, `semis`, `final`)
 
-- [ ] **P5 · Estado `grupos`: Definición arriba con parejas, calendario con parejas**
-  - Estado: ✗ falla
+- [x] **P5 · Estado `grupos`: Definición arriba con parejas, calendario con parejas**
+  - Estado: ✅ pasa tras fix
+  - Ciclo 2: el detalle del 7/11 lista los 30 partidos. Turno 08:00: los 6 del grupo A, los de :20/:40 con la hora adelante ("08:20 · Cancha 1 | Cat Dobles | Grupo A"). Turnos 09:00 y 10:00: la línea violeta "Reservado para clase grupal" y debajo los 6 partidos del grupo B y C. Turno 12:00 (el último): semis de 12:00 y 12:30 y finales de 13:00 con "Oro · " / "Plata · " ("13:00 · Cancha 1 | Cat Dobles / Oro · Ganador Semifinal 1 vs Ganador Semifinal 2"). El 14/11: 08:00–12:00 "Reservado Copa Summum". A 375 px se lee bien, sin desborde (scrollWidth 360); los nombres de las semis de Oro/Plata pasan a dos líneas, nada se corta. Evidencia (de referencia, no de fallo): docs/qa/evidence/copa-summum/p5-calendario-07-11-c2.png
+  - Ciclo 1 (falló):
   - Error: el home pasa (grupos decididos con 1° y 2° resaltados y el pie "1° → Copa de Oro, 2° → Copa de Plata"; Definición arriba con Oro "Tincho P. / Seba S. vs Agus S. / Maxi M." y "Dani R. / Edu P. vs Vicky B. / Nati R.", Plata entre los 2°, 12:00/12:30 · C1/C2). Lo que falla es el detalle del día en `/calendario`: `DailyScheduleView` agrupa por turnos en punto (`getSlotsForDay`), así que los partidos de :20 y :40 (dos tercios de los de grupo), las semis de 12:30 y las finales de 13:00 no aparecen. Además un turno bloqueado tapa los partidos: el 7/11 (día de prueba) los de 09:00 y 10:00 quedan bajo "Reservado para clase grupal", y el 14/11 real, con `DATE_BLOCKS` de todo el día, cada turno dice solo "Reservado Copa Summum" y no se lista ningún partido. Lo que sí se ve bien: el formato de parejas ("Cancha 1 | Cat Dobles | Grupo A / Tincho P. / Seba S. vs Nico T. / Fede A."), las semis con "Oro · …" / "Plata · …" y el 14/11 marcado como cerrado (rojo) en el mes.
   - Reproducción:
     1. Estado `grupos` (partidos corridos al 7/11). Ir a `/calendario` como público.
@@ -111,6 +117,16 @@
   - Estado: ✓ pasa
   - Esperado: apagar el switch → el home vuelve a La Escalera y la Copa Summum queda en el archivo "Torneos" al pie, linkeando a `/torneo/copa-summum`, que sigue mostrando la vista de dobles.
 
+- [x] **R2 · Singles/La Escalera: 7-6 sin tiebreak**
+  - Estado: ✅ pasa tras fix
+  - Ciclo 3: en `/admin/partidos/cms67lnia0001k0040l4y73ph`, 7-6 con TB vacíos → "Tiebreak requerido para set 7-6". No se guardó nada. El 6-3 no se probó en la UI: la carga del admin no pide confirmación y habría guardado. Con el schema fuera de Next (`SINGLE_SET`, TB "") el 6-3 da válido, con TB `null`.
+  - Error: regresión del fix de J2. En un partido de La Escalera (`SINGLE_SET`), 7-6 con los TB vacíos da "Invalid input: expected number, received NaN" en vez de "Tiebreak requerido para set 7-6". Es el mismo `tbField` compartido por todos los formatos. No se guardó nada.
+  - Reproducción:
+    1. Login como rapha.uy@rapha.uy, abrir `/admin/partidos/cms67lnia0001k0040l4y73ph` (Mateo Méndez vs Dalia Mattos, escalera, confirmado sin resultado).
+    2. Cargar 7 y 6, dejar los TB vacíos → "Cargar resultado" (`adminLoadResultAction`).
+  - Evidencia: docs/qa/evidence/copa-summum/r2-singles-7-6-c2.png
+  - Esperado: "Tiebreak requerido para set 7-6".
+
 ## Notas
 
 - **Fechas de prueba:** el script de estados corre los 30 partidos al 07/11/2026 (anteayer) para poder cargar resultados, porque el jugador no puede cargar un partido futuro ("Podrás cargar el resultado una vez que se juegue el partido"). En `pre` real (14/11, futuro) "Cargar resultado →" sale deshabilitado: es la regla de siempre, no un bug. Por las fechas corridas, el estado del día del home dice "6 de 30 partidos jugados" o "24 de 30…" en vez de "Arranca a las 08:00", y el "en juego" (borde destacado) no se verificó. El torneo quedó en `pre` con los partidos el 07/11 y la portada apagada (`featuredOnHome=false`).
@@ -125,3 +141,21 @@
 - Los títulos de pestaña de `/torneo/*`, `/jugador/*` y `/pareja/*` repiten la marca ("Copa Summum - Life Tenis | Life Tenis"). Pasa igual en singles (`/jugador/juan-romero`), así que no es de esta rama.
 - El "Agendar" del panel del jugador crea un evento de 1 h para partidos de 20 min. En el panel propio el título es "Tenis vs Santi O. / Fran C." e invita a los otros tres.
 - A 375 px no hubo scroll horizontal en ninguna página revisada: home, `/torneo`, `/pareja`, `/jugador`, `/calendario`, `/perfil` y el detalle de partido (scrollWidth ≤ 375).
+
+## Ciclo 2
+
+Re-test en mobile 375×667 (HEAD `6c37845`) de los ✗ del ciclo 1 y de las observaciones de las notas.
+
+- **A2** ✅ y **P5** ✅ pasan tras el fix.
+- **J2** ✗: el mensaje con tiebreak vacío cambió a "Invalid input: expected number, received NaN". **R2** ✗ (nuevo): lo mismo pasa con 7-6 en singles/escalera. Es una regresión del fix y afecta a los tres formatos con tiebreak. Fuera de Next, el schema da el mensaje correcto. El problema está en el camino del server action.
+- **Admin de grupos en dobles** ✓: en `/admin/torneos/copa-summum` la sección Grupos no tiene "Crear grupo", "Jugadores", "Generar partidos" ni el tacho, y muestra "Los grupos de dobles los arma el script de carga (scripts/cargar-dobles.ts); se muestran por persona.". En `/admin/torneos/singles-apertura-2026` los botones siguen.
+- **Cuadro del admin en dobles** ✓: en `pre`, "1° Grupo A vs 1° Grupo B" y la final "Ganador Semifinal 1 vs Ganador Semifinal 2". En `grupos`, las semis muestran parejas con nombre corto (Oro "Santi O. / Fran C. vs Agus S. / Maxi M."; Plata "Tincho P. / Seba S. vs Guille N. / Rodri B.") y las finales siguen "Ganador Semifinal 1/2".
+- **P6 · Título de campeones** ✓: a 375 px, "🏆 Copa de Oro" en una línea y "Campeones: Marce F. / Gabi G." abajo, alineado con el texto, sin apretarse. A 1280, una sola línea "Copa de Oro · Campeones: …".
+- **P2 · Fila de partido** ✓: en el home, jugado → score y abajo "08:00 · Cancha 1"; pendiente → "09:00" y abajo "Cancha 1". Es coherente.
+- **Regresión singles**: en noviembre no hay partidos de singles ni de La Escalera en `/calendario` (solo el 7/11 con los 30 de dobles), así que no se pudo comparar el detalle del día. El mensaje 7-6 falla (R2).
+- La base quedó en `pre` (0 resultados, partidos el 07/11) con la portada apagada.
+
+## Ciclo 3
+
+- **J2** ✅ y **R2** ✅ pasan tras el fix (HEAD `e5c71f3`, dev server reiniciado, mobile 375×667): ya no aparece "NaN"; con TB vacíos salen "Tiebreak requerido para set 4-3" y "… 7-6".
+- La base quedó en `pre` con la portada apagada. El partido de escalera de R2 sigue confirmado y sin resultado.
