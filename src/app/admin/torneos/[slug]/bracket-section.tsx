@@ -324,17 +324,23 @@ function CategoryBracketCard({
             )}
             {hasBracket && (
               <>
-                {/* Los cuadros por copa los arma el script de carga: no se regeneran. */}
-                {!hasCups && (
-                  <Button size="sm" variant="outline" onClick={openRegenerate} disabled={isPending}>
-                    <RefreshCw className="h-4 w-4 mr-1" />
-                    Regenerar
-                  </Button>
+                {/* Los cuadros por copa los arma el script de carga: no se regeneran ni se eliminan. */}
+                {hasCups ? (
+                  <p className="text-xs text-muted-foreground">
+                    El cuadro de dobles lo administra el script de carga (<code>scripts/cargar-dobles.ts --reset</code>).
+                  </p>
+                ) : (
+                  <>
+                    <Button size="sm" variant="outline" onClick={openRegenerate} disabled={isPending}>
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Regenerar
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => setConfirmOpen('delete')} disabled={isPending}>
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Eliminar
+                    </Button>
+                  </>
                 )}
-                <Button size="sm" variant="destructive" onClick={() => setConfirmOpen('delete')} disabled={isPending}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Eliminar
-                </Button>
               </>
             )}
           </div>
@@ -442,14 +448,6 @@ function CategoryBracketCard({
             <AlertDialogTitle>Eliminar bracket de Categoría {category.name}</AlertDialogTitle>
             <AlertDialogDescription>
               Se borran los partidos de cuartos, semis y final (incluyendo resultados y reservas si existen). La fase de grupos no se toca.
-              {hasCups && (
-                <>
-                  {' '}
-                  <strong>
-                    Esta categoría tiene Copa de Oro y Copa de Plata. Si eliminás el cuadro, no se puede volver a armar desde acá: hay que correr de nuevo el script de carga.
-                  </strong>
-                </>
-              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
