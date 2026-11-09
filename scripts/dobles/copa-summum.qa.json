@@ -1,0 +1,110 @@
+{
+  "tournament": {
+    "name": "Copa Summum",
+    "slug": "copa-summum",
+    "date": "2026-11-14",
+    "description": "Torneo de dobles por grupos con Copa de Oro y Copa de Plata."
+  },
+  "groups": [
+    {
+      "name": "A",
+      "startTime": "08:00",
+      "pairs": [
+        [
+          "qa.dobles.01@life-tenis.test",
+          "qa.dobles.02@life-tenis.test"
+        ],
+        [
+          "qa.dobles.03@life-tenis.test",
+          "qa.dobles.04@life-tenis.test"
+        ],
+        [
+          "qa.dobles.05@life-tenis.test",
+          "qa.dobles.06@life-tenis.test"
+        ],
+        [
+          "qa.dobles.07@life-tenis.test",
+          "qa.dobles.08@life-tenis.test"
+        ]
+      ]
+    },
+    {
+      "name": "B",
+      "startTime": "09:00",
+      "pairs": [
+        [
+          "qa.dobles.09@life-tenis.test",
+          "qa.dobles.10@life-tenis.test"
+        ],
+        [
+          "qa.dobles.11@life-tenis.test",
+          "qa.dobles.12@life-tenis.test"
+        ],
+        [
+          "qa.dobles.13@life-tenis.test",
+          "qa.dobles.14@life-tenis.test"
+        ],
+        [
+          "qa.dobles.15@life-tenis.test",
+          "qa.dobles.16@life-tenis.test"
+        ]
+      ]
+    },
+    {
+      "name": "C",
+      "startTime": "10:00",
+      "pairs": [
+        [
+          "qa.dobles.17@life-tenis.test",
+          "qa.dobles.18@life-tenis.test"
+        ],
+        [
+          "qa.dobles.19@life-tenis.test",
+          "qa.dobles.20@life-tenis.test"
+        ],
+        [
+          "qa.dobles.21@life-tenis.test",
+          "qa.dobles.22@life-tenis.test"
+        ],
+        [
+          "qa.dobles.23@life-tenis.test",
+          "qa.dobles.24@life-tenis.test"
+        ]
+      ]
+    },
+    {
+      "name": "D",
+      "startTime": "11:00",
+      "pairs": [
+        [
+          "qa.dobles.25@life-tenis.test",
+          "qa.dobles.26@life-tenis.test"
+        ],
+        [
+          "qa.dobles.27@life-tenis.test",
+          "qa.dobles.28@life-tenis.test"
+        ],
+        [
+          "qa.dobles.29@life-tenis.test",
+          "qa.dobles.30@life-tenis.test"
+        ],
+        [
+          "qa.dobles.31@life-tenis.test",
+          "qa.dobles.32@life-tenis.test"
+        ]
+      ]
+    }
+  ],
+  "finals": {
+    "semis": [
+      "12:00",
+      "12:30"
+    ],
+    "final": "13:00",
+    "courts": [
+      1,
+      2
+    ]
+  },
+  "matchMinutes": 20
+}

@@ -7,7 +7,7 @@
 - Base: branch de Neon `dobles` con el torneo de prueba `copa-summum` cargado con **32 jugadores inventados** (`qa.dobles.01..32@life-tenis.test`). La mitad (los impares, capitanes) tiene además una ficha de singles en `singles-apertura-2026` (slug `<nombre>-<apellido>-qa`); la otra mitad (compañeros) solo tiene la ficha de dobles.
 - URL: `http://life-tenis.localhost:3000` (dev server del worktree, `dev.log` con los OTP: `[EMAIL] OTP for <email>: 123456`).
 - Roles: público · PLAYER capitán `qa.dobles.01@life-tenis.test` (Martín Pereira, "Tincho P.", pareja `pereira-silveira`, Grupo A) · PLAYER compañero `qa.dobles.02@life-tenis.test` (Sebastián Silveira, "Seba S.", misma pareja; sin ficha de singles) · PLAYER rival `qa.dobles.03@life-tenis.test` (Nicolás Techera, capitán de `techera-acosta`, Grupo A) · SUPERADMIN `rapha.uy@rapha.uy`.
-- Estados del torneo (script `scripts/_qa-dobles-estado.ts <pre|grupoA|grupos|semis|final>`): `pre` = sin resultados; `grupoA` = 5 de los 6 partidos del grupo A (queda uno para cargar por UI); `grupos` = los 24 de grupo (semis con parejas); `semis` = + 4 semis (finales con parejas); `final` = campeones. Volver atrás: `pre`.
+- Estados del torneo (script `scripts/qa-dobles-estado.ts <pre|grupoA|grupos|semis|final>`): `pre` = sin resultados; `grupoA` = 5 de los 6 partidos del grupo A (queda uno para cargar por UI); `grupos` = los 24 de grupo (semis con parejas); `semis` = + 4 semis (finales con parejas); `final` = campeones. Volver atrás: `pre`.
 
 ## Casos de uso
 
