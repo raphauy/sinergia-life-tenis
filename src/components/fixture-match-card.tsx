@@ -14,6 +14,8 @@ import { blobUrl } from '@/lib/blob-url'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { HeadToHeadLine } from '@/components/head-to-head-line'
 import type { HeadToHead } from '@/services/head-to-head-service'
+import type { MatchPairs } from '@/services/doubles-pair-service'
+import { groupLetter, isUserInPair, pairShortName } from '@/lib/pair-display'
 
 interface FixtureMatchCardProps {
   match: {
@@ -34,6 +36,13 @@ interface FixtureMatchCardProps {
     bracketPosition?: number | null
     cup?: 'GOLD' | 'SILVER' | null
     category: { name: string; _count?: { matches: number } } | null
+    tournament?: { name: string } | null
+    /**
+     * Parejas de cada lado en partidos de dobles (lo traen `getUpcomingMatches` y
+     * `getMatchesByPlayer`). Con parejas la card muestra "Pareja vs Pareja", linkea a
+     * /pareja/[slug] y cuenta como participante a los cuatro.
+     */
+    pairs?: MatchPairs | null
     group?: { id: string; number: number } | null
     result: {
       walkover: boolean
@@ -83,9 +92,9 @@ interface FixtureMatchCardProps {
   perspectiveUserId?: string | null
 }
 
-function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number): string {
+function placeholderSlot(sourceGroupNumber: number | null | undefined, position: number | null | undefined, stage: string | undefined, bracketPosition: number | null | undefined, side: 'player1' | 'player2', qfCount: number, groupName: (n: number) => string = String): string {
   if (sourceGroupNumber != null && position != null) {
-    return `${position}° Grupo ${sourceGroupNumber}`
+    return `${position}° Grupo ${groupName(sourceGroupNumber)}`
   }
   if (stage === 'SEMIFINAL' && bracketPosition != null) {
     // 4 QFs: QF1+QF2→SF1, QF3+QF4→SF2. 2 QFs (3 grupos): QF1→SF1, QF2→SF2.
@@ -113,20 +122,20 @@ function DeltaTag({ d }: { d: number }) {
 
 function PlayerName({
   name,
-  slug,
+  href,
   isWinner,
   isPlayed,
 }: {
   name: string
-  slug?: string
+  href?: string
   isWinner: boolean
   isPlayed: boolean
 }) {
   const weight = isPlayed ? (isWinner ? 'font-bold' : 'font-normal') : 'font-semibold'
-  if (slug) {
+  if (href) {
     return (
       <Link
-        href={`/jugador/${slug}`}
+        href={href}
         onClick={(e) => e.stopPropagation()}
         className={`${weight} hover:underline`}
       >
@@ -141,14 +150,38 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   const router = useRouter()
   const court = COURTS.find((c) => c.number === match.courtNumber)
   const qfCount = match.category?._count?.matches ?? 4
-  const p1Name = match.player1
-    ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
-    : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1', qfCount)
-  const p2Name = match.player2
-    ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
-    : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2', qfCount)
-  const p1Defined = match.player1 != null
-  const p2Defined = match.player2 != null
+  // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
+  const pairs = match.pairs ?? null
+  const isDoubles = pairs != null
+  const groupName = isDoubles ? groupLetter : String
+  const side1 = pairs?.side1 ?? null
+  const side2 = pairs?.side2 ?? null
+  const p1Defined = isDoubles ? side1 != null : match.player1 != null
+  const p2Defined = isDoubles ? side2 != null : match.player2 != null
+  const p1Name = isDoubles && side1
+    ? pairShortName(side1)
+    : !isDoubles && match.player1
+      ? fullName(match.player1.firstName, match.player1.lastName) || 'Jugador 1'
+      : placeholderSlot(match.player1SourceGroup?.number, match.player1SourcePosition, match.stage, match.bracketPosition, 'player1', qfCount, groupName)
+  const p2Name = isDoubles && side2
+    ? pairShortName(side2)
+    : !isDoubles && match.player2
+      ? fullName(match.player2.firstName, match.player2.lastName) || 'Jugador 2'
+      : placeholderSlot(match.player2SourceGroup?.number, match.player2SourcePosition, match.stage, match.bracketPosition, 'player2', qfCount, groupName)
+  const p1Href = isDoubles ? (side1 ? `/pareja/${side1.slug}` : undefined) : player1Slug ? `/jugador/${player1Slug}` : undefined
+  const p2Href = isDoubles ? (side2 ? `/pareja/${side2.slug}` : undefined) : player2Slug ? `/jugador/${player2Slug}` : undefined
+  // Lado del partido en que juega un usuario (en dobles, cualquiera de los dos de la pareja).
+  const sideOf = (userId: string | null | undefined): 1 | 2 | null => {
+    if (!userId) return null
+    if (isDoubles) {
+      if (side1 && isUserInPair(side1, userId)) return 1
+      if (side2 && isUserInPair(side2, userId)) return 2
+      return null
+    }
+    if (userId === match.player1Id) return 1
+    if (userId === match.player2Id) return 2
+    return null
+  }
 
   const isPlayed = match.status === 'PLAYED'
   const score = match.result ? formatMatchScore(match.result) : null
@@ -174,11 +207,9 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
 
   const badgeClass = "text-[10px] px-1.5 py-0 min-w-[72px] text-center justify-center font-bold"
   // Con perspectiva (perfil de un jugador) el "Jugado" se vuelve Ganado/Perdido.
-  const hasPerspective =
-    perspectiveUserId != null &&
-    (perspectiveUserId === match.player1Id || perspectiveUserId === match.player2Id) &&
-    match.result != null
-  const perspectiveWon = hasPerspective && match.result!.winnerId === perspectiveUserId
+  const perspectiveSide = sideOf(perspectiveUserId)
+  const hasPerspective = perspectiveSide != null && match.result != null
+  const perspectiveWon = hasPerspective && (perspectiveSide === 1 ? winnerIs1 : winnerIs2)
   const statusBadge = match.status === 'PLAYED'
     ? hasPerspective
       ? perspectiveWon
@@ -201,16 +232,16 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   const dateTimeLabel = getDateTimeLabel()
 
   // Show action link only to participants of this match
-  const isParticipant = currentUserId && currentPlayerSlug &&
-    (currentUserId === match.player1Id || currentUserId === match.player2Id)
+  const viewerSide = currentPlayerSlug ? sideOf(currentUserId) : null
+  const isParticipant = viewerSide != null
   const matchHref = isParticipant ? `/jugador/${currentPlayerSlug}/partidos/${match.id}` : null
 
   const actionLink = !isParticipant || !matchHref ? null
-    : match.status === 'PENDING' ? (
+    : match.status === 'PENDING' ? (isDoubles ? null : (
       <Link href={matchHref} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-primary hover:underline">
         Coordinar con tu rival →
       </Link>
-    ) : match.status === 'CONFIRMED' && !match.result ? (
+    )) : match.status === 'CONFIRMED' && !match.result ? (
       matchPassed ? (
         <Link href={matchHref} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-primary hover:underline">
           Cargar resultado →
@@ -234,20 +265,28 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
   // espectador → "{p1} vs {p2}". El court va en la ubicación del evento.
   // Invitar al rival solo si el viewer es participante (un espectador no debe invitar a
   // los jugadores). El rival es el otro jugador del partido.
-  const rivalEmail = isParticipant
-    ? (currentUserId === match.player1Id ? match.player2?.email : match.player1?.email) ?? null
-    : null
+  // En dobles se invita a los otros tres (compañero y pareja rival).
+  const ownPair = viewerSide === 1 ? side1 : viewerSide === 2 ? side2 : null
+  const rivalPair = viewerSide === 1 ? side2 : viewerSide === 2 ? side1 : null
+  const guestEmails = !isParticipant
+    ? []
+    : isDoubles
+      ? [
+          ...(ownPair ? [ownPair.captain, ownPair.partner].filter((m) => m.userId !== currentUserId).map((m) => m.email) : []),
+          ...(rivalPair ? [rivalPair.captain.email, rivalPair.partner.email] : []),
+        ]
+      : [(viewerSide === 1 ? match.player2?.email : match.player1?.email) ?? null].filter((e): e is string => !!e)
   const calendarLink = match.status === 'CONFIRMED' && !match.result && match.scheduledAt && !matchPassed ? (
     <span onClick={(e) => e.stopPropagation()}>
       <AddToCalendarLink
         start={match.scheduledAt}
         title={
           isParticipant
-            ? `Tenis vs ${currentUserId === match.player1Id ? p2Name : p1Name}`
+            ? `Tenis vs ${viewerSide === 1 ? p2Name : p1Name}`
             : `${p1Name} vs ${p2Name}`
         }
         location={match.externalCourt ? undefined : court ? `Life Montevideo · ${court.name}` : 'Life Montevideo'}
-        guestEmails={rivalEmail ? [rivalEmail] : undefined}
+        guestEmails={guestEmails.length > 0 ? guestEmails : undefined}
       />
     </span>
   ) : null
@@ -270,7 +309,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="flex min-w-0 flex-1 items-center gap-1">
             <span className="min-w-0 truncate">
-              <PlayerName name={p1Name} slug={p1Defined ? player1Slug : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
+              <PlayerName name={p1Name} href={p1Defined ? p1Href : undefined} isWinner={winnerIs1} isPlayed={isPlayed} />
             </span>
             {p1Defined && player1Rank != null && (
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player1Rank}</span>
@@ -280,7 +319,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
           <span className="shrink-0 text-xs text-muted-foreground">vs</span>
           <span className="flex min-w-0 flex-1 items-center gap-1">
             <span className="min-w-0 truncate">
-              <PlayerName name={p2Name} slug={p2Defined ? player2Slug : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
+              <PlayerName name={p2Name} href={p2Defined ? p2Href : undefined} isWinner={winnerIs2} isPlayed={isPlayed} />
             </span>
             {p2Defined && player2Rank != null && (
               <span className="shrink-0 text-xs text-muted-foreground tabular-nums">#{player2Rank}</span>
@@ -301,8 +340,8 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
       <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
         {match.category ? (
           <span>
-            Categoría {match.category.name}
-            {stageLabel ? ` - ${stageLabel}` : match.group ? ` - Grupo ${match.group.number}` : ''}
+            {isDoubles ? match.tournament?.name ?? 'Dobles' : `Categoría ${match.category.name}`}
+            {stageLabel ? ` - ${stageLabel}` : match.group ? ` - Grupo ${groupName(match.group.number)}` : ''}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5">
