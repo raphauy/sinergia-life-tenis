@@ -482,7 +482,19 @@ async function assertNoCupBracket(categoryId: string): Promise<void> {
   }
 }
 
+/** El cuadro de un torneo de dobles lo arma solo el script de carga (scripts/cargar-dobles.ts). */
+async function assertNotDoubles(categoryId: string): Promise<void> {
+  const category = await prisma.tournamentCategory.findUnique({
+    where: { id: categoryId },
+    select: { tournament: { select: { modality: true } } },
+  })
+  if (category?.tournament.modality === 'DOUBLES') {
+    throw new Error('Es un torneo de dobles: el cuadro lo arma el script de carga, no se puede generar ni borrar desde acá.')
+  }
+}
+
 export async function generateBracket(categoryId: string): Promise<BracketSummary> {
+  await assertNotDoubles(categoryId)
   await assertNoCupBracket(categoryId)
 
   const category = await prisma.tournamentCategory.findUniqueOrThrow({
@@ -520,6 +532,7 @@ export async function regenerateBracket(
     select: { id: true, tournamentId: true },
   })
 
+  await assertNotDoubles(categoryId)
   await assertNoCupBracket(categoryId)
 
   const preview = await previewBracket(categoryId)
@@ -555,6 +568,8 @@ export async function regenerateBracket(
 }
 
 export async function deleteBracket(categoryId: string): Promise<number> {
+  // Sin vuelta atrás: generar/regenerar no rearma el cuadro de dobles.
+  await assertNotDoubles(categoryId)
   const result = await prisma.match.deleteMany({
     where: { categoryId, stage: { not: 'GROUP' } },
   })

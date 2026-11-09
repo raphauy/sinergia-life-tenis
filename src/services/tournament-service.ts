@@ -133,7 +133,7 @@ export async function getActiveTournament() {
 export async function getTournamentArchive() {
   return prisma.tournament.findMany({
     where: { slug: { not: LADDER_CONTAINER_SLUG } },
-    select: { id: true, name: true, slug: true, startDate: true },
+    select: { id: true, name: true, slug: true, startDate: true, modality: true },
     orderBy: { startDate: 'desc' },
   })
 }
