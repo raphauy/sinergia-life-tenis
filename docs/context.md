@@ -257,3 +257,32 @@ Números públicos del mercado de **Retos** del Miembro: enviados y recibidos co
 _Código_: no es modelo nuevo; se deriva de `Challenge` `REJECTED` + snapshot del gap de puestos al rechazar (`Challenge.rankGapAtReject`) + `Ladder.gallinaPositionRange`. La ventana usa `Challenge.respondedAt`.
 _UI_: card pública; cada gallina = una línea (nombre + **#N** del puesto **actual**), agrupada (rival más reciente al que rechazó + "(+N)" si hubo varios), 2ª línea chica "hace X días" (del rechazo más reciente). Mobile-first.
 _Evitar_: incluir retos **EXPIRADOS** (dejar vencer no cuenta, solo el rechazo explícito); usar el puesto del snapshot para **mostrar** (el snapshot es solo para la **regla** ±N; el #N visible es el actual).
+
+## Torneo de dobles
+
+> Torneo puntual (sábado 14/11/2026). No define nada de La Escalera: sus partidos no dan puntos ni cuentan para el mínimo mensual.
+
+**Modalidad**:
+Si un **Torneo** se juega en singles o en dobles. Es propiedad del Torneo (no de la Categoría): todas sus categorías comparten modalidad. Default singles.
+_Código_: `Tournament.modality` (`TournamentModality`: `SINGLES` | `DOUBLES`).
+
+**Pareja**:
+Dos **Jugadores** de la misma **Categoría** de un Torneo de dobles que juegan juntos. Tiene nombre ("Pérez / García") y un perfil público propio con sus partidos, con `slug` armado con los dos apellidos (`perez-garcia`; sufijo numérico si está tomado). Una persona está en una sola Pareja por categoría. Los dos Jugadores pertenecen al mismo **Grupo**; la Pareja no guarda grupo propio, se deriva de ellos. Para el usuario la Pareja es simétrica: el orden de los nombres es el que mandó el club al inscribirla.
+_Código_: `DoublesPair` (`captainPlayerId` + `partnerPlayerId`, ambos `Player`).
+_Evitar_: "equipo", "dupla" — es **Pareja**.
+
+**Representante** y **Compañero**:
+Distinción **solo de código**, invisible para el usuario. El Representante es el integrante de la **Pareja** cuyo `User` ocupa el lado del **Partido** (`player1Id`/`player2Id`) y el `winnerId` del **Resultado**; el Compañero se deriva buscando la Pareja. Así un Partido de dobles sigue teniendo un `User` por lado y el ranking de grupo, la clasificación y el bracket no cambian: operan sobre el Representante. Es el primero de la pareja tal como la mandó el club. Ver ADR 0002.
+_Código_: `DoublesPair.captainPlayerId` / `partnerPlayerId`.
+_Evitar_: "capitán" en UI — nadie elige ni ve al representante.
+
+**Partido de dobles**:
+Un **Partido** de un Torneo con **Modalidad** dobles. Mismo `Match`, mismo ciclo de estados, misma **Reserva de slot**; cada lado es una **Pareja** (en la base, su Representante). El **Resultado** lo carga cualquiera de los cuatro jugadores o un admin, y aparece en los "Próximos partidos" de los cuatro. El ganador es la Pareja (en la base, `winnerId` = Representante de la pareja ganadora). Sin emails.
+_Código_: `Match` con `tournament.modality = DOUBLES`.
+
+**Grupo** (en dobles):
+Mismo concepto y misma tabla que en singles: todos contra todos entre **Parejas**. Se sigue diciendo "Grupo" (no "zona"). La tabla cuenta por Pareja: una fila por pareja, calculada sobre el Representante.
+_Código_: `Group`; la tabla filtra `group.players` a los representantes.
+
+**Sección Dobles del perfil**:
+El perfil de una persona no cambia de URL por jugar dobles (su **Jugador** de dobles nunca se linkea; ante dos inscripciones del mismo Usuario, gana la más antigua). Si jugó dobles, su perfil muestra una sección con su Pareja y esos partidos.
