@@ -3,12 +3,14 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getMatchById } from '@/services/match-service'
 import { getCanonicalPlayerSlugs } from '@/services/player-service'
-import { isUserInMatch } from '@/services/doubles-pair-service'
+import { getPairsForMatch, isDoublesMatch, isUserInMatch } from '@/services/doubles-pair-service'
+import { matchSideHref, matchSideName } from '@/lib/pair-display'
+import { doublesStageLabel } from '@/lib/doubles-format'
+import { cache } from 'react'
 import { getLadderChallengerPreviews, getLadderResultDeltas } from '@/services/ladder-stats-service'
 import { getHeadToHeadByMatch } from '@/services/head-to-head-service'
 import { HeadToHeadLine } from '@/components/head-to-head-line'
 import { getLadderRanking } from '@/services/ladder-service'
-import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
 import { formatDateUY, formatTimeUY, friendlyDateTimeUY } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
@@ -24,6 +26,9 @@ import { CalendarCheck, Sun, Sunset } from 'lucide-react'
 import { getReservationByMatch } from '@/services/reservation-service'
 import { MatchPhoto } from '@/app/jugador/[slug]/partidos/[matchId]/match-photo'
 
+/** Parejas del partido, una consulta por request (metadata + página). */
+const getPairs = cache(getPairsForMatch)
+
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -33,11 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const match = await getMatchById(id)
   if (!match) return { title: 'Partido no encontrado' }
 
-  const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1 = matchSideName(pairs, 1, match)
+  const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
   const title = `${p1} vs ${p2} - ${context}`
-  const description = `${p1} vs ${p2}${match.category ? ` - Categoría ${match.category.name}` : ''} - ${context}`
+  const detail = pairs ? ` - Dobles · ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
+  const description = `${p1} vs ${p2}${detail} - ${context}`
 
   return { title, description, openGraph: { title, description } }
 }
@@ -48,8 +55,10 @@ export default async function PartidoPublicPage({ params }: Props) {
   const match = await getMatchById(id)
   if (!match) notFound()
 
-  const p1Name = fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'
-  const p2Name = fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'
+  // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1Name = matchSideName(pairs, 1, match) || 'Jugador 1'
+  const p2Name = matchSideName(pairs, 2, match) || 'Jugador 2'
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Get player slugs for linking
@@ -61,6 +70,8 @@ export default async function PartidoPublicPage({ params }: Props) {
   )
   const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
   const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
+  const p1Href = matchSideHref(pairs, 1, p1Slug)
+  const p2Href = matchSideHref(pairs, 2, p2Slug)
 
   // Check if logged-in user is a participant
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
@@ -110,8 +121,10 @@ export default async function PartidoPublicPage({ params }: Props) {
           </div>
           {!match.ladderId && (
             <div className="flex items-center gap-1.5 mt-1">
-              <CategoryBadge name={match.category?.name ?? ''} />
-              {stageLabel(match.stage) ? (
+              {pairs ? <Badge variant="secondary-outline">Dobles</Badge> : <CategoryBadge name={match.category?.name ?? ''} />}
+              {pairs ? (
+                <Badge variant="secondary-outline">{doublesStageLabel(match)}</Badge>
+              ) : stageLabel(match.stage) ? (
                 <Badge variant="secondary-outline">{stageLabel(match.stage)}</Badge>
               ) : match.group ? (
                 <Badge variant="secondary-outline">Grupo {match.group.number}</Badge>
@@ -136,8 +149,8 @@ export default async function PartidoPublicPage({ params }: Props) {
         <div className="flex items-center justify-between py-4 border-t">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xl">
             <span className="inline-flex items-baseline gap-1.5">
-              {p1Slug ? (
-                <Link href={`/jugador/${p1Slug}`} className={`hover:underline ${winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
+              {p1Href ? (
+                <Link href={p1Href} className={`hover:underline ${winnerIs1 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
                   {p1Name}
                 </Link>
               ) : (
@@ -147,8 +160,8 @@ export default async function PartidoPublicPage({ params }: Props) {
             </span>
             <span className="text-muted-foreground text-base">vs</span>
             <span className="inline-flex items-baseline gap-1.5">
-              {p2Slug ? (
-                <Link href={`/jugador/${p2Slug}`} className={`hover:underline ${winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
+              {p2Href ? (
+                <Link href={p2Href} className={`hover:underline ${winnerIs2 ? 'font-bold' : match.result ? 'font-normal' : 'font-semibold'}`}>
                   {p2Name}
                 </Link>
               ) : (
@@ -251,7 +264,7 @@ export default async function PartidoPublicPage({ params }: Props) {
         {/* Action link for participants */}
         {canAct && currentPlayerSlug && (
           <>
-            {match.status === 'PENDING' && (
+            {match.status === 'PENDING' && !pairs && (
               <div className="pt-3 border-t mt-3 text-center">
                 <Link href={`/jugador/${currentPlayerSlug}/partidos/${match.id}`} className="text-sm font-medium text-primary hover:underline">
                   Coordinar con tu rival →

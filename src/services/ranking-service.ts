@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { blobUrl } from '@/lib/blob-url'
 import { fullName } from '@/lib/format-name'
 import type { Match, MatchResult, Prisma } from '@prisma/client'
-import { getPairsByCategory, isDoublesCategory, pairName } from './doubles-pair-service'
+import { getPairsByCategory, isDoublesCategory, pairName, type DoublesPair } from './doubles-pair-service'
 
 type Tx = Prisma.TransactionClient
 
@@ -152,16 +152,31 @@ async function rankPlayers(
     )
   }
 
-  const pairByCaptain = new Map(
-    (await getPairsByCategory(categoryId, tx)).map((pair) => [pair.captain.playerId, pair])
+  return rankDoublesPlayers(
+    withUser.map((p) => ({ id: p.id, slug: p.slug, userId: p.userId! })),
+    await getPairsByCategory(categoryId, tx),
+    matches
   )
+}
+
+/**
+ * Tabla de un grupo de dobles en memoria: una fila por pareja, calculada sobre su
+ * capitán (los compañeros no suman fila). `players` son los Player del grupo con
+ * cuenta; `matches`, los de grupo jugados con resultado.
+ */
+export function rankDoublesPlayers(
+  players: { id: string; slug: string; userId: string }[],
+  pairs: DoublesPair[],
+  matches: MatchWithResult[]
+): RankingEntry[] {
+  const pairByCaptain = new Map(pairs.map((pair) => [pair.captain.playerId, pair]))
   const entries = computeRanking(
-    withUser
+    players
       .filter((p) => pairByCaptain.has(p.id))
       .map((p) => ({
         id: p.id,
         slug: p.slug,
-        userId: p.userId!,
+        userId: p.userId,
         displayName: pairName(pairByCaptain.get(p.id)!),
         image: null,
       })),

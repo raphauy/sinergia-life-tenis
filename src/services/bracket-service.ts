@@ -40,7 +40,7 @@ export interface BracketSummary {
 
 const CUP_ORDER: (Cup | null)[] = ['GOLD', 'SILVER', null]
 
-type GroupQualifiers = {
+export type GroupQualifiers = {
   first: string | null
   second: string | null
   /** true if the player at position 1º is mathematically locked there */
@@ -115,6 +115,35 @@ export async function getBracketByCategory(categoryId: string): Promise<BracketS
 export async function getGroupQualifiers(groupId: string, tx?: Tx): Promise<GroupQualifiers> {
   const client = tx ?? prisma
   const ranking = await getRankingByGroup(groupId, tx)
+  if (ranking.length < 2) return computeGroupQualifiers(ranking, 0, 0, [])
+
+  const totalCount = await client.match.count({
+    where: { groupId, stage: 'GROUP', status: { not: 'CANCELLED' } },
+  })
+  const playedCount = await client.match.count({
+    where: { groupId, stage: 'GROUP', status: 'PLAYED' },
+  })
+  const pendingMatches =
+    totalCount > 0 && playedCount === totalCount
+      ? []
+      : await client.match.findMany({
+          where: { groupId, stage: 'GROUP', status: { in: ['PENDING', 'CONFIRMED'] } },
+          select: { player1Id: true, player2Id: true },
+        })
+  return computeGroupQualifiers(ranking, totalCount, playedCount, pendingMatches)
+}
+
+/**
+ * Parte pura de `getGroupQualifiers`: con la tabla del grupo, cuántos partidos de grupo
+ * hay (sin cancelados), cuántos se jugaron y los pendientes/confirmados, decide los
+ * clasificados. La usa también la vista de dobles, que ya tiene todo en memoria.
+ */
+export function computeGroupQualifiers(
+  ranking: RankingEntry[],
+  totalCount: number,
+  playedCount: number,
+  pendingMatches: { player1Id: string | null; player2Id: string | null }[]
+): GroupQualifiers {
   const empty: GroupQualifiers = {
     first: null,
     second: null,
@@ -125,12 +154,6 @@ export async function getGroupQualifiers(groupId: string, tx?: Tx): Promise<Grou
   }
   if (ranking.length < 2) return empty
 
-  const totalCount = await client.match.count({
-    where: { groupId, stage: 'GROUP', status: { not: 'CANCELLED' } },
-  })
-  const playedCount = await client.match.count({
-    where: { groupId, stage: 'GROUP', status: 'PLAYED' },
-  })
   const fullyDecided = totalCount > 0 && playedCount === totalCount
 
   if (fullyDecided) {
@@ -145,10 +168,6 @@ export async function getGroupQualifiers(groupId: string, tx?: Tx): Promise<Grou
   }
 
   // Compute max possible points per user
-  const pendingMatches = await client.match.findMany({
-    where: { groupId, stage: 'GROUP', status: { in: ['PENDING', 'CONFIRMED'] } },
-    select: { player1Id: true, player2Id: true },
-  })
   const pendingByUser: Record<string, number> = {}
   for (const m of pendingMatches) {
     if (m.player1Id) pendingByUser[m.player1Id] = (pendingByUser[m.player1Id] ?? 0) + 1

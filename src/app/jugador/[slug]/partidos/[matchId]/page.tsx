@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils'
 import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
-import { getUserSideInMatch } from '@/services/doubles-pair-service'
+import { getPairsForMatch, getUserSideInMatch, isDoublesMatch } from '@/services/doubles-pair-service'
+import { matchSideHref, matchSideName, pairFullName } from '@/lib/pair-display'
+import { doublesStageLabel } from '@/lib/doubles-format'
+import { cache } from 'react'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +30,9 @@ import { fetchMonthMatchesAction, fetchMonthReservationsAction, createReservatio
 import { getReservationsByMonth, getCalendarReservationByMatch, mapReservationToCalendar } from '@/services/reservation-service'
 import { toZonedTime } from 'date-fns-tz'
 
+/** Parejas del partido, una consulta por request (metadata + página). */
+const getPairs = cache(getPairsForMatch)
+
 interface Props {
   params: Promise<{ slug: string; matchId: string }>
 }
@@ -35,12 +41,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { matchId } = await params
   const match = await getMatchById(matchId)
   if (!match) return { title: 'Partido' }
-  const p1 = fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2 = fullName(match.player2?.firstName, match.player2?.lastName)
+  const pairs = isDoublesMatch(match) ? await getPairs(match.id) : null
+  const p1 = matchSideName(pairs, 1, match)
+  const p2 = matchSideName(pairs, 2, match)
   const context = match.ladderId ? 'La Escalera' : match.tournament?.name ?? ''
+  const detail = pairs ? ` - Dobles · ${doublesStageLabel(match)}` : match.category ? ` - Categoría ${match.category.name}` : ''
   return {
     title: `${p1} vs ${p2} - ${context}`,
-    description: `${p1} vs ${p2}${match.category ? ` - Categoría ${match.category.name}` : ''} - ${context}`,
+    description: `${p1} vs ${p2}${detail} - ${context}`,
   }
 }
 
@@ -69,25 +77,32 @@ export default async function MatchDetailPage({ params }: Props) {
   const matchFormat = isLadder
     ? match.ladder?.matchFormat ?? 'SINGLE_SET'
     : tournament?.matchFormat ?? 'SINGLE_SET'
+  // Dobles: cada lado es una pareja (en la base, su representante; ADR 0002).
+  const isDoubles = isDoublesMatch(match)
+  const pairs = isDoubles ? await getPairs(match.id) : null
   const contextLabel = isLadder
     ? 'La Escalera'
-    : `${tournament?.name ?? ''} — Categoría ${category?.name ?? ''}`
+    : isDoubles
+      ? `${tournament?.name ?? ''} — Dobles · ${doublesStageLabel(match)}`
+      : `${tournament?.name ?? ''} — Categoría ${category?.name ?? ''}`
   // Disponibilidad de canchas: global para escalera (sin filtrar por torneo).
   const availabilityTournamentId = isLadder ? undefined : match.tournamentId ?? undefined
 
   const isPlayer1 = side === 1
   const rival = isPlayer1 ? match.player2 : match.player1
+  const rivalPair = pairs ? (isPlayer1 ? pairs.side2 : pairs.side1) : null
   const rivalName = fullName(rival?.firstName, rival?.lastName)
   const court = COURTS.find((c) => c.number === match.courtNumber)
 
   // Nombres y slugs de perfil para linkear los nombres de los jugadores.
-  const p1Name = fullName(match.player1?.firstName, match.player1?.lastName)
-  const p2Name = fullName(match.player2?.firstName, match.player2?.lastName)
-  const slugMap = await getPlayerSlugsByUserIds(
-    [match.player1Id, match.player2Id].filter((id): id is string => !!id)
-  )
-  const p1Slug = match.player1Id ? slugMap.get(match.player1Id) : undefined
-  const p2Slug = match.player2Id ? slugMap.get(match.player2Id) : undefined
+  // En dobles los nombres son las parejas y linkean a /pareja/[slug].
+  const p1Name = matchSideName(pairs, 1, match)
+  const p2Name = matchSideName(pairs, 2, match)
+  const slugMap = pairs
+    ? new Map<string, string>()
+    : await getPlayerSlugsByUserIds([match.player1Id, match.player2Id].filter((id): id is string => !!id))
+  const p1Href = matchSideHref(pairs, 1, match.player1Id ? slugMap.get(match.player1Id) : undefined)
+  const p2Href = matchSideHref(pairs, 2, match.player2Id ? slugMap.get(match.player2Id) : undefined)
 
   // Deltas de rating del partido de escalera ya jugado (para mostrar el cambio).
   const ratingDeltas = isLadder && match.result ? await getMatchRatingDeltas(matchId) : null
@@ -129,7 +144,7 @@ export default async function MatchDetailPage({ params }: Props) {
     year: number
     month: number
   } | null = null
-  if (match.status === 'PENDING' && isOwner) {
+  if (match.status === 'PENDING' && isOwner && !isDoubles) {
     const nowUY = toZonedTime(new Date(), TIMEZONE)
     const year = nowUY.getFullYear()
     const month = nowUY.getMonth() + 1
@@ -182,14 +197,14 @@ export default async function MatchDetailPage({ params }: Props) {
       </Button>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          <PlayerLink name={p1Name || 'Por definir'} slug={p1Slug} /> vs{' '}
-          <PlayerLink name={p2Name || 'Por definir'} slug={p2Slug} />
+          <PlayerLink name={p1Name || 'Por definir'} href={p1Href} /> vs{' '}
+          <PlayerLink name={p2Name || 'Por definir'} href={p2Href} />
         </h1>
         {isLadder ? (
           <p className="text-sm text-muted-foreground">
             {match.player1 && (
               <>
-                Retador: <PlayerLink name={p1Name} slug={p1Slug} />
+                Retador: <PlayerLink name={p1Name} href={p1Href} />
               </>
             )}
             {ladderPreview && (
@@ -202,6 +217,11 @@ export default async function MatchDetailPage({ params }: Props) {
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">{contextLabel}</p>
+        )}
+        {rivalPair && (
+          <p className="text-sm text-muted-foreground">
+            Rival: <PlayerLink name={pairFullName(rivalPair)} href={`/pareja/${rivalPair.slug}`} className="text-foreground" />
+          </p>
         )}
         <div className="flex items-center gap-2 mt-2">
           <Badge variant={MATCH_STATUS_VARIANTS[match.status] || 'outline'}>
@@ -226,17 +246,17 @@ export default async function MatchDetailPage({ params }: Props) {
           <p className="text-sm text-muted-foreground mt-1">
             Ganador:{' '}
             {match.result.winnerId === match.player1Id ? (
-              <PlayerLink name={p1Name} slug={p1Slug} />
+              <PlayerLink name={p1Name} href={p1Href} />
             ) : (
-              <PlayerLink name={p2Name} slug={p2Slug} />
+              <PlayerLink name={p2Name} href={p2Href} />
             )}
           </p>
           {isLadder && ratingDeltas && match.player1Id && match.player2Id && (
             <p className="text-sm text-muted-foreground mt-1">
-              Puntos: <PlayerLink name={p1Name} slug={p1Slug} />{' '}
+              Puntos: <PlayerLink name={p1Name} href={p1Href} />{' '}
               <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player1Id))}</span>
               {' · '}
-              <PlayerLink name={p2Name} slug={p2Slug} />{' '}
+              <PlayerLink name={p2Name} href={p2Href} />{' '}
               <span className="font-medium tabular-nums">{fmtDelta(ratingDeltas.get(match.player2Id))}</span>
             </p>
           )}
@@ -289,7 +309,7 @@ export default async function MatchDetailPage({ params }: Props) {
       )}
 
       {/* Coordination message for pending matches */}
-      {match.status === 'PENDING' && isOwner && rival && (
+      {match.status === 'PENDING' && isOwner && rival && !isDoubles && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 p-4 mb-6">
           <h2 className="font-semibold mb-2">Coordiná tu partido</h2>
           <p className="text-sm text-muted-foreground mb-2">
@@ -376,8 +396,8 @@ export default async function MatchDetailPage({ params }: Props) {
             matchFormat={matchFormat}
             player1Id={match.player1Id}
             player2Id={match.player2Id}
-            player1Name={fullName(match.player1?.firstName, match.player1?.lastName) || 'Jugador 1'}
-            player2Name={fullName(match.player2?.firstName, match.player2?.lastName) || 'Jugador 2'}
+            player1Name={p1Name || 'Jugador 1'}
+            player2Name={p2Name || 'Jugador 2'}
           />
         </div>
       )}
@@ -385,11 +405,11 @@ export default async function MatchDetailPage({ params }: Props) {
   )
 }
 
-/** Nombre de jugador que linkea a su perfil si tiene slug; si no, texto plano. */
-function PlayerLink({ name, slug, className }: { name: string; slug?: string; className?: string }) {
-  if (slug) {
+/** Nombre de jugador (o pareja) que linkea a su perfil si tiene href; si no, texto plano. */
+function PlayerLink({ name, href, className }: { name: string; href?: string; className?: string }) {
+  if (href) {
     return (
-      <Link href={`/jugador/${slug}`} className={cn('hover:underline', className)}>
+      <Link href={href} className={cn('hover:underline', className)}>
         {name}
       </Link>
     )

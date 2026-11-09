@@ -17,7 +17,7 @@ const memberSelect = {
   firstName: true,
   lastName: true,
   userId: true,
-  user: { select: { id: true, firstName: true, lastName: true, email: true, image: true } },
+  user: { select: { id: true, firstName: true, lastName: true, displayName: true, email: true, image: true } },
 } as const
 
 const pairInclude = {
@@ -35,6 +35,8 @@ export interface PairMember {
   userId: string
   firstName: string | null
   lastName: string | null
+  /** Nombre para mostrar del User ("Rapha C."); null = nombre completo. */
+  displayName: string | null
   email: string
   image: string | null
 }
@@ -54,6 +56,23 @@ export interface MatchPairs {
   side2: DoublesPair | null
 }
 
+/**
+ * Integrante de una pareja sin datos de contacto: lo único que puede llegar a un
+ * componente de cliente (`email?: never` hace que pasar un `PairMember` no compile).
+ * Convertir con `toPublicPairs` (src/lib/pair-display.ts).
+ */
+export type PublicPairMember = Omit<PairMember, 'email'> & { email?: never }
+
+export interface PublicDoublesPair extends Omit<DoublesPair, 'captain' | 'partner'> {
+  captain: PublicPairMember
+  partner: PublicPairMember
+}
+
+export interface PublicMatchPairs {
+  side1: PublicDoublesPair | null
+  side2: PublicDoublesPair | null
+}
+
 /** Lo mínimo de un partido para saber de qué lado está cada pareja. */
 export interface MatchSidesRef {
   categoryId: string | null
@@ -71,6 +90,7 @@ function toMember(p: PairRow['captain']): PairMember | null {
     userId: p.userId,
     firstName: p.user.firstName ?? p.firstName,
     lastName: p.user.lastName ?? p.lastName,
+    displayName: p.user.displayName,
     email: p.user.email,
     image: p.user.image,
   }
@@ -214,9 +234,6 @@ export function pairName(pair: DoublesPair): string {
   return pairMembers(pair).map(surname).join(' / ')
 }
 
-export function isUserInPair(pair: DoublesPair, userId: string): boolean {
-  return pair.captain.userId === userId || pair.partner.userId === userId
-}
 
 /**
  * De qué lado del partido juega el usuario: 1, 2 o null si no juega. En singles y
@@ -276,4 +293,64 @@ export async function isDoublesCategory(categoryId: string, tx?: Tx): Promise<bo
 /** Corta con `message` si la categoría es de un torneo de dobles (lo administra el script de carga). */
 export async function assertCategoryNotDoubles(categoryId: string, message: string): Promise<void> {
   if (await isDoublesCategory(categoryId)) throw new Error(message)
+}
+
+/** Torneo de una pareja, para el perfil de pareja y la sección Dobles del perfil. */
+export interface PairTournament {
+  id: string
+  name: string
+  slug: string
+  startDate: Date
+  featuredOnHome: boolean
+}
+
+export interface PairWithTournament {
+  pair: DoublesPair
+  tournament: PairTournament
+}
+
+const pairTournamentSelect = {
+  category: {
+    select: {
+      tournament: { select: { id: true, name: true, slug: true, startDate: true, featuredOnHome: true } },
+    },
+  },
+} as const
+
+/**
+ * La pareja del perfil público `/pareja/[slug]` (la ruta no lleva torneo). El slug es
+ * único por categoría, así que puede repetirse entre torneos: gana el torneo en
+ * portada y, si no, el torneo de dobles más reciente.
+ */
+export async function getPairByPublicSlug(slug: string): Promise<PairWithTournament | null> {
+  const rows = await prisma.doublesPair.findMany({
+    where: { slug, category: { tournament: { modality: 'DOUBLES' } } },
+    include: { ...pairInclude, ...pairTournamentSelect },
+    orderBy: [{ category: { tournament: { startDate: 'desc' } } }, { createdAt: 'desc' }],
+  })
+  const ordered = [
+    ...rows.filter((r) => r.category.tournament.featuredOnHome),
+    ...rows.filter((r) => !r.category.tournament.featuredOnHome),
+  ]
+  for (const row of ordered) {
+    const pair = toPair(row)
+    if (pair) return { pair, tournament: row.category.tournament }
+  }
+  return null
+}
+
+/** Las parejas de dobles en las que juega el usuario, del torneo más reciente al más viejo. */
+export async function getPairsForUser(userId: string): Promise<PairWithTournament[]> {
+  const rows = await prisma.doublesPair.findMany({
+    where: {
+      category: { tournament: { modality: 'DOUBLES' } },
+      OR: [{ captain: { userId } }, { partner: { userId } }],
+    },
+    include: { ...pairInclude, ...pairTournamentSelect },
+    orderBy: [{ category: { tournament: { startDate: 'desc' } } }, { createdAt: 'desc' }],
+  })
+  return rows.flatMap((row) => {
+    const pair = toPair(row)
+    return pair ? [{ pair, tournament: row.category.tournament }] : []
+  })
 }

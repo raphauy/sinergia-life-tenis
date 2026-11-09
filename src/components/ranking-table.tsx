@@ -41,7 +41,7 @@ export function RankingTable({ entries }: { entries: RankingEntry[] }) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8 text-center">#</TableHead>
-              <TableHead>Jugador</TableHead>
+              <TableHead>{entries.some((e) => e.pairSlug) ? 'Pareja' : 'Jugador'}</TableHead>
               <ColumnHeader abbr="PJ" full="Partidos jugados" className="text-center w-9 px-1" />
               <ColumnHeader abbr="PG" full="Partidos ganados" className="text-center w-9 px-1" />
               <ColumnHeader abbr="GF" full="Games a favor" className="text-center w-9 px-1" />
@@ -56,7 +56,7 @@ export function RankingTable({ entries }: { entries: RankingEntry[] }) {
                 <TableCell className="text-center font-bold">{e.position}</TableCell>
                 <TableCell>
                   <Link
-                    href={`/jugador/${e.player.slug}`}
+                    href={e.pairSlug ? `/pareja/${e.pairSlug}` : `/jugador/${e.player.slug}`}
                     className="flex items-center gap-2 hover:underline"
                   >
                     <Avatar className="h-7 w-7 shrink-0">
