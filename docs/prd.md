@@ -137,6 +137,7 @@ enum MatchStatus {
 enum MatchFormat {
   SINGLE_SET        // 1 solo set (default)
   TWO_SETS_SUPERTB  // 2 sets + super tiebreak (10 puntos) si empate 1-1
+  SHORT_SET_4       // 1 set a 4 games sin ventaja; mini tiebreak a 5 (dif. 2) en 3-3
   BEST_OF_THREE     // Mejor de 3 sets completos (futuro)
 }
 
@@ -536,6 +537,7 @@ PENDING --> CANCELLED
 |---|---|---|---|
 | `SINGLE_SET` (default) | set1 | - | 6-4 |
 | `TWO_SETS_SUPERTB` | set1, set2 | superTiebreak (si empate 1-1) | 6-4 3-6 [10-7] |
+| `SHORT_SET_4` | set1 (a 4) | tb1 (si 4-3) | 4-3 (5) |
 | `BEST_OF_THREE` (futuro) | set1, set2 | set3 (si empate 1-1) | 6-4 3-6 7-5 |
 
 **Validaciones Zod (dinámicas según formato del torneo):**

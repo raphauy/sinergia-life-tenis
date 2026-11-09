@@ -77,7 +77,7 @@ Marcador de un **Partido**: games por set (`set1`, `set2`, `set3`), tiebreaks po
 _Código_: `MatchResult` (1–1 con `Match`).
 
 **Formato de partido**:
-Cómo se define un **Partido** del torneo: `SINGLE_SET` (default), `TWO_SETS_SUPERTB` (2 sets + super tiebreak a 10 si 1-1) o `BEST_OF_THREE` (futuro). Es propiedad del **Torneo** y determina los campos válidos del **Resultado**.
+Cómo se define un **Partido** del torneo: `SINGLE_SET` (default), `TWO_SETS_SUPERTB` (2 sets + super tiebreak a 10 si 1-1), `SHORT_SET_4` (un set a 4 games sin ventaja; en 3-3 mini tiebreak a 5 con diferencia de 2; el W/O vale 4-0; formato de la Copa Summum) o `BEST_OF_THREE` (futuro). Es propiedad del **Torneo** y determina los campos válidos del **Resultado**.
 _Código_: `MatchFormat`.
 
 **Cancha**:
