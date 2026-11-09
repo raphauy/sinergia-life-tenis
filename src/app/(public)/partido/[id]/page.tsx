@@ -27,7 +27,7 @@ import { getReservationByMatch } from '@/services/reservation-service'
 import { MatchPhoto } from '@/app/jugador/[slug]/partidos/[matchId]/match-photo'
 
 /** Parejas del partido, una consulta por request (metadata + página). */
-// El match ya viene cargado (con cache): las parejas se resuelven sin releerlo.
+// Resuelve las parejas sobre el match ya cargado, sin releerlo de la base.
 const getPairs = cache(getPairsForMatchSides)
 
 interface Props {

@@ -150,6 +150,8 @@ function personSlugPart(user: { firstName: string | null; lastName: string | nul
 function ask(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   return new Promise((resolve) => {
+    // Sin TTY (stdin cerrado) readline no responde: se toma como "no".
+    rl.on('close', () => resolve(''))
     rl.question(question, (answer) => {
       rl.close()
       resolve(answer.trim().toLowerCase())
@@ -171,7 +173,8 @@ async function main() {
   if (!yes) {
     const answer = await ask(`¿Escribir en esa base${reset ? ' (con --reset)' : ''}? (s/N) `)
     if (answer !== 's' && answer !== 'si' && answer !== 'sí') {
-      console.log('Cancelado.')
+      console.log('Cancelado (sin confirmación; usá --yes para correr sin preguntar).')
+      process.exitCode = 1
       return
     }
   }

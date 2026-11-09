@@ -15,6 +15,8 @@ import { doublesSlotLabel, groupName } from './doubles-format'
  * Las funciones de nombres aceptan la pareja completa o la pública (sin email).
  */
 
+const CUP_SHORT: Record<Cup, string> = { GOLD: 'Oro', SILVER: 'Plata' }
+
 type NamedMember = Pick<PublicPairMember, 'userId' | 'firstName' | 'lastName' | 'displayName'>
 type PairLike = { slug: string; captain: NamedMember; partner: NamedMember }
 type PairsLike = { side1: PairLike | null; side2: PairLike | null }
@@ -75,8 +77,10 @@ export function matchSideName(pairs: PairsLike | null, side: 1 | 2, match: SideM
  * singles el jugador y el número de grupo, igual que antes.
  */
 export function calendarMatchNames(m: SideMatch & { pairs: PairsLike | null; group: { number: number } | null }) {
+  // En la Definición de dobles, oro y plata juegan a la misma hora: se distinguen con la copa.
+  const cupPrefix = m.pairs && m.cup ? `${CUP_SHORT[m.cup]} · ` : ''
   return {
-    player1Name: matchSideName(m.pairs, 1, m),
+    player1Name: cupPrefix + matchSideName(m.pairs, 1, m),
     player2Name: matchSideName(m.pairs, 2, m),
     groupNumber: m.group?.number ?? null,
     groupLabel: m.group ? groupName(m.group.number, m.pairs != null) : null,

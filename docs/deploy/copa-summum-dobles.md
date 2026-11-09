@@ -37,9 +37,9 @@ Recién entonces: merge de `dobles` a `main` y push.
 2. **Cargar el torneo** con el mensaje de Mati (parejas: capitán primero, por email; 4 grupos de 4):
    - Armar el JSON a partir de `scripts/dobles/copa-summum.ejemplo.json`.
    - `pnpm tsx scripts/cargar-dobles.ts <json>` (con `--reset` si hay que recargar; `--force` si ya tiene resultados). Imprime el host de la base y pide confirmación: verificar que sea Production. `--reset` conserva la portada.
-   - Crea el torneo `copa-summum` (DOUBLES, set a 4, `isActive = false`, fuera de portada), 32 jugadores, 16 parejas, 24 partidos de grupo y 6 llaves CONFIRMED con hora y cancha.
+   - Crea el torneo `copa-summum` (DOUBLES, set a 4, `isActive = false`; la primera vez fuera de portada, con `--reset` conserva la que tenga), 32 jugadores, 16 parejas, 24 partidos de grupo y 6 llaves CONFIRMED con hora y cancha.
    - **No correrlo antes del deploy**: con el torneo cargado y el código viejo, los links de perfil de las 32 personas apuntarían a su ficha de dobles.
-3. **Prender la portada** el viernes o el sábado temprano: `/admin/torneos/copa-summum` → switch "En portada". Apagarlo cuando termine el torneo (el home vuelve a La Escalera y el torneo queda en el archivo al pie).
+3. **Prender la portada** el viernes o el sábado temprano: `/admin/torneos/copa-summum` → switch "Torneo en portada". Apagarlo cuando termine el torneo (el home vuelve a La Escalera y el torneo queda en el archivo al pie).
 
 ## 4. El sábado
 

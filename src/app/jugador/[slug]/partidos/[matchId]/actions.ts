@@ -1,6 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
+import { calendarMatchNames } from '@/lib/pair-display'
 import { getMatchById, selfScheduleLadderMatch } from '@/services/match-service'
 import { isUserInMatch } from '@/services/doubles-pair-service'
 import { createMatchResult, updateMatchResultPhoto } from '@/services/match-result-service'
@@ -110,10 +111,8 @@ export async function fetchMonthMatchesAction(
     timeUY: formatTimeUY(m.scheduledAt!),
     dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
     courtNumber: m.courtNumber,
-    player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-    player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+    ...calendarMatchNames(m),
     categoryName: m.category?.name ?? '',
-    groupNumber: m.group?.number ?? null,
   }))
 }
 

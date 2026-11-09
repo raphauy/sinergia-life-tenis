@@ -9,7 +9,7 @@ import { formatMatchScore } from '@/lib/format-score'
 import { getMatchById, getMonthMatches } from '@/services/match-service'
 import { getPlayerSlugsByUserIds } from '@/services/player-service'
 import { getPairsForMatchSides, getUserSideInMatch, isDoublesMatch } from '@/services/doubles-pair-service'
-import { matchSideHref, matchSideName, pairFullName } from '@/lib/pair-display'
+import { calendarMatchNames, matchSideHref, matchSideName, pairFullName } from '@/lib/pair-display'
 import { doublesStageLabel } from '@/lib/doubles-format'
 import { cache } from 'react'
 import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
@@ -31,7 +31,7 @@ import { getReservationsByMonth, getCalendarReservationByMatch, mapReservationTo
 import { toZonedTime } from 'date-fns-tz'
 
 /** Parejas del partido, una consulta por request (metadata + página). */
-// El match ya viene cargado (con cache): las parejas se resuelven sin releerlo.
+// Resuelve las parejas sobre el match ya cargado, sin releerlo de la base.
 const getPairs = cache(getPairsForMatchSides)
 
 interface Props {
@@ -160,10 +160,8 @@ export default async function MatchDetailPage({ params }: Props) {
         timeUY: formatTimeUY(m.scheduledAt!),
         dateUY: formatDateUY(m.scheduledAt!, 'yyyy-MM-dd'),
         courtNumber: m.courtNumber,
-        player1Name: fullName(m.player1?.firstName, m.player1?.lastName),
-        player2Name: fullName(m.player2?.firstName, m.player2?.lastName),
+        ...calendarMatchNames(m),
         categoryName: m.category?.name ?? '',
-        groupNumber: m.group?.number ?? null,
       })),
       reservations: reservationsList,
       currentReservation: pendingReservation,
