@@ -2,7 +2,8 @@
  * Carga un torneo de dobles (Copa Summum) desde un JSON: torneo, categoría
  * "Dobles", 4 grupos, un Player por persona, una DoublesPair por pareja, los 24
  * partidos de grupo (CONFIRMED, con hora y cancha) y los 6 de la Definición
- * (semis y finales de Copa de Oro y Copa de Plata, PENDING con sus fuentes).
+ * (semis y finales de Copa de Oro y Copa de Plata, CONFIRMED con hora, cancha y sus
+ * fuentes, sin jugadores: así los cuatro cargan el resultado apenas la llave tiene parejas).
  *
  * Uso:
  *   pnpm tsx scripts/cargar-dobles.ts <ruta.json>           # crea el torneo (aborta si el slug ya existe)
@@ -357,7 +358,11 @@ async function main() {
             stage: m.stage,
             cup: m.cup,
             bracketPosition: m.bracketPosition,
-            status: 'PENDING',
+            // Ya tienen hora y cancha: confirmadas desde el principio, sin jugadores.
+            // La propagación del cuadro llena los lados y la carga de resultado solo
+            // exige CONFIRMED + los dos lados.
+            status: 'CONFIRMED',
+            confirmedAt: new Date(),
             courtNumber: m.court,
             scheduledAt: parseFromUY(date, m.time),
             ...(m.sources && {

@@ -1,17 +1,20 @@
 import type { Cup, MatchStage, MatchStatus } from '@prisma/client'
 import { formatMatchScore } from '@/lib/format-score'
 import { pairShortName } from '@/lib/pair-display'
-import { CUP_TITLES, doublesStageLabel, groupLetter } from '@/lib/doubles-format'
+import { CUP_TITLES, doublesSlotLabel, doublesStageLabel, groupLetter } from '@/lib/doubles-format'
+import { prisma } from '@/lib/prisma'
 import { getMatches } from './match-service'
-import { getGroupsByCategory } from './group-service'
-import { getRankingByGroup } from './ranking-service'
-import { getGroupQualifiers } from './bracket-service'
+import { rankDoublesPlayers } from './ranking-service'
+import { computeGroupQualifiers } from './bracket-service'
 import { getPairsByCategory, type DoublesPair } from './doubles-pair-service'
 
 /**
  * Vista de un torneo de dobles (home en modo torneo, /torneo/[slug], perfil de pareja
- * y sección Dobles del perfil). Compone servicios: grupos con su tabla por pareja, sus
- * partidos y la Definición por copa. Una sola categoría (la Copa Summum tiene una).
+ * y sección Dobles del perfil): grupos con su tabla por pareja, sus partidos y la
+ * Definición por copa. Una sola categoría (la Copa Summum tiene una). Tres consultas
+ * (partidos, grupos con sus jugadores, parejas); la tabla y los clasificados de cada
+ * grupo se calculan en memoria con las mismas funciones que `getRankingByGroup` y
+ * `getGroupQualifiers`.
  */
 
 /** Minutos que se considera "en juego" un partido desde su hora, si no tiene resultado. */
@@ -97,18 +100,22 @@ function byTime(a: { scheduledAt: Date | null; courtNumber: number | null }, b: 
   return (a.courtNumber ?? 0) - (b.courtNumber ?? 0)
 }
 
-function slotLabel(m: CategoryMatch, side: 1 | 2): string {
-  const group = side === 1 ? m.player1SourceGroup : m.player2SourceGroup
-  const position = side === 1 ? m.player1SourcePosition : m.player2SourcePosition
-  if (group && position != null) return `${position}° Grupo ${groupLetter(group.number)}`
-  if (m.stage === 'FINAL') return `Ganador Semifinal ${side}`
-  return 'Por definir'
-}
-
 export async function getDoublesTournamentView(categoryId: string, now: Date = new Date()): Promise<DoublesTournamentView> {
   const [matches, groups, pairs] = await Promise.all([
     getMatches({ categoryId }),
-    getGroupsByCategory(categoryId),
+    prisma.group.findMany({
+      where: { categoryId },
+      orderBy: { number: 'asc' },
+      select: {
+        id: true,
+        number: true,
+        // Mismo filtro que getRankingByGroup.
+        players: {
+          where: { isActive: true, withdrawnAt: null, userId: { not: null } },
+          select: { id: true, slug: true, userId: true },
+        },
+      },
+    }),
     getPairsByCategory(categoryId),
   ])
 
@@ -144,8 +151,8 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       courtNumber: m.courtNumber,
       side1,
       side2,
-      slot1: slotLabel(m, 1),
-      slot2: slotLabel(m, 2),
+      slot1: doublesSlotLabel(m, 1),
+      slot2: doublesSlotLabel(m, 2),
       score: m.result ? formatMatchScore(m.result) : null,
       winnerSide: winnerId ? (winnerId === m.player1Id ? 1 : winnerId === m.player2Id ? 2 : null) : null,
       live,
@@ -157,27 +164,36 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
   const views = active.map(toView)
   const viewById = new Map(views.map((v) => [v.id, v]))
 
-  const groupViews = await Promise.all(
-    groups.map(async (g): Promise<DoublesGroupView> => {
-      const [ranking, qualifiers] = await Promise.all([getRankingByGroup(g.id), getGroupQualifiers(g.id)])
-      const groupMatches = active.filter((m) => m.stage === 'GROUP' && m.group?.id === g.id).map((m) => viewById.get(m.id)!)
-      const standings = ranking.flatMap((e): DoublesStandingView[] => {
-        const pair = e.pairSlug ? pairViews.get(e.pairSlug) : undefined
-        if (!pair) return []
-        const decided =
-          (e.position === 1 && qualifiers.firstDecided) || (e.position === 2 && qualifiers.secondDecided)
-        return [{ position: e.position, pair, pj: e.pj, pg: e.pg, dg: e.gamesDiff, decided }]
-      })
-      return {
-        id: g.id,
-        letter: groupLetter(g.number),
-        played: groupMatches.filter((m) => m.status === 'PLAYED').length,
-        total: groupMatches.length,
-        standings,
-        matches: groupMatches,
-      }
+  const groupViews = groups.map((g): DoublesGroupView => {
+    const ownMatches = matches.filter((m) => m.stage === 'GROUP' && m.groupId === g.id)
+    const ranking = rankDoublesPlayers(
+      g.players.map((p) => ({ id: p.id, slug: p.slug, userId: p.userId! })),
+      pairs,
+      ownMatches.filter((m) => m.status === 'PLAYED')
+    )
+    const qualifiers = computeGroupQualifiers(
+      ranking,
+      ownMatches.filter((m) => m.status !== 'CANCELLED').length,
+      ownMatches.filter((m) => m.status === 'PLAYED').length,
+      ownMatches.filter((m) => m.status === 'PENDING' || m.status === 'CONFIRMED')
+    )
+    const groupMatches = active.filter((m) => m.stage === 'GROUP' && m.group?.id === g.id).map((m) => viewById.get(m.id)!)
+    const standings = ranking.flatMap((e): DoublesStandingView[] => {
+      const pair = e.pairSlug ? pairViews.get(e.pairSlug) : undefined
+      if (!pair) return []
+      const decided =
+        (e.position === 1 && qualifiers.firstDecided) || (e.position === 2 && qualifiers.secondDecided)
+      return [{ position: e.position, pair, pj: e.pj, pg: e.pg, dg: e.gamesDiff, decided }]
     })
-  )
+    return {
+      id: g.id,
+      letter: groupLetter(g.number),
+      played: groupMatches.filter((m) => m.status === 'PLAYED').length,
+      total: groupMatches.length,
+      standings,
+      matches: groupMatches,
+    }
+  })
 
   const cups: DoublesCupView[] = []
   for (const cup of CUP_ORDER) {
