@@ -469,7 +469,22 @@ async function insertQFsAndSFs3Groups(
   })
 }
 
+/**
+ * Los cuadros por copa los arma el script de carga; generar o regenerar desde
+ * el admin los reemplazaría por el cuadro único de singles.
+ */
+async function assertNoCupBracket(categoryId: string): Promise<void> {
+  const cupMatches = await prisma.match.count({
+    where: { categoryId, stage: { not: 'GROUP' }, cup: { not: null } },
+  })
+  if (cupMatches > 0) {
+    throw new Error('Esta categoría tiene copa de oro y de plata: el cuadro no se puede regenerar desde acá.')
+  }
+}
+
 export async function generateBracket(categoryId: string): Promise<BracketSummary> {
+  await assertNoCupBracket(categoryId)
+
   const category = await prisma.tournamentCategory.findUniqueOrThrow({
     where: { id: categoryId },
     select: { id: true, tournamentId: true },
@@ -505,14 +520,7 @@ export async function regenerateBracket(
     select: { id: true, tournamentId: true },
   })
 
-  // Los cuadros por copa los arma el script de carga; regenerar los
-  // reemplazaría por el cuadro único de singles.
-  const cupMatches = await prisma.match.count({
-    where: { categoryId, stage: { not: 'GROUP' }, cup: { not: null } },
-  })
-  if (cupMatches > 0) {
-    throw new Error('Esta categoría tiene copa de oro y de plata: el cuadro no se puede regenerar desde acá.')
-  }
+  await assertNoCupBracket(categoryId)
 
   const preview = await previewBracket(categoryId)
 

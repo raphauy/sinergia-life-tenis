@@ -442,6 +442,14 @@ function CategoryBracketCard({
             <AlertDialogTitle>Eliminar bracket de Categoría {category.name}</AlertDialogTitle>
             <AlertDialogDescription>
               Se borran los partidos de cuartos, semis y final (incluyendo resultados y reservas si existen). La fase de grupos no se toca.
+              {hasCups && (
+                <>
+                  {' '}
+                  <strong>
+                    Esta categoría tiene Copa de Oro y Copa de Plata. Si eliminás el cuadro, no se puede volver a armar desde acá: hay que correr de nuevo el script de carga.
+                  </strong>
+                </>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
