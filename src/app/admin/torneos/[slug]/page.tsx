@@ -14,6 +14,7 @@ import { GroupsSection } from './groups-section'
 import { BracketSection } from './bracket-section'
 import { DeleteTournamentButton } from './delete-tournament-button'
 import { RulesEditorSection } from './rules-editor-section'
+import { FeaturedOnHomeSwitch } from './featured-on-home-switch'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -65,6 +66,7 @@ export default async function TournamentDetailPage({ params }: Props) {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">{tournament.name}</h1>
             {tournament.isActive && <Badge>Activo</Badge>}
+            {tournament.featuredOnHome && <Badge variant="secondary">En portada</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">
             {formatDateUY(tournament.startDate)} - {formatDateUY(tournament.endDate)}
@@ -86,6 +88,13 @@ export default async function TournamentDetailPage({ params }: Props) {
           />
         </div>
       </div>
+
+      {/* Home en modo torneo */}
+      <FeaturedOnHomeSwitch
+        tournamentSlug={slug}
+        tournamentId={tournament.id}
+        featuredOnHome={tournament.featuredOnHome}
+      />
 
       {/* Categories */}
       <div className="flex gap-1 mb-6">

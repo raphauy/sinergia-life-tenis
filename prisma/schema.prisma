@@ -176,6 +176,8 @@ model Tournament {
   endDate     DateTime
   finalsDate  DateTime?
   isActive    Boolean     @default(true)
+  /// Si es true, el home pasa a mostrar este torneo. A lo sumo uno a la vez.
+  featuredOnHome Boolean  @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

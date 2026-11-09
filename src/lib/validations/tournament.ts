@@ -25,5 +25,10 @@ export const updateTournamentSchema = z.object({
     .optional(),
 })
 
+export const setFeaturedOnHomeSchema = z.object({
+  tournamentId: z.string().min(1),
+  value: z.boolean(),
+})
+
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>
 export type UpdateTournamentInput = z.infer<typeof updateTournamentSchema>
