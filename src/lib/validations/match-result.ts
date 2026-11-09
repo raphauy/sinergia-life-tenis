@@ -3,11 +3,11 @@ import type { MatchFormat } from '@prisma/client'
 
 const scoreField = z.coerce.number().int().min(0).max(7)
 // Un input vacío llega como "" y `z.coerce.number()` lo haría 0: para los tiebreaks,
-// vacío significa "no cargado" (así la rama "Tiebreak requerido" se alcanza).
-const emptyToUndefined = (v: unknown) => (v === '' || v == null ? undefined : v)
-// (el `.optional()` va adentro del preprocess: afuera solo vería el "" original)
-const superTbField = z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(99).optional())
-const tbField = z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).max(99).optional())
+// vacío (o null/undefined) significa "no cargado", así la rama "Tiebreak requerido"
+// se alcanza. Union explícita en vez de preprocess para no depender de su semántica.
+const emptyAsUndefined = z.union([z.literal(''), z.null(), z.undefined()]).transform(() => undefined)
+const superTbField = z.union([emptyAsUndefined, z.coerce.number().int().min(0).max(99)])
+const tbField = z.union([emptyAsUndefined, z.coerce.number().int().min(0).max(99)])
 
 function isValidSetScore(p1: number, p2: number): boolean {
   if (p1 < 6 && p2 < 6) return false
