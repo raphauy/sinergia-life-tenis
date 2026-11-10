@@ -3,7 +3,7 @@
 import { auth } from '@/lib/auth'
 import { getPlayerById, updatePlayerEmail, updatePlayerName, updatePlayerWhatsapp, deletePlayer, deleteManyPlayers, withdrawPlayer, reinstatePlayer } from '@/services/player-service'
 import { invitePlayer, forceAcceptPlayer } from '@/services/player-invitation-service'
-import { createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
+import { setGroupTiebreakOrder, createGroup, deleteGroup, setGroupPlayers, getAffectedPendingMatches, generateRoundRobinMatches, deletePendingMatches } from '@/services/group-service'
 import { generateBracket, regenerateBracket, deleteBracket, previewBracket } from '@/services/bracket-service'
 import { setFeaturedOnHome } from '@/services/tournament-service'
 import { setFeaturedOnHomeSchema } from '@/lib/validations/tournament'
@@ -468,6 +468,31 @@ export async function setFeaturedOnHomeAction(
     return { success: true }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Error al cambiar la portada'
+    return { success: false, error: message }
+  }
+}
+
+/** Dobles: define el orden de un empate de 3+ parejas en un grupo (capitanes, del mejor al peor). */
+export async function setGroupTiebreakOrderAction(
+  tournamentSlug: string,
+  groupId: string,
+  captainUserIds: string[]
+): Promise<ActionResult> {
+  try {
+    const session = await auth()
+    if (!session?.user || (session.user.role !== 'SUPERADMIN' && session.user.role !== 'ADMIN')) {
+      return { success: false, error: 'No autorizado' }
+    }
+    if (typeof groupId !== 'string' || !Array.isArray(captainUserIds) || captainUserIds.some((id) => typeof id !== 'string')) {
+      return { success: false, error: 'Datos inválidos' }
+    }
+
+    await setGroupTiebreakOrder(groupId, captainUserIds)
+    revalidatePath('/')
+    revalidatePath(`/admin/torneos/${tournamentSlug}`)
+    return { success: true }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Error al definir el desempate'
     return { success: false, error: message }
   }
 }

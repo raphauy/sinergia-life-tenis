@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { assertCategoryNotDoubles } from './doubles-pair-service'
+import { refreshBracketSlotsFromGroup } from './bracket-service'
+import { getRankingByGroup } from './ranking-service'
 
 const DOUBLES_GROUPS_MSG =
   'Es un torneo de dobles: los grupos y sus partidos los arma el script de carga, no se pueden modificar desde acá.'
@@ -251,4 +253,32 @@ export async function generateRoundRobinMatches(groupId: string) {
   )
 
   return created.length
+}
+
+/**
+ * Dobles: el admin define el orden de un empate de 3+ parejas que la tabla no resuelve
+ * (`captainUserIds`, del mejor al peor). Tiene que nombrar exactamente a las parejas
+ * empatadas. Recalcula las llaves del grupo en la misma transacción; si eso movería a
+ * una pareja de una semi ya jugada, se rechaza y no se guarda nada.
+ */
+export async function setGroupTiebreakOrder(groupId: string, captainUserIds: string[]) {
+  return prisma.$transaction(
+    async (tx) => {
+      const group = await tx.group.findUniqueOrThrow({ where: { id: groupId }, select: { tiebreakOrder: true } })
+      // Tabla sin el orden manual: dice quiénes están empatados de verdad.
+      await tx.group.update({ where: { id: groupId }, data: { tiebreakOrder: [] } })
+      const tied = (await getRankingByGroup(groupId, tx)).filter((e) => e.tied).map((e) => e.userId)
+      if (tied.length === 0) {
+        await tx.group.update({ where: { id: groupId }, data: { tiebreakOrder: group.tiebreakOrder } })
+        throw new Error('Este grupo no tiene un empate para definir')
+      }
+      const unique = new Set(captainUserIds)
+      if (unique.size !== captainUserIds.length || unique.size !== tied.length || tied.some((id) => !unique.has(id))) {
+        throw new Error('El orden tiene que incluir exactamente a las parejas empatadas')
+      }
+      await tx.group.update({ where: { id: groupId }, data: { tiebreakOrder: captainUserIds } })
+      await refreshBracketSlotsFromGroup(groupId, tx)
+    },
+    { maxWait: 10_000, timeout: 20_000 }
+  )
 }

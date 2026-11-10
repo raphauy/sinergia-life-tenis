@@ -229,6 +229,9 @@ model Group {
   id         String   @id @default(cuid())
   categoryId String
   number     Int
+  // Dobles: orden que define el admin para un empate de 3 o más parejas que la tabla
+  // no puede resolver (userId de los capitanes, del mejor al peor). Vacío = sin definir.
+  tiebreakOrder String[] @default([])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

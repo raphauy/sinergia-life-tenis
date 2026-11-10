@@ -18,6 +18,8 @@ import { RulesEditorSection } from './rules-editor-section'
 import { FeaturedOnHomeSwitch } from './featured-on-home-switch'
 import { getPairsForMatches } from '@/services/doubles-pair-service'
 import { matchSideName } from '@/lib/pair-display'
+import { getDoublesTournamentView } from '@/services/doubles-view-service'
+import { DoublesTiebreakSection, type TiedGroup } from './doubles-tiebreak-section'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -58,6 +60,24 @@ export default async function TournamentDetailPage({ params }: Props) {
         ),
       )
     : null
+  // Dobles: grupos terminados con un empate de 3+ parejas que tiene que definir el admin.
+  const tiedGroups: TiedGroup[] = []
+  if (isDoubles) {
+    for (const cat of tournament.categories) {
+      const view = await getDoublesTournamentView(cat.id)
+      for (const g of view.groups) {
+        if (!g.hasUnresolvedTie) continue
+        const tied = g.standings.filter((s) => s.tied)
+        tiedGroups.push({
+          groupId: g.id,
+          letter: g.letter,
+          firstPosition: tied[0].position,
+          pairs: tied.map((s) => ({ captainUserId: s.pair.pair.captain.userId, name: s.pair.shortName })),
+        })
+      }
+    }
+  }
+
   const bracketSectionData = tournament.categories.map((cat, i) => {
     const b = bracketsByCategory[i]
     const allMatches = b.cups.flatMap((c) => [...c.quarterfinals, ...c.semifinals, ...(c.final ? [c.final] : [])])
@@ -123,6 +143,8 @@ export default async function TournamentDetailPage({ params }: Props) {
           featuredOnHome={tournament.featuredOnHome}
         />
       )}
+
+      {isDoubles && <DoublesTiebreakSection tournamentSlug={slug} groups={tiedGroups} />}
 
       {/* Categories */}
       <div className="flex gap-1 mb-6">

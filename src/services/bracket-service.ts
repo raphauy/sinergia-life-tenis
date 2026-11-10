@@ -158,13 +158,17 @@ export function computeGroupQualifiers(
   const fullyDecided = totalCount > 0 && playedCount === totalCount
 
   if (fullyDecided) {
+    // Dobles: un empate de 3+ parejas sin resolver (`tied`) deja esa posición sin
+    // decidir hasta que el admin defina el orden. En singles `tied` nunca viene.
+    const firstTied = ranking[0].tied === true
+    const secondTied = ranking[1].tied === true
     return {
-      first: ranking[0].userId,
-      second: ranking[1].userId,
-      firstDecided: true,
-      secondDecided: true,
+      first: firstTied ? null : ranking[0].userId,
+      second: secondTied ? null : ranking[1].userId,
+      firstDecided: !firstTied,
+      secondDecided: !secondTied,
       fullyDecided: true,
-      qualifiersDecided: true,
+      qualifiersDecided: !firstTied && !secondTied,
     }
   }
 
@@ -606,19 +610,26 @@ export async function deleteBracket(categoryId: string): Promise<number> {
  *   player, keeps source so future results can re-assign.
  * - Else: sets player to null, keeps source.
  *
- * With two cups the filter by source is already per cup: the 1º of a group
- * only feeds gold slots and the 2º only silver ones (SourcePosition 1/2 set by
- * the loading script), so no `cup` filter is needed here.
+ * With two cups (doubles) the 1º of a group only feeds gold slots and the 2º only
+ * silver ones (SourcePosition 1/2 set by the loading script). Those slots follow
+ * stricter rules (no tentative players, source kept, played matches untouched):
+ * see the comments below.
  */
 export async function refreshBracketSlotsFromGroup(groupId: string, tx?: Tx): Promise<void> {
   const client = tx ?? prisma
+  // Dos resultados del mismo grupo guardados a la vez (última tanda: dos canchas, mismo
+  // turno) recalculaban cada uno sin ver al otro y dejaban las llaves mal. Se serializa
+  // por grupo: el segundo espera y, ya con el lock, lee el resultado del primero.
+  await client.$queryRaw`SELECT id FROM "Group" WHERE id = ${groupId} FOR NO KEY UPDATE`
   const q = await getGroupQualifiers(groupId, tx)
 
   type SlotSide = 'player1' | 'player2'
   async function apply(side: SlotSide, position: 1 | 2) {
     const decided = position === 1 ? q.firstDecided : q.secondDecided
     const userId = position === 1 ? q.first : q.second
+    const source = { [`${side}SourceGroupId`]: groupId, [`${side}SourcePosition`]: position }
 
+    // --- Cuadro único (singles): comportamiento de siempre ---
     let data: Record<string, string | number | null>
     if (decided && userId) {
       data = {
@@ -632,11 +643,30 @@ export async function refreshBracketSlotsFromGroup(groupId: string, tx?: Tx): Pr
       // Clear any tentative assignment that is no longer valid
       data = { [`${side}Id`]: null }
     }
+    await client.match.updateMany({ where: { ...source, cup: null }, data })
 
-    await client.match.updateMany({
-      where: { [`${side}SourceGroupId`]: groupId, [`${side}SourcePosition`]: position },
-      data,
+    // --- Cuadros por copa (dobles) ---
+    // 1) Sin asignación tentativa: el 1° va a oro y el 2° a plata, así que mostrar a una
+    //    pareja antes de que su posición esté decidida la pondría en la copa equivocada.
+    // 2) La fuente no se borra: si el admin corrige un resultado de grupo y cambia el
+    //    1°/2°, la llave se vuelve a calcular.
+    // 3) Una llave ya jugada no se toca: si la corrección le cambiaría una pareja, se
+    //    rechaza con un mensaje en vez de dejar un resultado con parejas que no jugaron.
+    const assigned = decided ? userId : null
+    const cupSlots = await client.match.findMany({
+      where: { ...source, cup: { not: null } },
+      select: { id: true, cup: true, player1Id: true, player2Id: true, result: { select: { id: true } } },
     })
+    for (const slot of cupSlots) {
+      const current = side === 'player1' ? slot.player1Id : slot.player2Id
+      if (current === assigned) continue
+      if (slot.result) {
+        throw new Error(
+          `Este cambio modifica quién clasifica a la semifinal de ${slot.cup === 'GOLD' ? 'oro' : 'plata'}, que ya tiene resultado cargado. No se guardó.`
+        )
+      }
+      await client.match.update({ where: { id: slot.id }, data: { [`${side}Id`]: assigned } })
+    }
   }
 
   await apply('player1', 1)
@@ -782,7 +812,9 @@ export async function retractWinner(matchId: string, previousWinnerId: string, t
     })
     if (nextMatch?.result) {
       throw new Error(
-        'No se puede editar el ganador: la Final ya tiene resultado cargado. Regenerá el bracket primero.',
+        match.cup
+          ? 'No se puede cambiar el ganador de la semifinal: su final ya tiene resultado cargado.'
+          : 'No se puede editar el ganador: la Final ya tiene resultado cargado. Regenerá el bracket primero.',
       )
     }
     await client.match.updateMany({

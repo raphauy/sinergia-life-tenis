@@ -23,6 +23,12 @@ export interface RankingEntry {
   points: number // TODO: lógica real de puntos (pendiente Mati)
   /** Solo en dobles: la fila es la pareja (player/userId son los de su capitán). */
   pairSlug?: string
+  /**
+   * Solo en dobles: empate de 3 o más parejas (mismos ganados y diferencia de games) que
+   * la tabla no puede resolver; su posición no está decidida hasta que el admin defina
+   * el orden (`Group.tiebreakOrder`).
+   */
+  tied?: boolean
 }
 
 type MatchWithResult = Match & { result: MatchResult | null }
@@ -135,7 +141,8 @@ async function rankPlayers(
   players: RankablePlayer[],
   matches: MatchWithResult[],
   isDoubles: boolean,
-  tx?: Tx
+  tx?: Tx,
+  tiebreakOrder: string[] = []
 ): Promise<RankingEntry[]> {
   const withUser = players.filter((p) => p.user)
 
@@ -155,7 +162,8 @@ async function rankPlayers(
   return rankDoublesPlayers(
     withUser.map((p) => ({ id: p.id, slug: p.slug, userId: p.userId! })),
     await getPairsByCategory(categoryId, tx),
-    matches
+    matches,
+    tiebreakOrder
   )
 }
 
@@ -163,11 +171,17 @@ async function rankPlayers(
  * Tabla de un grupo de dobles en memoria: una fila por pareja, calculada sobre su
  * capitán (los compañeros no suman fila). `players` son los Player del grupo con
  * cuenta; `matches`, los de grupo jugados con resultado.
+ *
+ * Empate de 3 o más parejas en ganados y diferencia de games (en un grupo de 4 siempre
+ * es un círculo: a le ganó a b, b a c, c a a): la tabla no lo puede resolver y acá no se
+ * inventa un criterio. Quedan marcadas `tied` hasta que el admin defina el orden
+ * (`tiebreakOrder`, userId de los capitanes); ahí se ordenan así y dejan de estar `tied`.
  */
 export function rankDoublesPlayers(
   players: { id: string; slug: string; userId: string }[],
   pairs: DoublesPair[],
-  matches: MatchWithResult[]
+  matches: MatchWithResult[],
+  tiebreakOrder: string[] = []
 ): RankingEntry[] {
   const pairByCaptain = new Map(pairs.map((pair) => [pair.captain.playerId, pair]))
   const entries = computeRanking(
@@ -183,6 +197,28 @@ export function rankDoublesPlayers(
     matches
   )
   for (const e of entries) e.pairSlug = pairByCaptain.get(e.player.id)!.slug
+
+  // Los empatados quedan contiguos (el orden es por puntos, ganados y diferencia).
+  const sameKey = (a: RankingEntry, b: RankingEntry) =>
+    a.points === b.points && a.pg === b.pg && a.gamesDiff === b.gamesDiff
+  for (let start = 0; start < entries.length; ) {
+    let end = start + 1
+    while (end < entries.length && sameKey(entries[start], entries[end])) end++
+    const cluster = entries.slice(start, end)
+    // Sin partidos jugados todos "empatan" en cero: eso no es un empate a resolver.
+    if (cluster.length >= 3 && cluster.some((e) => e.pj > 0)) {
+      if (cluster.every((e) => tiebreakOrder.includes(e.userId))) {
+        cluster.sort((a, b) => tiebreakOrder.indexOf(a.userId) - tiebreakOrder.indexOf(b.userId))
+        entries.splice(start, cluster.length, ...cluster)
+      } else {
+        for (const e of cluster) e.tied = true
+      }
+    }
+    start = end
+  }
+  entries.forEach((e, i) => {
+    e.position = i + 1
+  })
   return entries
 }
 
@@ -207,7 +243,7 @@ export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<Ranki
   const client = tx ?? prisma
   const group = await client.group.findUniqueOrThrow({
     where: { id: groupId },
-    select: { categoryId: true, category: { select: { tournament: { select: { modality: true } } } } },
+    select: { categoryId: true, tiebreakOrder: true, category: { select: { tournament: { select: { modality: true } } } } },
   })
 
   const players = await client.player.findMany({
@@ -222,5 +258,5 @@ export async function getRankingByGroup(groupId: string, tx?: Tx): Promise<Ranki
     include: { result: true },
   })
 
-  return rankPlayers(group.categoryId, players, matches, group.category.tournament.modality === 'DOUBLES', tx)
+  return rankPlayers(group.categoryId, players, matches, group.category.tournament.modality === 'DOUBLES', tx, group.tiebreakOrder)
 }

@@ -53,7 +53,7 @@ export function DoublesGroupCard({ group }: { group: DoublesGroupView }) {
         <tbody>
           {group.standings.map((s) => (
             <tr key={s.pair.slug} className={cn('border-t', s.decided && 'bg-primary/10')}>
-              <td className="py-1.5 pl-3 font-bold">{s.position}</td>
+              <td className="py-1.5 pl-3 font-bold">{s.tied ? '=' : s.position}</td>
               <td className="truncate py-1.5 pr-1">
                 <Link href={`/pareja/${s.pair.slug}`} className="font-medium hover:underline">
                   {s.pair.shortName}
@@ -69,6 +69,11 @@ export function DoublesGroupCard({ group }: { group: DoublesGroupView }) {
       <p className={cn('border-t px-3 py-1 text-[11px] text-muted-foreground', anyDecided && 'text-foreground')}>
         1° → Copa de Oro, 2° → Copa de Plata
       </p>
+      {group.hasUnresolvedTie && (
+        <p className="border-t bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          Empate entre {group.standings.filter((s) => s.tied).length} parejas (=): el orden lo define la organización.
+        </p>
+      )}
       <div className="space-y-1.5 border-t bg-muted/20 p-2">
         {group.matches.map((m) => (
           <DoublesMatchRow key={m.id} match={m} />

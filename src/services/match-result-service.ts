@@ -2,6 +2,11 @@ import { prisma } from '@/lib/prisma'
 import { refreshBracketSlotsFromGroup, propagateWinner, retractWinner } from './bracket-service'
 import { applyMatchElo, recalcMatchElo } from './ladder-elo-service'
 
+// El guardado recalcula tabla y llaves dentro de la transacción y, si dos resultados del
+// mismo grupo entran juntos, el segundo espera al primero (lock por grupo en
+// refreshBracketSlotsFromGroup). El default de Prisma (5 s) se quedaba corto.
+const RESULT_TX_OPTIONS = { maxWait: 10_000, timeout: 20_000 }
+
 export async function createMatchResult(data: {
   matchId: string
   reportedById: string
@@ -63,7 +68,7 @@ export async function createMatchResult(data: {
     }
 
     return result
-  })
+  }, RESULT_TX_OPTIONS)
 }
 
 export async function updateMatchResult(
@@ -126,7 +131,7 @@ export async function updateMatchResult(
     }
 
     return updated
-  })
+  }, RESULT_TX_OPTIONS)
 }
 
 export async function updateMatchResultPhoto(matchId: string, photoUrl: string | null) {

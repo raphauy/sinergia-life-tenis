@@ -56,6 +56,8 @@ export interface DoublesStandingView {
   dg: number
   /** 1° o 2° ya asegurado (resaltado en la tabla). */
   decided: boolean
+  /** Empate de 3+ parejas que define la organización (ver rankDoublesPlayers). */
+  tied: boolean
 }
 
 export interface DoublesGroupView {
@@ -65,6 +67,8 @@ export interface DoublesGroupView {
   total: number
   standings: DoublesStandingView[]
   matches: DoublesMatchView[]
+  /** Grupo terminado con un empate sin resolver: sus clasificados esperan al admin. */
+  hasUnresolvedTie: boolean
 }
 
 export interface DoublesCupView {
@@ -108,6 +112,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       select: {
         id: true,
         number: true,
+        tiebreakOrder: true,
         // Mismo filtro que getRankingByGroup.
         players: {
           where: { isActive: true, withdrawnAt: null, userId: { not: null } },
@@ -168,7 +173,8 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
     const ranking = rankDoublesPlayers(
       g.players.map((p) => ({ id: p.id, slug: p.slug, userId: p.userId! })),
       pairs,
-      ownMatches.filter((m) => m.status === 'PLAYED')
+      ownMatches.filter((m) => m.status === 'PLAYED'),
+      g.tiebreakOrder
     )
     const qualifiers = computeGroupQualifiers(
       ranking,
@@ -182,7 +188,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       if (!pair) return []
       const decided =
         (e.position === 1 && qualifiers.firstDecided) || (e.position === 2 && qualifiers.secondDecided)
-      return [{ position: e.position, pair, pj: e.pj, pg: e.pg, dg: e.gamesDiff, decided }]
+      return [{ position: e.position, pair, pj: e.pj, pg: e.pg, dg: e.gamesDiff, decided, tied: e.tied === true }]
     })
     return {
       id: g.id,
@@ -191,6 +197,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       total: groupMatches.length,
       standings,
       matches: groupMatches,
+      hasUnresolvedTie: qualifiers.fullyDecided && standings.some((s) => s.tied),
     }
   })
 
