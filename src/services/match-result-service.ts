@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { refreshBracketSlotsFromGroup, propagateWinner, retractWinner } from './bracket-service'
 import { applyMatchElo, recalcMatchElo } from './ladder-elo-service'
+import { RESULT_ALREADY_LOADED } from '@/lib/match-result-messages'
 
 // El guardado recalcula tabla y llaves dentro de la transacción y, si dos resultados del
 // mismo grupo entran juntos, el segundo espera al primero (lock por grupo en
@@ -29,8 +30,8 @@ export async function createMatchResult(data: {
     include: { result: true },
   })
   if (!match) throw new Error('Partido no encontrado')
+  if (match.result) throw new Error(RESULT_ALREADY_LOADED)
   if (match.status !== 'CONFIRMED') throw new Error('El partido debe estar confirmado para cargar resultado')
-  if (match.result) throw new Error('Este partido ya tiene resultado')
   if (!match.player1Id || !match.player2Id) throw new Error('El partido no tiene ambos jugadores asignados')
 
   return prisma.$transaction(async (tx) => {

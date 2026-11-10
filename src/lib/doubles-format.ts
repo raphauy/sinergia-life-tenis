@@ -50,6 +50,16 @@ export function doublesStageLabel(m: {
   return `Cuartos de final${cup}`
 }
 
+/**
+ * Posición de una pareja para mostrar fuera de la tabla: "2°", "empatada" si está en un
+ * empate que define la organización, o null si el grupo todavía no jugó ningún partido
+ * (el orden sería solo alfabético).
+ */
+export function doublesPositionLabel(groupPlayed: number, standing: { position: number; tied: boolean }): string | null {
+  if (groupPlayed === 0) return null
+  return standing.tied ? 'empatada' : `${standing.position}°`
+}
+
 /** "Dobles · sábado 14 de noviembre" (fecha solo-día del torneo). */
 export function doublesDateLine(startDate: Date): string {
   const date = longDateOnly(startDate)

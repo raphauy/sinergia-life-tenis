@@ -5,6 +5,7 @@ import { calendarMatchNames } from '@/lib/pair-display'
 import { getMatchById, selfScheduleLadderMatch } from '@/services/match-service'
 import { isUserInMatch } from '@/services/doubles-pair-service'
 import { createMatchResult, updateMatchResultPhoto } from '@/services/match-result-service'
+import { RESULT_ALREADY_LOADED } from '@/lib/match-result-messages'
 import { uploadImage, deleteImage } from '@/services/upload-service'
 import { notifyMatchResult } from '@/services/match-result-notification'
 import { createMatchResultSchema } from '@/lib/validations/match-result'
@@ -42,12 +43,12 @@ export async function playerLoadResultAction(
       return { success: false, error: 'No autorizado para este partido' }
     }
 
-    if (match.status !== 'CONFIRMED') {
-      return { success: false, error: 'El partido debe estar confirmado' }
+    if (match.result) {
+      return { success: false, error: RESULT_ALREADY_LOADED }
     }
 
-    if (match.result) {
-      return { success: false, error: 'Este partido ya tiene resultado' }
+    if (match.status !== 'CONFIRMED') {
+      return { success: false, error: 'El partido debe estar confirmado' }
     }
 
     if (!match.player1Id || !match.player2Id) {
@@ -91,7 +92,7 @@ export async function playerLoadResultAction(
   } catch (error) {
     const duplicated = typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002'
     const msg = duplicated
-      ? 'Ya cargaron el resultado de este partido'
+      ? RESULT_ALREADY_LOADED
       : error instanceof Error ? error.message : 'Error al cargar resultado'
     return { success: false, error: msg }
   }

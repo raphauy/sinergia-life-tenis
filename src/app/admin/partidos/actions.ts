@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth'
 import { createMatch, confirmMatch, rescheduleMatch, revertMatchToPending, getMatchById } from '@/services/match-service'
 import { createMatchResult, updateMatchResult } from '@/services/match-result-service'
+import { RESULT_ALREADY_LOADED } from '@/lib/match-result-messages'
 import { notifyMatchResult, notifyMatchResultEdited } from '@/services/match-result-notification'
 import { sendMatchConfirmationEmail, sendMatchRescheduledEmail, sendMatchCancelledEmail } from '@/services/email-service'
 import { createMatchSchema, confirmMatchSchema } from '@/lib/validations/match'
@@ -307,7 +308,7 @@ export async function adminLoadResultAction(
   } catch (error) {
     const duplicated = typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === 'P2002'
     const msg = duplicated
-      ? 'Ya cargaron el resultado de este partido'
+      ? RESULT_ALREADY_LOADED
       : error instanceof Error ? error.message : 'Error al cargar resultado'
     return { success: false, error: msg }
   }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { MatchResultForm } from '@/components/match-result-form'
 import { playerLoadResultAction } from './actions'
+import { RESULT_ALREADY_LOADED } from '@/lib/match-result-messages'
 import { uploadImage } from '@/services/upload-service'
 import { resizeImage } from '@/lib/resize-image'
 import type { MatchFormat } from '@prisma/client'
@@ -55,6 +56,10 @@ export function PlayerLoadResult({
         const result = await playerLoadResultAction(matchId, { ...data, photoUrl })
         if (result.success) {
           toast.success('Resultado cargado')
+          router.refresh()
+        } else if (result.error === RESULT_ALREADY_LOADED) {
+          // Otro de los jugadores lo cargó mientras este formulario estaba abierto: mostrarlo.
+          toast.info(RESULT_ALREADY_LOADED)
           router.refresh()
         }
         resolve(result)

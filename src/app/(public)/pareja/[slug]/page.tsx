@@ -9,6 +9,7 @@ import { memberFullName, pairFullName, pairShortName } from '@/lib/pair-display'
 import { initials } from '@/lib/format-name'
 import { blobUrl } from '@/lib/blob-url'
 import { formatDateOnly } from '@/lib/date-utils'
+import { doublesPositionLabel } from '@/lib/doubles-format'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DoublesMatchRow } from '@/components/doubles/doubles-match-row'
 
@@ -42,6 +43,7 @@ export default async function ParejaPage({ params }: Props) {
   ])
   const standing = standingOfPair(view, pair.slug)
   const matches = matchesOfPair(view, pair.slug)
+  const positionLabel = standing ? doublesPositionLabel(standing.group.played, standing.standing) : null
   const played = matches.filter((m) => m.score != null).length
 
   return (
@@ -81,11 +83,18 @@ export default async function ParejaPage({ params }: Props) {
         {standing && (
           <p className="mt-2 text-sm">
             <span className="font-semibold">Grupo {standing.group.letter}</span>
-            <span className="text-muted-foreground"> · </span>
-            <span className="font-semibold">{standing.standing.position}°</span>
+            {positionLabel && (
+              <>
+                <span className="text-muted-foreground"> · </span>
+                <span className="font-semibold">{positionLabel}</span>
+                <span className="text-muted-foreground">
+                  {standing.standing.tied ? ' (el orden lo define la organización)' : ' en el grupo'}
+                </span>
+              </>
+            )}
             <span className="text-muted-foreground">
               {' '}
-              en el grupo · {standing.standing.pj} PJ, {standing.standing.pg} PG, DG{' '}
+              · {standing.standing.pj} PJ, {standing.standing.pg} PG, DG{' '}
               {standing.standing.dg > 0 ? `+${standing.standing.dg}` : standing.standing.dg}
             </span>
           </p>

@@ -69,6 +69,11 @@ export interface DoublesGroupView {
   matches: DoublesMatchView[]
   /** Grupo terminado con un empate sin resolver: sus clasificados esperan al admin. */
   hasUnresolvedTie: boolean
+  /**
+   * Grupo terminado cuyo empate ya ordenó el admin: los capitanes (userId) de esas
+   * parejas, en el orden vigente. Vacío si no hubo empate o sigue sin resolver.
+   */
+  manualTieOrder: string[]
 }
 
 export interface DoublesCupView {
@@ -190,6 +195,22 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
         (e.position === 1 && qualifiers.firstDecided) || (e.position === 2 && qualifiers.secondDecided)
       return [{ position: e.position, pair, pj: e.pj, pg: e.pg, dg: e.gamesDiff, decided, tied: e.tied === true }]
     })
+    // Las que empatarían sin el orden manual: si hoy ninguna figura `tied`, lo ordenó el admin.
+    const tiedWithoutManual = new Set(
+      g.tiebreakOrder.length === 0
+        ? []
+        : rankDoublesPlayers(
+            g.players.map((p) => ({ id: p.id, slug: p.slug, userId: p.userId! })),
+            pairs,
+            ownMatches.filter((m) => m.status === 'PLAYED')
+          )
+            .filter((e) => e.tied)
+            .map((e) => e.userId)
+    )
+    const manualTieOrder =
+      qualifiers.fullyDecided && !ranking.some((e) => e.tied)
+        ? ranking.filter((e) => tiedWithoutManual.has(e.userId)).map((e) => e.userId)
+        : []
     return {
       id: g.id,
       letter: groupLetter(g.number),
@@ -198,6 +219,7 @@ export async function getDoublesTournamentView(categoryId: string, now: Date = n
       standings,
       matches: groupMatches,
       hasUnresolvedTie: qualifiers.fullyDecided && standings.some((s) => s.tied),
+      manualTieOrder,
     }
   })
 

@@ -130,6 +130,48 @@ function validateShape(input: Input): string[] {
   if (!Number.isInteger(input.matchMinutes) || input.matchMinutes <= 0) {
     errors.push('matchMinutes tiene que ser un entero positivo')
   }
+  if (errors.length === 0) errors.push(...validateSchedule(input))
+  return errors
+}
+
+/**
+ * Orden de los grupos y choques de horario (con la forma ya validada). Todos los partidos
+ * usan las mismas dos canchas, así que dos tandas a la misma hora se pisan. El número de
+ * grupo es la posición en el array: si el JSON no viene A, B, C, D, las letras y los
+ * cruces de las semis saldrían cambiados sin aviso.
+ */
+function validateSchedule(input: Input): string[] {
+  const errors: string[] = []
+  const expected = ['A', 'B', 'C', 'D']
+  const names = input.groups.map((g) => g.name.trim().toUpperCase())
+  if (names.join() !== expected.join()) {
+    errors.push(`los grupos tienen que venir en orden A, B, C, D (vienen ${names.join(', ')}): la posición define la letra y los cruces de las semis`)
+  }
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
+  const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+  const mm = input.matchMinutes
+  // Cada bloque ocupa las dos canchas desde `start` hasta `end`.
+  const blocks = [
+    ...input.groups.map((g) => ({ label: `grupo ${g.name}`, start: minutes(g.startTime), end: minutes(g.startTime) + ROUND_ROBIN.length * mm })),
+    { label: 'semis 1', start: minutes(input.finals.semis[0]), end: minutes(input.finals.semis[0]) + mm },
+    { label: 'semis 2', start: minutes(input.finals.semis[1]), end: minutes(input.finals.semis[1]) + mm },
+    { label: 'finales', start: minutes(input.finals.final), end: minutes(input.finals.final) + mm },
+  ]
+  for (let i = 0; i < blocks.length; i++) {
+    for (let j = i + 1; j < blocks.length; j++) {
+      const [x, y] = [blocks[i], blocks[j]]
+      if (x.start < y.end && y.start < x.end) {
+        errors.push(`${x.label} (${fmt(x.start)}–${fmt(x.end)}) se pisa con ${y.label} (${fmt(y.start)}–${fmt(y.end)}) en las mismas canchas`)
+      }
+    }
+  }
+  const [gA, gB, gC, gD, sf1, sf2, fin] = blocks
+  for (const [sf, sources] of [[sf1, [gA, gB]], [sf2, [gC, gD]]] as const) {
+    for (const g of sources) {
+      if (sf.start < g.end) errors.push(`${sf.label} (${fmt(sf.start)}) empiezan antes de que termine el ${g.label} (${fmt(g.end)}), del que salen sus parejas`)
+    }
+  }
+  if (fin.start < sf1.end || fin.start < sf2.end) errors.push(`las finales (${fmt(fin.start)}) empiezan antes de que terminen las semis`)
   return errors
 }
 

@@ -68,9 +68,15 @@ export function MatchResultForm({
   const s2Winner = Number(set2P1) > Number(set2P2) ? 1 : Number(set2P2) > Number(set2P1) ? 2 : 0
   const showSuperTb = isTwoSets && s1Winner !== 0 && s2Winner !== 0 && s1Winner !== s2Winner
 
-  const [tbHigh, tbLow] = isShortSet ? ['4', '3'] : ['7', '6']
-  const showTb1 = (set1P1 === tbHigh && set1P2 === tbLow) || (set1P1 === tbLow && set1P2 === tbHigh)
-  const showTb2 = isTwoSets && ((set2P1 === '7' && set2P2 === '6') || (set2P1 === '6' && set2P2 === '7'))
+  // Por número y no por texto: "04" también es 4 (el servidor lo convierte igual).
+  const isTbScore = (a: string, b: string, high: number, low: number) => {
+    if (a.trim() === '' || b.trim() === '') return false
+    const [x, y] = [Number(a), Number(b)]
+    return (x === high && y === low) || (x === low && y === high)
+  }
+  const [tbHigh, tbLow] = isShortSet ? [4, 3] : [7, 6]
+  const showTb1 = isTbScore(set1P1, set1P2, tbHigh, tbLow)
+  const showTb2 = isTwoSets && isTbScore(set2P1, set2P2, 7, 6)
 
   function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

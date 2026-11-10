@@ -10,6 +10,8 @@ import { setGroupTiebreakOrderAction } from './actions'
 export interface TiedGroup {
   groupId: string
   letter: string
+  /** El admin ya definió el orden: se muestra para poder corregirlo. */
+  resolved: boolean
   /** Posición del primero de los empatados (1 = el empate define 1°, 2° y 3°). */
   firstPosition: number
   pairs: { captainUserId: string; name: string }[]
@@ -53,11 +55,20 @@ function TiedGroupCard({ tournamentSlug, group }: { tournamentSlug: string; grou
   }
 
   return (
-    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
-      <p className="font-semibold">Grupo {group.letter}: empate entre {order.length} parejas</p>
+    <div
+      className={
+        group.resolved
+          ? 'rounded-md border p-3'
+          : 'rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40'
+      }
+    >
+      <p className="font-semibold">
+        Grupo {group.letter}: {group.resolved ? 'orden del empate definido' : `empate entre ${order.length} parejas`}
+      </p>
       <p className="mb-3 text-xs text-muted-foreground">
-        Tienen los mismos partidos ganados y la misma diferencia de games, y la tabla no lo puede resolver. Las semifinales
-        de este grupo esperan hasta que definas el orden (1° → Copa de Oro, 2° → Copa de Plata).
+        {group.resolved
+          ? 'Este es el orden que definiste para las parejas que habían empatado. Lo podés cambiar mientras las semifinales de este grupo no tengan resultado.'
+          : 'Tienen los mismos partidos ganados y la misma diferencia de games, y la tabla no lo puede resolver. Las semifinales de este grupo esperan hasta que definas el orden (1° → Copa de Oro, 2° → Copa de Plata).'}
       </p>
       <ol className="mb-3 space-y-1.5">
         {order.map((p, i) => (
@@ -73,8 +84,8 @@ function TiedGroupCard({ tournamentSlug, group }: { tournamentSlug: string; grou
           </li>
         ))}
       </ol>
-      <Button size="sm" onClick={save} disabled={isPending}>
-        {isPending ? 'Guardando...' : 'Guardar este orden'}
+      <Button size="sm" onClick={save} disabled={isPending || (group.resolved && order.every((p, i) => p.captainUserId === group.pairs[i]?.captainUserId))}>
+        {isPending ? 'Guardando...' : group.resolved ? 'Cambiar el orden' : 'Guardar este orden'}
       </Button>
     </div>
   )

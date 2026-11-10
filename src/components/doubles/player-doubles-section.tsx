@@ -1,3 +1,4 @@
+import { doublesPositionLabel } from '@/lib/doubles-format'
 import Link from 'next/link'
 import { Users } from 'lucide-react'
 import { getDoublesTournamentView, matchesOfPair, standingOfPair } from '@/services/doubles-view-service'
@@ -35,7 +36,8 @@ export async function PlayerDoublesSection({ pairs }: { pairs: PairWithTournamen
                 <Link href={`/torneo/${tournament.slug}`} className="hover:underline">
                   {tournament.name}
                 </Link>
-                {standing && ` · Grupo ${standing.group.letter} · ${standing.standing.position}°`}
+                {standing && ` · Grupo ${standing.group.letter}`}
+                {standing && doublesPositionLabel(standing.group.played, standing.standing) && ` · ${doublesPositionLabel(standing.group.played, standing.standing)}`}
               </span>
             </div>
             {matches.length === 0 ? (

@@ -66,11 +66,16 @@ export default async function TournamentDetailPage({ params }: Props) {
     for (const cat of tournament.categories) {
       const view = await getDoublesTournamentView(cat.id)
       for (const g of view.groups) {
-        if (!g.hasUnresolvedTie) continue
-        const tied = g.standings.filter((s) => s.tied)
+        // Sin resolver, o ya ordenado por el admin (lo puede volver a cambiar).
+        const resolved = !g.hasUnresolvedTie && g.manualTieOrder.length > 0
+        if (!g.hasUnresolvedTie && !resolved) continue
+        const tied = resolved
+          ? g.standings.filter((s) => g.manualTieOrder.includes(s.pair.pair.captain.userId))
+          : g.standings.filter((s) => s.tied)
         tiedGroups.push({
           groupId: g.id,
           letter: g.letter,
+          resolved,
           firstPosition: tied[0].position,
           pairs: tied.map((s) => ({ captainUserId: s.pair.pair.captain.userId, name: s.pair.shortName })),
         })
