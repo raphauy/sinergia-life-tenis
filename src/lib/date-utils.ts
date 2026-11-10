@@ -16,6 +16,17 @@ export function formatDateOnly(date: Date, fmt: string = 'dd/MM/yyyy') {
   return format(toZonedTime(date, 'UTC'), fmt)
 }
 
+/**
+ * Si ya se puede cargar el resultado de un partido. Singles y La Escalera: desde su
+ * hora. Dobles (torneo de una mañana, que puede ir adelantado): desde que empieza el
+ * día del partido en UY.
+ */
+export function resultLoadOpen(scheduledAt: Date | null, isDoubles: boolean, now: Date = new Date()): boolean {
+  if (!scheduledAt) return true
+  if (scheduledAt.getTime() <= now.getTime()) return true
+  return isDoubles && formatDateUY(scheduledAt, 'yyyy-MM-dd') === formatDateUY(now, 'yyyy-MM-dd')
+}
+
 /** Formatear hora en UY */
 export function formatTimeUY(date: Date) {
   return format(toZonedTime(date, TIMEZONE), 'HH:mm')

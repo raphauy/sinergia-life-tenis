@@ -134,6 +134,13 @@ export async function rescheduleMatchAction(
       courtNumber: validated.data.courtNumber ?? null,
     })
 
+    // Dobles: sin emails (el texto es de singles y solo llegaría a los capitanes).
+    if (match.tournament?.modality === 'DOUBLES') {
+      revalidatePath('/admin/partidos')
+      revalidatePath(`/admin/partidos/${matchId}`)
+      return { success: true }
+    }
+
     // Send emails to both players
     const dateStr = formatDateUY(match.scheduledAt!)
     const timeStr = formatTimeUY(match.scheduledAt!)
@@ -185,6 +192,11 @@ export async function cancelMatchAction(matchId: string, reason: string): Promis
     // Get match data before reverting (scheduledAt will be cleared)
     const matchBefore = await getMatchById(matchId)
     if (!matchBefore) return { success: false, error: 'Partido no encontrado' }
+    if (matchBefore.tournament?.modality === 'DOUBLES') {
+      // Cancelar lo devuelve a "pendiente" sin hora ni cancha, y en dobles nadie coordina
+      // partidos: quedaría sin poder jugarse. Para cambiar hora o cancha está Reprogramar.
+      return { success: false, error: 'Los partidos de dobles no se cancelan: usá Reprogramar para cambiarle la hora o la cancha.' }
+    }
 
     await revertMatchToPending(matchId)
     const adminName = fullName(session.user.firstName, session.user.lastName) || 'Admin'

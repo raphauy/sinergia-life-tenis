@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { fullName } from '@/lib/format-name'
 import { formatMatchScore } from '@/lib/format-score'
-import { formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY } from '@/lib/date-utils'
+import { formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY, resultLoadOpen } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { toZonedTime } from 'date-fns-tz'
 import { CalendarCheck, Sun, Sunset } from 'lucide-react'
@@ -249,7 +249,7 @@ export function FixtureMatchCard({ match, player1Slug, player2Slug, showDate = f
         Coordinar con tu rival →
       </Link>
     )) : match.status === 'CONFIRMED' && !match.result ? (
-      matchPassed ? (
+      resultLoadOpen(match.scheduledAt, isDoubles) ? (
         <Link href={matchHref} onClick={(e) => e.stopPropagation()} className="text-xs font-medium text-primary hover:underline">
           Cargar resultado →
         </Link>

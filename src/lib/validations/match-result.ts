@@ -1,7 +1,13 @@
 import { z } from 'zod'
 import type { MatchFormat } from '@prisma/client'
 
-const scoreField = z.coerce.number().int().min(0).max(7)
+// Un input de games vacío no es 0: sin esto "4" y vacío se guardaba como 4-0.
+const scoreField = z
+  .union([z.number(), z.string().trim().min(1, 'Completá los games de los dos lados')], {
+    error: 'Completá los games de los dos lados',
+  })
+  .transform((v) => Number(v))
+  .pipe(z.number({ error: 'Los games tienen que ser números' }).int().min(0).max(7))
 // Un input vacío llega como "" y `z.coerce.number()` lo haría 0: para los tiebreaks,
 // vacío (o null/undefined) significa "no cargado", así la rama "Tiebreak requerido"
 // se alcanza. Union explícita en vez de preprocess para no depender de su semántica.

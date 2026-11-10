@@ -16,7 +16,7 @@ import { getMatchRatingDeltas } from '@/services/ladder-elo-service'
 import { getLadderChallengerPreviews } from '@/services/ladder-stats-service'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatDateTimeUY, formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY } from '@/lib/date-utils'
+import { formatDateTimeUY, formatDateUY, formatTimeUY, friendlyDateTimeUY, longDateUY, resultLoadOpen } from '@/lib/date-utils'
 import { COURTS, TIMEZONE } from '@/lib/constants'
 import { MATCH_STATUS_LABELS, MATCH_STATUS_VARIANTS } from '@/lib/match-status'
 import { ArrowLeft, MessageCircle, Mail } from 'lucide-react'
@@ -118,7 +118,7 @@ export default async function MatchDetailPage({ params }: Props) {
   // Can load result: match is CONFIRMED, no result, and user is this player (or admin)
   const isOwner = session?.user?.id === player.userId
   const isAdmin = session?.user?.role === 'SUPERADMIN' || session?.user?.role === 'ADMIN'
-  const matchPassed = match.scheduledAt ? match.scheduledAt.getTime() <= Date.now() : true
+  const matchPassed = resultLoadOpen(match.scheduledAt, isDoubles)
   const canLoadResult =
     match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin)
 
@@ -382,6 +382,13 @@ export default async function MatchDetailPage({ params }: Props) {
       {match.status === 'CONFIRMED' && !match.result && !matchPassed && (isOwner || isAdmin) && (
         <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
           Podrás cargar el resultado una vez que se juegue el partido.
+        </div>
+      )}
+
+      {/* Semi o final que todavía espera a una pareja */}
+      {match.status === 'CONFIRMED' && !match.result && matchPassed && (isOwner || isAdmin) && !(match.player1Id && match.player2Id) && (
+        <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
+          Todavía falta definir {isDoubles ? 'la pareja rival' : 'el rival'}: vas a poder cargar el resultado cuando se cargue el partido anterior.
         </div>
       )}
 
