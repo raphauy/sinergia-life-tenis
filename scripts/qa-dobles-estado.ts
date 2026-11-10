@@ -20,6 +20,15 @@ const SCORES: Array<[number, number, number | null, number | null]> = [[4, 1, nu
 async function main() {
   const estado = process.argv[2]
   if (!estado) throw new Error('uso: tsx scripts/qa-dobles-estado.ts <pre|grupoA|grupos|semis|final>')
+  // Freno: este script mueve fechas y carga resultados inventados. Solo corre si el
+  // torneo `copa-summum` de esta base es el de prueba (todos sus jugadores son QA).
+  {
+    const { prisma } = await import('../src/lib/prisma')
+    const real = await prisma.player.count({
+      where: { tournament: { slug: 'copa-summum' }, NOT: { email: { endsWith: '@life-tenis.test' } } },
+    })
+    if (real > 0) throw new Error(`El torneo copa-summum de esta base tiene ${real} jugadores reales: este script es solo para la base de prueba. No se tocó nada.`)
+  }
   if (estado === 'pre') {
     execFileSync('pnpm', ['tsx', 'scripts/cargar-dobles.ts', JSON_PATH, '--reset', '--force', '--yes'], { stdio: 'inherit' })
   }

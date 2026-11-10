@@ -11,12 +11,22 @@ import { PrismaClient } from '@prisma/client'
 import { writeFileSync } from 'fs'
 
 const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_DATABASE_URL })
-const OUT = process.argv[2] ?? 'scripts/dobles/copa-summum.qa.json'
+const OUT = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'scripts/dobles/copa-summum.qa.json'
 
 const FIRST = ['Martín','Sebastián','Nicolás','Federico','Santiago','Francisco','Alejandro','Gonzalo','Agustín','Maximiliano','Guillermo','Rodrigo','Facundo','Ignacio','Leonardo','Fernando','Joaquín','Mauricio','Marcelo','Gabriel','Daniel','Eduardo','Patricio','Valentina','Florencia','Carolina','Victoria','Natalia','Cecilia','María Noel','Javier','Raphael']
 const LAST = ['Pereira','Silveira','Techera','Acosta','Olivera','Cabrera','Larrosa','Ferreira','Sosa','Machado','Núñez','Barboza','Rocha','Viera','Méndez','Píriz','Castro','Da Silva','Fernández','Gómez','Ríos','Pintos','Suárez','Correa','Martínez','Hernández','Blanco','Rodríguez Villamil','Lemos','de los Santos','Benítez','Aguirre']
 
 async function main() {
+  // Freno: crea 32 usuarios inventados. Decir contra qué base y pedir confirmación.
+  const dbHost = (process.env.DIRECT_DATABASE_URL ?? '').match(/@([^/:?]+)/)?.[1] ?? '(sin DIRECT_DATABASE_URL)'
+  console.log(`Base: ${dbHost}`)
+  if (!process.argv.includes('--yes')) {
+    const { createInterface } = await import('readline/promises')
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    const answer = (await rl.question('¿Crear los 32 usuarios de prueba en esa base? NUNCA en producción (s/N) ')).trim().toLowerCase()
+    rl.close()
+    if (answer !== 's' && answer !== 'si' && answer !== 'sí') { console.log('Cancelado.'); return }
+  }
   const singles = await prisma.tournament.findFirst({
     where: { modality: 'SINGLES', isActive: true },
     select: { id: true, slug: true, categories: { select: { id: true }, orderBy: { order: 'asc' }, take: 1 } },

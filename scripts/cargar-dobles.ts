@@ -165,13 +165,15 @@ async function main() {
   const reset = args.includes('--reset')
   const force = args.includes('--force')
   const yes = args.includes('--yes')
+  // --check: valida el JSON contra la base (usuarios, repetidos, forma) y no escribe nada.
+  const check = args.includes('--check')
   const path = args.find((a) => !a.startsWith('--'))
-  if (!path) fail('Uso: pnpm tsx scripts/cargar-dobles.ts <ruta.json> [--reset [--force]] [--yes]')
+  if (!path) fail('Uso: pnpm tsx scripts/cargar-dobles.ts <ruta.json> [--check] [--reset [--force]] [--yes]')
 
   // La base activa de .env.local suele ser Test: decir siempre contra cuál se escribe.
   const dbHost = (process.env.DIRECT_DATABASE_URL ?? '').match(/@([^/:?]+)/)?.[1] ?? '(sin DIRECT_DATABASE_URL)'
   console.log(`Base: ${dbHost}`)
-  if (!yes) {
+  if (!yes && !check) {
     const answer = await ask(`¿Escribir en esa base${reset ? ' (con --reset)' : ''}? (s/N) `)
     if (answer !== 's' && answer !== 'si' && answer !== 'sí') {
       console.log('Cancelado (sin confirmación; usá --yes para correr sin preguntar).')
@@ -211,9 +213,14 @@ async function main() {
     fail(`No existen como usuario (${missing.length}); no se escribió nada:\n  - ${missing.join('\n  - ')}`)
   }
 
+  // Un usuario inactivo no puede iniciar sesión: no podría cargar resultados el sábado.
+  const inactive = users.filter((u) => !u.isActive).map((u) => u.email)
+  if (inactive.length > 0) {
+    fail(`Usuarios inactivos (${inactive.length}), no pueden iniciar sesión; activalos y volvé a correr. No se escribió nada:\n  - ${inactive.join('\n  - ')}`)
+  }
+
   const warnings: string[] = []
   for (const u of users) {
-    if (!u.isActive) warnings.push(`El usuario ${u.email} está inactivo`)
     if (!u.firstName?.trim() || !u.lastName?.trim()) warnings.push(`El usuario ${u.email} no tiene nombre y apellido completos`)
   }
 
@@ -233,6 +240,12 @@ async function main() {
       `El torneo "${t.slug}" ya tiene ${existing._count.matches} resultado(s) cargado(s): --reset los borraría. ` +
         'Si es lo que querés, agregá --force.',
     )
+  }
+
+  if (check) {
+    console.log(`Validación OK: ${emails.length} personas, ${groups.length} grupos. No se escribió nada (--check).`)
+    for (const w of warnings) console.log(`  - Advertencia: ${w}`)
+    return
   }
 
   // ---- 2. Escritura en una transacción ----
