@@ -65,3 +65,6 @@ skills-lock.json
 .claude/skills/next-cache-components
 .claude/skills/shadcn-ui
 .claude/skills/web-design-guidelines
+
+# Copa Summum: el JSON real tiene los emails de los jugadores
+scripts/dobles/copa-summum.json
