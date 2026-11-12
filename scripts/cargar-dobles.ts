@@ -30,8 +30,12 @@
  * - Las 32 personas tienen que existir como User (match por email en minúsculas).
  *   Si falta alguna se listan y no se escribe nada.
  * - Horas en hora de Uruguay; se guardan en UTC.
- * - Round robin de 4 en 3 tandas por grupo: P1–P2 c1 / P3–P4 c2, P1–P3 c1 / P2–P4 c2,
- *   P1–P4 c1 / P2–P3 c2.
+ * - Horarios de grupo, dos formas (una por grupo, se pueden mezclar):
+ *   · "startTime": round robin de 4 en 3 tandas seguidas usando las dos canchas a la vez:
+ *     P1–P2 c1 / P3–P4 c2, P1–P3 c1 / P2–P4 c2, P1–P4 c1 / P2–P3 c2.
+ *   · "schedule": los 6 partidos uno por uno, para un fixture intercalado entre grupos:
+ *     [{ "time": "08:00", "court": 1, "match": [1, 2] }, ...] donde match son las posiciones
+ *     (1–4) de las parejas en "pairs". Tienen que estar los 6 cruces, una vez cada uno.
  * - Definición: Oro SF1 = 1°A vs 1°B, Oro SF2 = 1°C vs 1°D; Plata igual con los 2°.
  *   Las finales se llenan con propagateWinner.
  */
@@ -53,9 +57,19 @@ const GROUPS = 4
 const PAIRS_PER_GROUP = 4
 const CATEGORY_NAME = 'Dobles'
 
+interface InputGroupMatch {
+  time: string
+  court: number
+  /** Posiciones (1–4) de las dos parejas en `pairs`. */
+  match: [number, number]
+}
+
 interface InputGroup {
   name: string
-  startTime: string
+  /** Tandas seguidas en las dos canchas. Excluyente con `schedule`. */
+  startTime?: string
+  /** Los 6 partidos con su hora y cancha. Excluyente con `startTime`. */
+  schedule?: InputGroupMatch[]
   pairs: [string, string][]
 }
 
@@ -75,6 +89,58 @@ const ROUND_ROBIN: [number, number][][] = [
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
+const fmtMinutes = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+
+interface GroupMatchSlot {
+  /** Índices (0–3) de las parejas en `pairs`. */
+  a: number
+  b: number
+  court: number
+  /** Hora de inicio en minutos desde las 00:00 (hora de Uruguay). */
+  start: number
+}
+
+/** Los 6 partidos de un grupo con hora y cancha, venga con `startTime` o con `schedule`. */
+function groupMatchSlots(g: InputGroup, courts: [number, number], matchMinutes: number): GroupMatchSlot[] {
+  if (g.schedule) {
+    return g.schedule.map((m) => ({ a: m.match[0] - 1, b: m.match[1] - 1, court: m.court, start: toMinutes(m.time) }))
+  }
+  const start = toMinutes(g.startTime!)
+  return ROUND_ROBIN.flatMap((matches, round) =>
+    matches.map(([a, b], ci) => ({ a, b, court: courts[ci], start: start + round * matchMinutes })),
+  )
+}
+
+/** Valida el `schedule` de un grupo: 6 partidos bien formados que cubren los 6 cruces. */
+function validateGroupSchedule(label: string, schedule: unknown): string[] {
+  const total = ROUND_ROBIN.flat().length
+  if (!Array.isArray(schedule) || schedule.length !== total) {
+    return [`${label}: schedule tiene que tener exactamente ${total} partidos`]
+  }
+  const errors: string[] = []
+  const seen = new Set<string>()
+  schedule.forEach((m: InputGroupMatch, i) => {
+    const at = `${label}, partido ${i + 1}`
+    if (!TIME_RE.test(m?.time ?? '')) errors.push(`${at}: time debe ser HH:mm`)
+    if (!Number.isInteger(m?.court) || m.court < 1) errors.push(`${at}: court tiene que ser un número de cancha`)
+    const pair = m?.match
+    if (
+      !Array.isArray(pair) ||
+      pair.length !== 2 ||
+      pair.some((n) => !Number.isInteger(n) || n < 1 || n > PAIRS_PER_GROUP) ||
+      pair[0] === pair[1]
+    ) {
+      errors.push(`${at}: match tiene que ser dos posiciones distintas entre 1 y ${PAIRS_PER_GROUP}`)
+      return
+    }
+    const key = [...pair].sort().join('-')
+    if (seen.has(key)) errors.push(`${at}: el cruce ${pair[0]} vs ${pair[1]} está repetido`)
+    seen.add(key)
+  })
+  return errors
+}
 
 function fail(msg: string): never {
   console.error(`\n✖ ${msg}`)
@@ -100,7 +166,11 @@ function validateShape(input: Input): string[] {
     input.groups.forEach((g, i) => {
       const label = `grupo ${g?.name ?? i + 1}`
       if (typeof g?.name !== 'string' || !g.name.trim()) errors.push(`grupo ${i + 1}: falta name`)
-      if (!TIME_RE.test(g?.startTime ?? '')) errors.push(`${label}: startTime debe ser HH:mm`)
+      const hasStart = g?.startTime !== undefined
+      const hasSchedule = g?.schedule !== undefined
+      if (hasStart === hasSchedule) errors.push(`${label}: tiene que traer startTime o schedule (uno solo)`)
+      else if (hasStart && !TIME_RE.test(g.startTime ?? '')) errors.push(`${label}: startTime debe ser HH:mm`)
+      else if (hasSchedule) errors.push(...validateGroupSchedule(label, g.schedule))
       if (!Array.isArray(g?.pairs) || g.pairs.length !== PAIRS_PER_GROUP) {
         errors.push(`${label}: tiene que tener exactamente ${PAIRS_PER_GROUP} parejas`)
       } else {
@@ -135,8 +205,8 @@ function validateShape(input: Input): string[] {
 }
 
 /**
- * Orden de los grupos y choques de horario (con la forma ya validada). Todos los partidos
- * usan las mismas dos canchas, así que dos tandas a la misma hora se pisan. El número de
+ * Orden de los grupos y choques de horario (con la forma ya validada): dos partidos no
+ * pueden compartir cancha a la misma hora ni una pareja jugar dos a la vez. El número de
  * grupo es la posición en el array: si el JSON no viene A, B, C, D, las letras y los
  * cruces de las semis saldrían cambiados sin aviso.
  */
@@ -147,36 +217,60 @@ function validateSchedule(input: Input): string[] {
   if (names.join() !== expected.join()) {
     errors.push(`los grupos tienen que venir en orden A, B, C, D (vienen ${names.join(', ')}): la posición define la letra y los cruces de las semis`)
   }
-  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))
-  const fmt = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
   const mm = input.matchMinutes
-  // Cada bloque ocupa las dos canchas desde `start` hasta `end`.
-  const blocks = [
-    ...input.groups.map((g) => ({ label: `grupo ${g.name}`, start: minutes(g.startTime), end: minutes(g.startTime) + ROUND_ROBIN.length * mm })),
-    { label: 'semis 1', start: minutes(input.finals.semis[0]), end: minutes(input.finals.semis[0]) + mm },
-    { label: 'semis 2', start: minutes(input.finals.semis[1]), end: minutes(input.finals.semis[1]) + mm },
-    { label: 'finales', start: minutes(input.finals.final), end: minutes(input.finals.final) + mm },
-  ]
-  for (let i = 0; i < blocks.length; i++) {
-    for (let j = i + 1; j < blocks.length; j++) {
-      const [x, y] = [blocks[i], blocks[j]]
-      if (x.start < y.end && y.start < x.end) {
-        errors.push(`${x.label} (${fmt(x.start)}–${fmt(x.end)}) se pisa con ${y.label} (${fmt(y.start)}–${fmt(y.end)}) en las mismas canchas`)
+  const { semis, final, courts } = input.finals
+
+  // Cada partido ocupa una cancha desde `start` hasta `end`.
+  interface Slot { label: string; court: number; start: number; end: number; group?: number; pairs?: [number, number] }
+  const slots: Slot[] = []
+  // Fin del último partido de cada grupo.
+  const groupEnd: number[] = []
+  input.groups.forEach((g, gi) => {
+    const matches = groupMatchSlots(g, courts, mm)
+    for (const m of matches) {
+      slots.push({
+        label: `grupo ${g.name} ${m.a + 1} vs ${m.b + 1}`,
+        court: m.court,
+        start: m.start,
+        end: m.start + mm,
+        group: gi,
+        pairs: [m.a, m.b],
+      })
+    }
+    groupEnd.push(Math.max(...matches.map((m) => m.start + mm)))
+  })
+  const finalsBlocks = [
+    { label: 'semis 1', start: toMinutes(semis[0]) },
+    { label: 'semis 2', start: toMinutes(semis[1]) },
+    { label: 'finales', start: toMinutes(final) },
+  ].map((b) => ({ ...b, end: b.start + mm }))
+  for (const b of finalsBlocks) {
+    for (const court of courts) slots.push({ label: b.label, court, start: b.start, end: b.end })
+  }
+
+  const range = (x: Slot) => `${fmtMinutes(x.start)}–${fmtMinutes(x.end)}`
+  for (let i = 0; i < slots.length; i++) {
+    for (let j = i + 1; j < slots.length; j++) {
+      const [x, y] = [slots[i], slots[j]]
+      if (!(x.start < y.end && y.start < x.end)) continue
+      if (x.court === y.court) {
+        errors.push(`${x.label} (${range(x)}) se pisa con ${y.label} (${range(y)}) en la cancha ${x.court}`)
+      } else if (x.group !== undefined && x.group === y.group && x.pairs!.some((p) => y.pairs!.includes(p))) {
+        errors.push(`${x.label} (${range(x)}) y ${y.label} (${range(y)}): una pareja juega dos partidos a la vez`)
       }
     }
   }
-  const [gA, gB, gC, gD, sf1, sf2, fin] = blocks
-  for (const [sf, sources] of [[sf1, [gA, gB]], [sf2, [gC, gD]]] as const) {
-    for (const g of sources) {
-      if (sf.start < g.end) errors.push(`${sf.label} (${fmt(sf.start)}) empiezan antes de que termine el ${g.label} (${fmt(g.end)}), del que salen sus parejas`)
+
+  const [sf1, sf2, fin] = finalsBlocks
+  for (const [sf, sources] of [[sf1, [0, 1]], [sf2, [2, 3]]] as const) {
+    for (const gi of sources) {
+      if (sf.start < groupEnd[gi]) {
+        errors.push(`${sf.label} (${fmtMinutes(sf.start)}) empiezan antes de que termine el grupo ${input.groups[gi].name} (${fmtMinutes(groupEnd[gi])}), del que salen sus parejas`)
+      }
     }
   }
-  if (fin.start < sf1.end || fin.start < sf2.end) errors.push(`las finales (${fmt(fin.start)}) empiezan antes de que terminen las semis`)
+  if (fin.start < sf1.end || fin.start < sf2.end) errors.push(`las finales (${fmtMinutes(fin.start)}) empiezan antes de que terminen las semis`)
   return errors
-}
-
-function addMinutes(date: Date, minutes: number): Date {
-  return new Date(date.getTime() + minutes * 60_000)
 }
 
 /** Parte del slug de una persona para el slug de la pareja: su apellido, o el nombre completo. */
@@ -392,27 +486,24 @@ async function main() {
           captainUserIds.push(captain.id)
         }
 
-        const start = parseFromUY(date, g.startTime)
-        for (const [round, matches] of ROUND_ROBIN.entries()) {
-          for (const [ci, [a, b]] of matches.entries()) {
-            await tx.match.create({
-              data: {
-                tournamentId: tournament.id,
-                categoryId: category.id,
-                groupId: group.id,
-                stage: 'GROUP',
-                status: 'CONFIRMED',
-                player1Id: captainUserIds[a],
-                player2Id: captainUserIds[b],
-                courtNumber: courts[ci],
-                scheduledAt: addMinutes(start, round * input.matchMinutes),
-                externalCourt: false,
-                selfScheduled: false,
-                confirmedAt: new Date(),
-              },
-            })
-            groupMatchCount++
-          }
+        for (const m of groupMatchSlots(g, courts, input.matchMinutes)) {
+          await tx.match.create({
+            data: {
+              tournamentId: tournament.id,
+              categoryId: category.id,
+              groupId: group.id,
+              stage: 'GROUP',
+              status: 'CONFIRMED',
+              player1Id: captainUserIds[m.a],
+              player2Id: captainUserIds[m.b],
+              courtNumber: m.court,
+              scheduledAt: parseFromUY(date, fmtMinutes(m.start)),
+              externalCourt: false,
+              selfScheduled: false,
+              confirmedAt: new Date(),
+            },
+          })
+          groupMatchCount++
         }
       }
 

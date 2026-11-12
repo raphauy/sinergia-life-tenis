@@ -13,6 +13,7 @@ Rama `dobles` → `main`. Mapa wayfinder #1; tickets #5, #6, #7, #8, #9, #10, #1
 
 - QA visual de Raphael en el worktree `sinergia-worktrees/dobles` (apunta al branch de Neon `dobles`, con el torneo de prueba `copa-summum` cargado). Lo único no verificado por agentes: el detalle privado `/jugador/[slug]/partidos/[matchId]` de un partido de dobles (requiere sesión).
 - Armar el JSON real como `scripts/dobles/copa-summum.json` (copiando `copa-summum.ejemplo.json`). Ese nombre está en `.gitignore`: tiene los 32 emails y no debe entrar al repo.
+- Horarios de grupo: cada grupo trae `startTime` (tres tandas seguidas en las dos canchas, como el ejemplo) o `schedule` (los 6 partidos con su hora y cancha: `{ "time": "08:00", "court": 1, "match": [1, 2] }`, donde `match` son las posiciones de las parejas en `pairs`). El fixture de Mati intercala A/B con C/D cada 20 minutos, así que el JSON real usa `schedule`.
 - Confirmar con Mati la regla de empate: ganados → diferencia de games → partido entre sí (solo si empatan dos). Triple empate total: lo ordena él a mano (ver sección 4).
 - Revisar la tabla de diminutivos en `src/lib/display-name.ts` (apodos tipo Tincho, Nacho, Pato, Andy).
 
