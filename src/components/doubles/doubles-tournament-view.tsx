@@ -9,12 +9,17 @@ import type {
   DoublesTournamentView,
 } from '@/services/doubles-view-service'
 import { DoublesMatchRow, PairName } from './doubles-match-row'
+import { DoublesRulesDialog } from './doubles-rules-dialog'
 
 /** Vista de un torneo de dobles: Definición (arriba si ya hay parejas en semis, si no al pie) y los grupos. */
 export function DoublesTournamentBody({ view }: { view: DoublesTournamentView }) {
   const definition = view.cups.length > 0 ? <DoublesDefinition cups={view.cups} /> : null
   return (
     <div className="space-y-8">
+      {/* Margen negativo: el link no debe separar el encabezado de los grupos. */}
+      <div className="-mb-5 flex justify-end">
+        <DoublesRulesDialog />
+      </div>
       {view.definitionStarted && definition}
       {view.groups.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">

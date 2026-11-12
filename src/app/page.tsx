@@ -52,7 +52,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (!tournament) return LADDER_METADATA
   const title = `${tournament.name} · Life Tenis`
   const description = `${doublesDateLine(tournament.startDate)} en Life Montevideo: grupos, partidos y resultados en vivo, Copa de Oro y Copa de Plata.`
-  const images = [{ url: '/hero-dobles.jpg', width: 1600, height: 600, alt: tournament.name }]
+  const images = [{ url: '/hero-dobles.jpg', width: 2400, height: 900, alt: tournament.name }]
   return {
     title: { absolute: title },
     description,
