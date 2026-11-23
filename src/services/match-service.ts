@@ -403,6 +403,19 @@ async function withPairs<T extends Prisma.MatchGetPayload<{ include: typeof matc
   return matches.map((m) => ({ ...m, pairs: pairs.get(m.id) ?? null }))
 }
 
+/**
+ * Los partidos de un torneo de dobles se muestran en el perfil del jugador solo
+ * mientras el torneo está en portada (`featuredOnHome`): apagar el switch del admin
+ * los oculta (p. ej. torneo postergado con parejas por rearmar). Singles y La
+ * Escalera no dependen del switch.
+ */
+const visibleInPlayerProfile: Prisma.MatchWhereInput = {
+  OR: [
+    { tournamentId: null },
+    { tournament: { OR: [{ modality: { not: 'DOUBLES' } }, { featuredOnHome: true }] } },
+  ],
+}
+
 export async function getMatchesByPlayer(userId: string) {
   // Orden por fecha del partido (scheduledAt) desc → el más reciente arriba. En
   // escalera createdAt es cuándo se aceptó el reto, no cuándo se jugó, así que
@@ -410,7 +423,7 @@ export async function getMatchesByPlayer(userId: string) {
   // torneo) caen al final, desempatados por createdAt. Los consumidores re-ordenan
   // los próximos partidos por su cuenta; este orden gobierna el historial jugado.
   const matches = await prisma.match.findMany({
-    where: { OR: await userMatchesWhere(userId) },
+    where: { OR: await userMatchesWhere(userId), AND: visibleInPlayerProfile },
     include: matchIncludes,
     orderBy: [{ scheduledAt: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   })
@@ -492,6 +505,7 @@ export async function getUpcomingMatches(userId: string) {
   const matches = await prisma.match.findMany({
     where: {
       OR: await userMatchesWhere(userId),
+      AND: visibleInPlayerProfile,
       status: { in: ['PENDING', 'CONFIRMED'] },
     },
     include: matchIncludes,

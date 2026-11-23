@@ -308,11 +308,14 @@ export async function getPairByPublicSlug(slug: string): Promise<PairWithTournam
   return null
 }
 
-/** Las parejas de dobles en las que juega el usuario, del torneo más reciente al más viejo. */
+/**
+ * Las parejas de dobles en las que juega el usuario, del torneo más reciente al más
+ * viejo. Solo de torneos en portada: con el switch apagado el perfil no muestra dobles.
+ */
 export async function getPairsForUser(userId: string): Promise<PairWithTournament[]> {
   const rows = await prisma.doublesPair.findMany({
     where: {
-      category: { tournament: { modality: 'DOUBLES' } },
+      category: { tournament: { modality: 'DOUBLES', featuredOnHome: true } },
       OR: [{ captain: { userId } }, { partner: { userId } }],
     },
     include: { ...pairInclude, ...pairTournamentSelect },

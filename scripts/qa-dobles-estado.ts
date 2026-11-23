@@ -36,6 +36,10 @@ async function main() {
   const { createMatchResult } = await import('../src/services/match-result-service')
   const t = await prisma.tournament.findUnique({ where: { slug: 'copa-summum' }, select: { id: true } })
   if (!t) throw new Error('No está cargado copa-summum: corré `pre` primero')
+  // QA: el perfil del jugador muestra dobles solo con el torneo en portada, y la carga lo
+  // deja apagado. Se prende acá para que los chequeos de próximos/partidos del jugador
+  // (qa-dobles-simulacro, qa-dobles-servicios) vean los partidos. Idempotente; apaga la portada de cualquier otro torneo de la base de prueba.
+  await (await import('../src/services/tournament-service')).setFeaturedOnHome(t.id, true)
   // QA: el torneo es el 14/11 y la app no deja cargar un resultado antes de la hora del
   // partido. Se corren todos los partidos a 2 días atrás (misma hora) para poder cargar.
   // Fecha fija: anteayer (UTC), conservando la hora original de cada partido. Idempotente.
