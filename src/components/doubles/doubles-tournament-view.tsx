@@ -16,8 +16,8 @@ export function DoublesTournamentBody({ view }: { view: DoublesTournamentView })
   const definition = view.cups.length > 0 ? <DoublesDefinition cups={view.cups} /> : null
   return (
     <div className="space-y-8">
-      {/* Margen negativo: el link no debe separar el encabezado de los grupos. */}
-      <div className="-mb-5 flex justify-end">
+      {/* mb-3 pisa el margen de space-y-8 (que va en margin-bottom): el link queda pegado a los grupos. */}
+      <div className="mb-3 flex justify-end">
         <DoublesRulesDialog />
       </div>
       {view.definitionStarted && definition}

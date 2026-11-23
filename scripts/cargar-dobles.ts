@@ -37,6 +37,12 @@
  *     [{ "time": "08:00", "court": 1, "match": [1, 2] }, ...] donde match son las posiciones
  *     (1–4) de las parejas en "pairs". Tienen que estar los 6 cruces, una vez cada uno.
  * - Definición: Oro SF1 = 1°A vs 1°B, Oro SF2 = 1°C vs 1°D; Plata igual con los 2°.
+ *   "finals.semis" tiene dos formas:
+ *   · ["12:00", "12:30"]: las dos semis A/B a la primera hora y las dos C/D a la segunda,
+ *     Oro en courts[0] y Plata en courts[1].
+ *   · { "gold": [{ "time", "court" }, { "time", "court" }], "silver": [...] }: cada semi con
+ *     su hora y cancha (la primera de cada copa es la de A/B, la segunda la de C/D).
+ *   Las finales van a la hora "final": Oro en courts[0] y Plata en courts[1].
  *   Las finales se llenan con propagateWinner.
  */
 
@@ -64,6 +70,14 @@ interface InputGroupMatch {
   match: [number, number]
 }
 
+interface InputSlot {
+  time: string
+  court: number
+}
+
+/** Dos horas (tandas A/B y C/D) o cada semi con su hora y cancha. */
+type InputSemis = [string, string] | { gold: [InputSlot, InputSlot]; silver: [InputSlot, InputSlot] }
+
 interface InputGroup {
   name: string
   /** Tandas seguidas en las dos canchas. Excluyente con `schedule`. */
@@ -76,7 +90,7 @@ interface InputGroup {
 interface Input {
   tournament: { name: string; slug: string; date: string; description?: string }
   groups: InputGroup[]
-  finals: { semis: [string, string]; final: string; courts: [number, number] }
+  finals: { semis: InputSemis; final: string; courts: [number, number] }
   matchMinutes: number
 }
 
@@ -111,6 +125,50 @@ function groupMatchSlots(g: InputGroup, courts: [number, number], matchMinutes: 
   return ROUND_ROBIN.flatMap((matches, round) =>
     matches.map(([a, b], ci) => ({ a, b, court: courts[ci], start: start + round * matchMinutes })),
   )
+}
+
+interface SemiSlot {
+  cup: Cup
+  /** 1 = sale de los grupos A y B; 2 = de los grupos C y D. */
+  bracketPosition: 1 | 2
+  time: string
+  court: number
+}
+
+/** Las 4 semis con hora y cancha, venga `finals.semis` como dos horas o semi por semi. */
+function semiSlots(finals: Input['finals']): SemiSlot[] {
+  const { semis, courts } = finals
+  if (Array.isArray(semis)) {
+    return [
+      { cup: 'GOLD', bracketPosition: 1, time: semis[0], court: courts[0] },
+      { cup: 'SILVER', bracketPosition: 1, time: semis[0], court: courts[1] },
+      { cup: 'GOLD', bracketPosition: 2, time: semis[1], court: courts[0] },
+      { cup: 'SILVER', bracketPosition: 2, time: semis[1], court: courts[1] },
+    ]
+  }
+  return ([['GOLD', semis.gold], ['SILVER', semis.silver]] as const).flatMap(([cup, slots]) =>
+    slots.map((slot, i) => ({ cup, bracketPosition: (i + 1) as 1 | 2, time: slot.time, court: slot.court })),
+  )
+}
+
+/** Valida la forma de `finals.semis` (cualquiera de las dos). */
+function validateSemisShape(semis: unknown): string[] {
+  if (Array.isArray(semis)) {
+    return semis.length === 2 && semis.every((s) => TIME_RE.test(s)) ? [] : ['finals.semis tiene que ser dos horas HH:mm']
+  }
+  const byCup = semis as Record<string, unknown> | null | undefined
+  const errors: string[] = []
+  for (const cup of ['gold', 'silver']) {
+    const slots = byCup?.[cup]
+    if (
+      !Array.isArray(slots) ||
+      slots.length !== 2 ||
+      slots.some((x: InputSlot) => !TIME_RE.test(x?.time ?? '') || !Number.isInteger(x?.court) || x.court < 1)
+    ) {
+      errors.push(`finals.semis.${cup} tiene que ser dos semis { "time": "HH:mm", "court": n }`)
+    }
+  }
+  return errors
 }
 
 /** Valida el `schedule` de un grupo: 6 partidos bien formados que cubren los 6 cruces. */
@@ -184,9 +242,8 @@ function validateShape(input: Input): string[] {
   }
 
   const f = input.finals
-  if (!f || !Array.isArray(f.semis) || f.semis.length !== 2 || f.semis.some((s) => !TIME_RE.test(s))) {
-    errors.push('finals.semis tiene que ser dos horas HH:mm')
-  }
+  if (!f) errors.push('falta finals')
+  else errors.push(...validateSemisShape(f.semis))
   if (!f || !TIME_RE.test(f.final ?? '')) errors.push('finals.final debe ser HH:mm')
   if (
     !f ||
@@ -218,7 +275,7 @@ function validateSchedule(input: Input): string[] {
     errors.push(`los grupos tienen que venir en orden A, B, C, D (vienen ${names.join(', ')}): la posición define la letra y los cruces de las semis`)
   }
   const mm = input.matchMinutes
-  const { semis, final, courts } = input.finals
+  const { final, courts } = input.finals
 
   // Cada partido ocupa una cancha desde `start` hasta `end`.
   interface Slot { label: string; court: number; start: number; end: number; group?: number; pairs?: [number, number] }
@@ -239,13 +296,17 @@ function validateSchedule(input: Input): string[] {
     }
     groupEnd.push(Math.max(...matches.map((m) => m.start + mm)))
   })
-  const finalsBlocks = [
-    { label: 'semis 1', start: toMinutes(semis[0]) },
-    { label: 'semis 2', start: toMinutes(semis[1]) },
-    { label: 'finales', start: toMinutes(final) },
-  ].map((b) => ({ ...b, end: b.start + mm }))
-  for (const b of finalsBlocks) {
-    for (const court of courts) slots.push({ label: b.label, court, start: b.start, end: b.end })
+  const cupName = (cup: Cup) => (cup === 'GOLD' ? 'Oro' : 'Plata')
+  const semiList = semiSlots(input.finals).map((sf) => ({
+    ...sf,
+    label: `semi ${sf.bracketPosition} de ${cupName(sf.cup)}`,
+    start: toMinutes(sf.time),
+    end: toMinutes(sf.time) + mm,
+  }))
+  for (const sf of semiList) slots.push({ label: sf.label, court: sf.court, start: sf.start, end: sf.end })
+  const finalStart = toMinutes(final)
+  for (const [ci, court] of courts.entries()) {
+    slots.push({ label: `final de ${ci === 0 ? 'Oro' : 'Plata'}`, court, start: finalStart, end: finalStart + mm })
   }
 
   const range = (x: Slot) => `${fmtMinutes(x.start)}–${fmtMinutes(x.end)}`
@@ -261,15 +322,15 @@ function validateSchedule(input: Input): string[] {
     }
   }
 
-  const [sf1, sf2, fin] = finalsBlocks
-  for (const [sf, sources] of [[sf1, [0, 1]], [sf2, [2, 3]]] as const) {
-    for (const gi of sources) {
+  for (const sf of semiList) {
+    // Semi 1 sale de los grupos A y B (índices 0 y 1); semi 2, de C y D.
+    for (const gi of sf.bracketPosition === 1 ? [0, 1] : [2, 3]) {
       if (sf.start < groupEnd[gi]) {
-        errors.push(`${sf.label} (${fmtMinutes(sf.start)}) empiezan antes de que termine el grupo ${input.groups[gi].name} (${fmtMinutes(groupEnd[gi])}), del que salen sus parejas`)
+        errors.push(`la ${sf.label} (${fmtMinutes(sf.start)}) empieza antes de que termine el grupo ${input.groups[gi].name} (${fmtMinutes(groupEnd[gi])}), del que salen sus parejas`)
       }
     }
+    if (finalStart < sf.end) errors.push(`las finales (${fmtMinutes(finalStart)}) empiezan antes de que termine la ${sf.label} (${fmtMinutes(sf.end)})`)
   }
-  if (fin.start < sf1.end || fin.start < sf2.end) errors.push(`las finales (${fmtMinutes(fin.start)}) empiezan antes de que terminen las semis`)
   return errors
 }
 
@@ -385,7 +446,7 @@ async function main() {
   }
 
   // ---- 2. Escritura en una transacción ----
-  const { semis, final, courts } = input.finals
+  const { final, courts } = input.finals
   const date = t.date
 
   const summary = await prisma.$transaction(
@@ -518,10 +579,14 @@ async function main() {
         court: number
         sources?: [string, string]
       }[] = [
-        { cup: 'GOLD', stage: 'SEMIFINAL', bracketPosition: 1, time: semis[0], court: courts[0], sources: [gA, gB] },
-        { cup: 'SILVER', stage: 'SEMIFINAL', bracketPosition: 1, time: semis[0], court: courts[1], sources: [gA, gB] },
-        { cup: 'GOLD', stage: 'SEMIFINAL', bracketPosition: 2, time: semis[1], court: courts[0], sources: [gC, gD] },
-        { cup: 'SILVER', stage: 'SEMIFINAL', bracketPosition: 2, time: semis[1], court: courts[1], sources: [gC, gD] },
+        ...semiSlots(input.finals).map((sf) => ({
+          cup: sf.cup,
+          stage: 'SEMIFINAL' as const,
+          bracketPosition: sf.bracketPosition,
+          time: sf.time,
+          court: sf.court,
+          sources: (sf.bracketPosition === 1 ? [gA, gB] : [gC, gD]) as [string, string],
+        })),
         { cup: 'GOLD', stage: 'FINAL', bracketPosition: 1, time: final, court: courts[0] },
         { cup: 'SILVER', stage: 'FINAL', bracketPosition: 1, time: final, court: courts[1] },
       ]
