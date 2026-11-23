@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { eloWinnerDelta } from '@/lib/elo'
+import { eloLoserLoss, eloWinnerDelta } from '@/lib/elo'
 import type { Prisma } from '@prisma/client'
 
 type Tx = Prisma.TransactionClient
@@ -14,8 +14,8 @@ interface LadderMatch {
 /**
  * Aplica el resultado de un partido de escalera al rating ELO de ambos miembros,
  * dentro de la MISMA transacción que crea el MatchResult. No-op si no es de
- * escalera. Suma-cero: el perdedor recibe el negativo exacto del delta del
- * ganador. Walkover → ELO-neutral (deja 2 filas con delta 0 para trazabilidad
+ * escalera. El perdedor recibe el negativo del delta del ganador, recortado por
+ * el piso de la escalera (nadie baja de ratingFloor por perder). Walkover → ELO-neutral (deja 2 filas con delta 0 para trazabilidad
  * y para que una edición posterior tenga filas que recalcular).
  */
 export async function applyMatchElo(
@@ -27,7 +27,7 @@ export async function applyMatchElo(
   if (!match.ladderId || !match.player1Id || !match.player2Id) return
 
   const loserId = winnerId === match.player1Id ? match.player2Id : match.player1Id
-  const ladder = await tx.ladder.findUnique({ where: { id: match.ladderId }, select: { kFactor: true } })
+  const ladder = await tx.ladder.findUnique({ where: { id: match.ladderId }, select: { kFactor: true, ratingFloor: true } })
   if (!ladder) return
 
   const [winner, loser] = await Promise.all([
@@ -41,10 +41,11 @@ export async function applyMatchElo(
   }
 
   const delta = isWalkover ? 0 : eloWinnerDelta(ladder.kFactor, winner.rating, loser.rating)
+  const loss = eloLoserLoss(delta, loser.rating, ladder.ratingFloor)
 
   await Promise.all([
     tx.ladderMember.update({ where: { id: winner.id }, data: { rating: winner.rating + delta } }),
-    tx.ladderMember.update({ where: { id: loser.id }, data: { rating: loser.rating - delta } }),
+    tx.ladderMember.update({ where: { id: loser.id }, data: { rating: loser.rating - loss } }),
     tx.ratingHistory.create({
       data: {
         ladderMemberId: winner.id,
@@ -61,8 +62,8 @@ export async function applyMatchElo(
         reason: 'MATCH',
         matchId: match.id,
         ratingBefore: loser.rating,
-        ratingAfter: loser.rating - delta,
-        delta: -delta,
+        ratingAfter: loser.rating - loss,
+        delta: -loss,
       },
     }),
   ])
@@ -92,7 +93,7 @@ export async function recalcMatchElo(
     return
   }
 
-  const ladder = await tx.ladder.findUnique({ where: { id: match.ladderId }, select: { kFactor: true } })
+  const ladder = await tx.ladder.findUnique({ where: { id: match.ladderId }, select: { kFactor: true, ratingFloor: true } })
   if (!ladder) return
 
   const winnerRow = rows.find((r) => r.member.userId === newWinnerId)
@@ -104,10 +105,16 @@ export async function recalcMatchElo(
 
   // Nuevo delta computado con los ratings de ANTES de este partido (guardados).
   const newDelta = newIsWalkover ? 0 : eloWinnerDelta(ladder.kFactor, winnerRow.ratingBefore, loserRow.ratingBefore)
+  const newLoss = eloLoserLoss(newDelta, loserRow.ratingBefore, ladder.ratingFloor)
 
-  // Por cada miembro: rating_actual − delta_viejo + delta_nuevo (signed).
+  // Por cada miembro: rating_actual − delta_viejo + delta_nuevo (signed). El piso
+  // también vale acá: el recálculo no deja a nadie por debajo de ratingFloor (salvo
+  // que ya estuviera por debajo, que no lo hundimos más).
   const applyRow = async (row: typeof winnerRow, signedNewDelta: number) => {
-    const newCurrentRating = row.member.rating - row.delta + signedNewDelta
+    const newCurrentRating = Math.max(
+      row.member.rating - row.delta + signedNewDelta,
+      Math.min(ladder.ratingFloor, row.member.rating)
+    )
     await Promise.all([
       tx.ladderMember.update({ where: { id: row.member.id }, data: { rating: newCurrentRating } }),
       tx.ratingHistory.update({
@@ -118,7 +125,7 @@ export async function recalcMatchElo(
   }
 
   await applyRow(winnerRow, newDelta)
-  await applyRow(loserRow, -newDelta)
+  await applyRow(loserRow, -newLoss)
 }
 
 /** Deltas de rating (signed) por userId para un partido jugado (para mostrar en el detalle). */

@@ -111,7 +111,8 @@ export default async function EscaleraDocPage() {
         <DocSection icon={<TrendingUp className="h-5 w-5" />} title="Cómo se calculan los puntos">
           <p>
             Usamos un sistema <Hl>ELO</Hl> de suma cero: en cada partido, los puntos que gana uno son
-            exactamente los que pierde el otro.
+            exactamente los que pierde el otro. La única excepción es el piso: nadie baja de{' '}
+            <Hl>{cfg.ratingFloor} puntos</Hl>, así que quien pierde estando en {cfg.ratingFloor} se queda en {cfg.ratingFloor}.
           </p>
           <p>
             Cuánto se mueve depende de la diferencia entre los dos jugadores:

@@ -453,7 +453,7 @@ model Ladder {
   seedStep              Int      @default(20)   // -20 por puesto
   minMatchesPerMonth    Int      @default(2)
   monthlyPenalty        Int      @default(50)   // -50 por no llegar al mínimo (se guarda positivo, se resta)
-  ratingFloor           Int      @default(0)    // piso: la multa no baja el rating por debajo de esto
+  ratingFloor           Int      @default(0)    // piso: ni la multa ni perder un partido bajan el rating por debajo de esto
   monthlyWarningLeadDays Int     @default(3)    // días antes de fin de mes para el aviso pre-cierre
   maxChallengesPerMonth Int      @default(4)    // retos iniciados por mes
   maxOpenChallenges     Int      @default(2)    // retos abiertos en simultáneo

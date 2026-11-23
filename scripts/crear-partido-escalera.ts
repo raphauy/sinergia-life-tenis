@@ -36,7 +36,7 @@ config({ path: '.env.local', override: false })
 
 import { PrismaClient, type Prisma } from '@prisma/client'
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz'
-import { eloWinnerDelta } from '../src/lib/elo'
+import { eloLoserLoss, eloWinnerDelta } from '../src/lib/elo'
 
 const TIMEZONE = 'America/Montevideo'
 const APPLY = process.argv.includes('--apply')
@@ -203,6 +203,8 @@ async function main() {
       if (!lm || !lm.isActive) throw new Error(`${fullName(loser)} no es miembro activo de la escalera`)
 
       const delta = eloWinnerDelta(ladder.kFactor, wm.rating, lm.rating)
+      // Piso: el perdedor no baja de ratingFloor (igual que applyMatchElo).
+      const loss = eloLoserLoss(delta, lm.rating, ladder.ratingFloor)
 
       console.log(`Escalera:  ${ladder.name} (K=${ladder.kFactor})`)
       console.log(`Retador:   ${fullName(challenger)}  (player1)`)
@@ -210,7 +212,7 @@ async function main() {
       console.log(`Jugado:    ${uy(scheduledAt)} UY · ${externalCourt ? 'cancha externa' : `Cancha ${courtNumber}`}`)
       console.log(`Resultado: ${g1}-${g2}${tb ? ` (${tb[0]}-${tb[1]})` : ''} → gana ${fullName(winner)} · reporta ${fullName(reporter)}`)
       console.log(`Elo:       ${fullName(winner)} ${wm.rating} → ${wm.rating + delta} (+${delta})`)
-      console.log(`           ${fullName(loser)} ${lm.rating} → ${lm.rating - delta} (-${delta})`)
+      console.log(`           ${fullName(loser)} ${lm.rating} → ${lm.rating - loss} (-${loss})`)
       for (const o of others) {
         console.log(`No se toca: partido ${o.status} ${o.id}${o.scheduledAt ? ` (${uy(o.scheduledAt)} UY)` : ''}`)
       }
@@ -257,11 +259,11 @@ async function main() {
         },
       })
       await tx.ladderMember.update({ where: { id: wm.id }, data: { rating: wm.rating + delta } })
-      await tx.ladderMember.update({ where: { id: lm.id }, data: { rating: lm.rating - delta } })
+      await tx.ladderMember.update({ where: { id: lm.id }, data: { rating: lm.rating - loss } })
       await tx.ratingHistory.createMany({
         data: [
           { ladderMemberId: wm.id, reason: 'MATCH', matchId: match.id, ratingBefore: wm.rating, ratingAfter: wm.rating + delta, delta },
-          { ladderMemberId: lm.id, reason: 'MATCH', matchId: match.id, ratingBefore: lm.rating, ratingAfter: lm.rating - delta, delta: -delta },
+          { ladderMemberId: lm.id, reason: 'MATCH', matchId: match.id, ratingBefore: lm.rating, ratingAfter: lm.rating - loss, delta: -loss },
         ],
       })
 
@@ -281,7 +283,7 @@ async function main() {
       expect(check.result?.winnerId === winner.id, 'ganador del resultado incorrecto')
       expect((check.result!.set1Player1 > check.result!.set1Player2 ? check.player1Id : check.player2Id) === check.result!.winnerId, 'score y ganador no coinciden')
       expect(check.ratingHistory.length === 2, `historial de rating: ${check.ratingHistory.length} filas (esperaba 2)`)
-      expect(check.ratingHistory.reduce((s, r) => s + r.delta, 0) === 0, 'Elo no es suma-cero')
+      expect(check.ratingHistory.reduce((s, r) => s + r.delta, 0) === delta - loss, 'Elo no cierra (ganador +delta, perdedor −pérdida con piso)')
       for (const r of check.ratingHistory) {
         expect(r.ratingAfter === r.ratingBefore + r.delta, `historial ${r.id}: after ≠ before + delta`)
         expect(r.member.rating === r.ratingAfter, `rating actual de ${r.member.userId} ≠ ratingAfter`)
@@ -293,7 +295,7 @@ async function main() {
       }
       if (problems.length > 0) throw new Error(`Verificación falló:\n  - ${problems.join('\n  - ')}`)
 
-      console.log(`\nVerificación OK (partido, reto, resultado, Elo suma-cero, historial).`)
+      console.log(`\nVerificación OK (partido, reto, resultado, Elo, historial).`)
       if (!APPLY) throw new DryRun()
       console.log(`\n✅ Creado. Partido ${match.id} · Reto ${challenge.id}`)
     }, { maxWait: 10_000, timeout: 20_000 })

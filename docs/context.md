@@ -115,7 +115,7 @@ _Código_: `Challenge` (1–1 con `Match` una vez aceptado).
 _Evitar_: "desafío" suelto en código — usar `Challenge`.
 
 **Rating**:
-Puntaje ELO de un **Miembro**; su orden define el puesto en **La Escalera**. Suma-cero (lo que gana uno lo pierde el otro), `K=24` de arranque. Baja por inactividad (penalización mensual). Seed inicial desde el primer torneo: −20 puntos por puesto, A>B>C (1500→700).
+Puntaje ELO de un **Miembro**; su orden define el puesto en **La Escalera**. Suma-cero (lo que gana uno lo pierde el otro), `K=24` de arranque; excepción: nadie baja del piso (`ratingFloor`, 0) por perder, el ganador cobra igual. Baja por inactividad (penalización mensual). Seed inicial desde el primer torneo: −20 puntos por puesto, A>B>C (1500→700).
 _Código_: `LadderMember.rating` (+ historial para gráficos y "jugador de la semana").
 _UI_ (decidido en Fase 4): el **valor** se muestra como **«puntos»** ("1266 puntos en La Escalera") y la palabra **«Ranking»** se reserva para el **puesto** ("Ranking #8"). En código sigue siendo `rating`. _Deuda_: algunas superficies legacy aún dicen "ranking" para el valor (columna de la tabla, "X de ranking" en tarjetas) — pendiente de unificar a "puntos".
 _Evitar_: usar «ranking» para el **valor** (es el **puesto**). El valor es **«puntos»**.

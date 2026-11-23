@@ -56,7 +56,7 @@ const NUM_FIELDS = [
   { key: 'reservationLeadDays', label: 'Anticipación de reserva (días)', hint: 'Hasta cuántos días adelante se pueden reservar canchas.', min: 1, max: 120, group: 'partidos' },
   { key: 'minMatchesPerMonth', label: 'Mínimo de partidos al mes', hint: 'Partidos a jugar por mes para no recibir la multa de puntos.', min: 0, max: 30, group: 'fase3' },
   { key: 'monthlyPenalty', label: 'Penalización mensual', hint: 'Puntos a descontar por no llegar al mínimo.', min: 0, max: 500, group: 'fase3' },
-  { key: 'ratingFloor', label: 'Piso de puntos', hint: 'La multa nunca baja los puntos por debajo de este valor.', min: 0, max: 2000, group: 'fase3' },
+  { key: 'ratingFloor', label: 'Piso de puntos', hint: 'Ni la multa ni perder un partido bajan los puntos por debajo de este valor.', min: 0, max: 2000, group: 'fase3' },
   { key: 'monthlyWarningLeadDays', label: 'Aviso pre-cierre (días)', hint: 'Días antes de fin de mes para avisar a quien va por debajo del mínimo.', min: 1, max: 28, group: 'fase3' },
 ] as const
 

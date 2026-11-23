@@ -145,7 +145,7 @@ Auth: env `CRON_SECRET`; Vercel manda `Authorization: Bearer $CRON_SECRET`; la r
 - **Conteo por miembro activo** (`isActive`): partidos `Match` `PLAYED` con `ladderId`, `playedAt` dentro del mes UY, donde el miembro fue `player1`/`player2`. En **walkover** el ganador suma, el ausente (no-ganador) **no**. `CANCELLED` no cuenta.
 - **Gracia de alta**: si `joinedAt` cae en el mes que se cierra, el miembro **no** se penaliza ese mes (recién se le exige el mínimo desde el primer mes calendario completo).
 - **Multa**: si jugados < `minMatchesPerMonth` → restar `monthlyPenalty` (positivo en BD, se resta) con **piso** `Ladder.ratingFloor` (default 0): el delta aplicado = `-min(monthlyPenalty, rating - ratingFloor)`. Se registra `RatingHistory` reason `PENALTY` con `ratingBefore`/`ratingAfter`/`delta`. Si el delta resulta 0 (ya en el piso), no se escribe fila ni se emaila.
-- La multa es un **sumidero** (deflaciona el total a propósito; no es suma-cero). El piso solo aplica a la multa, **nunca** a los deltas de partido.
+- La multa es un **sumidero** (deflaciona el total a propósito; no es suma-cero). ~~El piso solo aplica a la multa, nunca a los deltas de partido.~~ **Cambiado el 2026-11-23:** el piso también aplica al perdedor de un partido: pierde `min(delta, rating - ratingFloor)` y el ganador cobra su delta entero (ese partido deja de ser suma-cero e infla el total). Motivo: los recién llegados entran en el piso y quedaban en negativo al perder su primer partido. Ver `eloLoserLoss` en `src/lib/elo.ts`.
 - **Email de multa**: a cada miembro penalizado, con el descuento y el nuevo rating.
 
 ### Cron diario (`runLadderDailyTasks`)
@@ -231,7 +231,7 @@ Multa aplicada → miembro penalizado · Aviso pre-cierre → miembro bajo míni
 
 - **`Match` no-nulo hoy.** Volver `tournamentId`/`categoryId` nullable rompe el typecheck en el módulo torneo a propósito; recorrer cada error y manejar el `null` (es el plan, no un bug). Distinguir partido de torneo vs escalera por `ladderId != null` (no por `stage`).
 - **Partidos referencian `User`, no `Player`/`LadderMember`.** El reto y el rating son sobre `User`. El `LadderMember` aporta el rating; el partido usa `player1Id`/`player2Id` (User).
-- **Suma-cero con redondeo:** redondear el delta del ganador y aplicar su negativo al perdedor (`deltaLoser = -deltaWinner`) para que el rating total nunca se infle.
+- **Suma-cero con redondeo:** redondear el delta del ganador y aplicar su negativo al perdedor (`deltaLoser = -deltaWinner`) para que el rating total nunca se infle. Excepción (2026-11-23): el perdedor no baja de `ratingFloor`, ver Fase 3.
 - **Timezone:** el mes y las ventanas se calculan en `America/Montevideo` y se guardan en UTC (`src/lib/date-utils.ts`). El cron debe usar límites de mes UY.
 - **Idempotencia del cron:** registrar el cierre en `LadderPeriodClose` (`@@unique([ladderId, year, month])`) y abortar si ya existe. Vercel puede reintentar.
 - **Reserva NO gateada:** cualquiera de los dos jugadores de un partido de escalera puede reservar; no se verifica actividad. La inactividad penaliza puntos, no el acceso. (El campo `priorityEligible` se elimina en Fase 3.)

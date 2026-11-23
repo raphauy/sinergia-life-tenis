@@ -398,7 +398,7 @@ export async function getInbox(userId: string): Promise<{ received: InboxChallen
     const rivalId = isSent ? c.challengedId : c.challengerId
     const rivalRating = ratingMap.get(rivalId) ?? null
     const preview =
-      viewerRating != null && rivalRating != null ? eloPreview(ladder.kFactor, viewerRating, rivalRating) : null
+      viewerRating != null && rivalRating != null ? eloPreview(ladder.kFactor, viewerRating, rivalRating, ladder.ratingFloor) : null
     return {
       id: c.id,
       status: c.status,
@@ -478,7 +478,7 @@ export async function getPendingChallenges(): Promise<PublicPendingChallenge[]> 
     const challenger = standByUser.get(c.challengerId)
     const challenged = standByUser.get(c.challengedId)
     if (!challenger || !challenged) continue
-    const { ifWin, ifLose } = eloPreview(ladder.kFactor, challenger.rating, challenged.rating)
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, challenger.rating, challenged.rating, ladder.ratingFloor)
     out.push({
       id: c.id,
       challenger: toParty(challenger),
@@ -615,7 +615,7 @@ export async function getLadderView(
     const owner = entryByUser.get(ownerId)
     const rival = entryByUser.get(rivalId)
     if (!owner || !rival) return // alguno fuera del ranking (inactivo): no se muestra
-    const { ifWin, ifLose } = eloPreview(ladder.kFactor, owner.rating, rival.rating)
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, owner.rating, rival.rating, ladder.ratingFloor)
     const list = activitiesByUser.get(ownerId) ?? []
     list.push({
       kind,
@@ -708,7 +708,7 @@ export async function getLadderView(
       return { ...e, state: st.state, matchId: st.matchId, ifWin: null, ifLose: null, activities }
     }
     // Fila retable: incluir el preview ELO del viewer.
-    const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, e.rating)
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, e.rating, ladder.ratingFloor)
     return { ...e, state: 'none', matchId: null, ifWin, ifLose, activities }
   })
 
@@ -773,7 +773,7 @@ export async function getMemberChallenges(userId: string): Promise<MemberChallen
     const rivalId = isChallenger ? c.challengedId : c.challengerId
     const rival = standByUser.get(rivalId)
     if (!rival) continue // rival inactivo / fuera de la escalera
-    const { ifWin, ifLose } = eloPreview(ladder.kFactor, me.rating, rival.rating)
+    const { ifWin, ifLose } = eloPreview(ladder.kFactor, me.rating, rival.rating, ladder.ratingFloor)
     cards.push({
       id: c.id,
       kind: c.status === 'ACCEPTED' ? 'playing' : isChallenger ? 'sent' : 'received',
@@ -853,7 +853,7 @@ export async function getChallengeState(viewerUserId: string, rivalUserId: strin
     return { state: active.challengerId === viewerUserId ? 'sent' : 'received', matchId: null, preview: null, disabledReason: null }
   }
 
-  const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, rival.rating)
+  const { ifWin, ifLose } = eloPreview(ladder.kFactor, viewer.rating, rival.rating, ladder.ratingFloor)
   const disabledReason = await viewerChallengeBlock(ladder, viewerUserId)
   return { state: 'none', matchId: null, preview: { ifWin, ifLose }, disabledReason }
 }
@@ -933,6 +933,6 @@ export async function getChallengePreview(actorId: string, rivalId: string): Pro
     }),
   ])
   if (!a || !r) return null
-  const { ifWin, ifLose } = eloPreview(ladder.kFactor, a.rating, r.rating)
+  const { ifWin, ifLose } = eloPreview(ladder.kFactor, a.rating, r.rating, ladder.ratingFloor)
   return { ifWin, ifLose, actorRating: a.rating, rivalRating: r.rating }
 }

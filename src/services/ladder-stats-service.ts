@@ -440,7 +440,7 @@ export async function getFeaturedMatches(): Promise<FeaturedMatch[]> {
         player1Rank: m.player1Id ? positionByUser.get(m.player1Id) ?? null : null,
         player2Rank: m.player2Id ? positionByUser.get(m.player2Id) ?? null : null,
         importance: (r1 ?? 0) + (r2 ?? 0),
-        preview: r1 != null && r2 != null ? eloPreview(ladder.kFactor, r1, r2) : null,
+        preview: r1 != null && r2 != null ? eloPreview(ladder.kFactor, r1, r2, ladder.ratingFloor) : null,
         resultDeltas: deltaMap.get(m.id) ?? null,
         reservation: m.status === 'PENDING' ? reservationMap.get(m.id) ?? null : null,
       }
@@ -508,7 +508,7 @@ export async function getLadderChallengerPreviews(
     const r1 = ratingByUser.get(m.player1Id!)
     const r2 = ratingByUser.get(m.player2Id!)
     if (r1 == null || r2 == null) continue
-    out.set(m.id, eloPreview(ladder.kFactor, r1, r2))
+    out.set(m.id, eloPreview(ladder.kFactor, r1, r2, ladder.ratingFloor))
   }
   return out
 }
