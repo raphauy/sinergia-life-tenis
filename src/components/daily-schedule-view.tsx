@@ -14,7 +14,7 @@ import {
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import type { CalendarMatch, CalendarReservation, LadderReservationInfo } from './court-availability-calendar'
-import { groupBySlot, slotContextLabel, ScheduleLegend } from './court-availability-calendar'
+import { groupBySlot, slotsWithOffHours, slotContextLabel, ScheduleLegend } from './court-availability-calendar'
 
 interface Props {
   matches: CalendarMatch[]
@@ -58,7 +58,9 @@ function formatDateKey(day: Date) {
 export function DailyScheduleView({ matches, reservations = [], day, ladderReservation = null }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const dayOfWeek = day.getDay()
-  const slots = getSlotsForDay(dayOfWeek)
+  const daySlots = getSlotsForDay(dayOfWeek)
+  // Partidos fuera del horario del club (Copa Summum un sábado de tarde): se suman sus turnos.
+  const slots = slotsWithOffHours(daySlots, matches)
   // Un partido a las :20 o :40 (Copa Summum) cuenta en el turno en punto que lo contiene.
   const byTime = groupBySlot(matches, slots)
   const reservationsByTime = groupBySlot(reservations, slots)

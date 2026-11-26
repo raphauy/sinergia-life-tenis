@@ -4,7 +4,7 @@ import { useState, useMemo, useTransition, useCallback } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { CalendarDayButton } from '@/components/ui/calendar'
 import { DailyScheduleView } from './daily-schedule-view'
-import { getDayBlock, isLadderReservableDay } from '@/lib/constants'
+import { getDayBlock, isLadderReservableDay, TIME_SLOTS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { es } from 'date-fns/locale'
 import type { DayButtonProps } from 'react-day-picker'
@@ -45,13 +45,34 @@ export type FetchMonthReservations = (tournamentId: string | undefined, year: nu
 
 /**
  * Turno del día que contiene una hora: el último turno que empieza a esa hora o antes
- * (un partido de la Copa Summum a las 08:20 va en el turno de 08:00; uno a las 13:00
- * en el último turno del sábado). Si la hora es anterior al primer turno, va al primero.
+ * (un partido de la Copa Summum a las 08:20 va en el turno de 08:00). Si la hora es
+ * anterior al primer turno, va al primero.
  */
 export function slotForTime(slots: string[], timeUY: string): string {
   let found = slots[0] ?? timeUY
   for (const slot of slots) if (slot <= timeUY) found = slot
   return found
+}
+
+/**
+ * Turnos que muestra la agenda de un día: los del club más los turnos de la tarde en los
+ * que haya algo cargado fuera de su horario (la Copa Summum un sábado de tarde, cuando el
+ * club solo da turnos de mañana). Los agregados son solo para ver: no se reservan.
+ */
+export function slotsWithOffHours(daySlots: string[], items: { timeUY: string }[]): string[] {
+  const last = daySlots.at(-1)
+  if (!last) return daySlots
+  // Hasta una hora después de que empieza el último turno, el partido es de ese turno
+  // (un sábado a las 12:40 sigue ocupando el de 12:00, que no puede verse libre).
+  const [h, m] = last.split(':').map(Number)
+  const lastEnd = `${String(h + 1).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const extra = new Set<string>()
+  for (const item of items) {
+    if (item.timeUY < lastEnd) continue
+    const slot = slotForTime(TIME_SLOTS, item.timeUY)
+    if (slot > last) extra.add(slot)
+  }
+  return extra.size === 0 ? daySlots : [...daySlots, ...TIME_SLOTS.filter((s) => extra.has(s))]
 }
 
 /** Agrupa partidos o reservas por el turno que los contiene (ver `slotForTime`). */

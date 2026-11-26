@@ -15,7 +15,7 @@ import {
 import { REJECT_REASON_LABELS, type RejectReservationReason } from '@/lib/validations/reservation'
 import { toast } from 'sonner'
 import type { CalendarMatch, CalendarReservation } from './court-availability-calendar'
-import { groupBySlot, slotContextLabel } from './court-availability-calendar'
+import { groupBySlot, slotsWithOffHours, slotContextLabel } from './court-availability-calendar'
 import type { PendingMatch } from '@/app/admin/actions-calendar'
 
 interface Props {
@@ -42,7 +42,9 @@ function formatDateKey(day: Date) {
 export function AdminDailySchedule({ matches, reservations = [], day, searchAction, confirmAction, confirmReservationAction, rejectReservationAction, cancelMatchAction, changeCourtAction, tournamentId, onConfirmed }: Props) {
   const firstOccupiedRef = useRef<HTMLDivElement>(null)
   const dayOfWeek = day.getDay()
-  const slots = getSlotsForDay(dayOfWeek)
+  const daySlots = getSlotsForDay(dayOfWeek)
+  // Partidos fuera del horario del club (Copa Summum un sábado de tarde): se suman sus turnos.
+  const slots = slotsWithOffHours(daySlots, matches)
   // Un partido a las :20 o :40 (Copa Summum) cuenta en el turno en punto que lo contiene.
   const byTime = groupBySlot(matches, slots)
   const reservationsByTime = groupBySlot(reservations, slots)
@@ -205,7 +207,8 @@ export function AdminDailySchedule({ matches, reservations = [], day, searchActi
           const isFirst = (total > 0 || isBlocked) && !foundFirst
           if (isFirst) foundFirst = true
           const isOpen = openSlot === slot
-          const isFree = total < 2 && !block
+          // Un turno agregado fuera del horario del club es solo para ver.
+          const isFree = total < 2 && !block && daySlots.includes(slot)
 
           return (
             <div key={slot} ref={isFirst ? firstOccupiedRef : undefined}>
